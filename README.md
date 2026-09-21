@@ -132,6 +132,12 @@ Planned: Kaggle Credit Card Fraud dataset (PCA features V1–V28, `Time`,
 
 ---
 
+## 📜 License
+
+Released under the MIT License. See [`LICENSE`](LICENSE).
+
+---
+
 ## 👤 Author
 
 **Deepan Mehta** — analytics → data engineering → AI/ML.
