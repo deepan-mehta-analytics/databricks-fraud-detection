@@ -39,7 +39,7 @@ Provisional. Only rows marked "verified" have been checked against docs.
 
 | Layer | Tool | Purpose |
 |---|---|---|
-| Compute / lakehouse | Databricks (Free Edition target) | Pipelines, Unity Catalog, ML (quotas unverified, G-08) |
+| Compute / lakehouse | Databricks (Free Edition target) | Pipelines, Unity Catalog, ML (serverless only, limits verified, G-08) |
 | Streaming source | Confluent Cloud Kafka (Basic) | Transaction events (pricing verified, G-07) |
 | Governance | Unity Catalog | Grants to groups, row filters, column masks (verified, G-06) |
 | Checkpoints | Unity Catalog Volumes | DBFS root is deprecated (verified, G-03) |
@@ -114,7 +114,8 @@ None. No number is reported until it is measured from a real run.
 ## ⚠️ Known Limitations
 
 - Scaffold only; no pipeline exists
-- Open gaps are tracked in `docs/GAPS.md` (currently G-01, G-02, G-04, G-05, G-08, G-09)
+- Open gaps are tracked in `docs/GAPS.md` (currently G-01, G-04, G-05, G-09)
+- Real-Time Mode needs classic compute and is unavailable on Free Edition; serverless streaming supports only `Trigger.AvailableNow` and Lakeflow pipelines (G-02)
 - The Databricks Data Engineer Associate coverage map is not yet built
 
 ## 🔜 Roadmap

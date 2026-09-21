@@ -19,7 +19,7 @@ settled.
 
 | Item | Status |
 |---|---|
-| Databricks Free Edition quotas (serverless, Lakebase, Apps, model serving) | unverified, see G-08 |
+| Free Edition numeric quotas (daily compute quota, model-serving endpoint count) | unverified; feature-level limits are verified, see G-08 |
 | Whether a Confluent Basic cluster can be paused, and trial reactivation terms | unverified, see G-07 |
 | Total monthly cost (the brief's ₹0–400 claim) | unverified, see G-09 |
 
