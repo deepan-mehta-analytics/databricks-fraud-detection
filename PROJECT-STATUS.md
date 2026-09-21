@@ -29,7 +29,7 @@ Provisional — to be replaced by the real plan once Phase 0 research lands.
 | 7 — Live demo window + teardown | ⏳ Pending | |
 
 ## Last commit
-Local scaffold commit only (`git log`); no remote configured yet.
+Local commits only (`git log`); no remote configured yet, so CI has not run.
 
 ## Metrics
 No results yet. No number is reported until it is measured from a real run.
