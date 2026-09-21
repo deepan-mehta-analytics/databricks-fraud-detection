@@ -1,0 +1,25 @@
+# ── Agent workflow files (local-only, never tracked) ──────────
+/CLAUDE.md
+/workflow_status.md
+/workflow_status_archive.md
+
+# ── Secrets and credentials ───────────────────────────────────
+.env
+.env.*
+*.pem
+*.key
+
+# ── Local data (large / regenerable datasets) ─────────────────
+/data/*
+!/data/.gitkeep
+
+# ── Python ────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# ── Databricks / IDE ──────────────────────────────────────────
+.databricks/
+.vscode/
+.idea/
