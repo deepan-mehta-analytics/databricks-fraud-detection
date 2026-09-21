@@ -6,12 +6,14 @@
 # ── Secrets and credentials ───────────────────────────────────
 .env
 .env.*
+!.env.example
 *.pem
 *.key
 
 # ── Local data (large / regenerable datasets) ─────────────────
 /data/*
 !/data/.gitkeep
+!/data/README.md
 
 # ── Python ────────────────────────────────────────────────────
 __pycache__/

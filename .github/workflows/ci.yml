@@ -1,0 +1,15 @@
+# Minimal CI: only the check that currently exists (repo hygiene).
+# Lint and test jobs are added when Phase 2 lands Python source.
+name: ci # workflow name shown in the Actions tab
+
+on: # triggers
+  push: # run on every push
+    branches: [main] # only the main branch
+  pull_request: # and on pull requests
+
+jobs: # job definitions
+  hygiene: # verify no local-only or secret files are tracked
+    runs-on: ubuntu-latest # standard GitHub-hosted runner
+    steps: # ordered steps
+      - uses: actions/checkout@v4 # fetch the repository
+      - run: make check-hygiene # fail if .env, CLAUDE.md or workflow_status files are tracked
