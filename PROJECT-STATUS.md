@@ -19,7 +19,7 @@ Provisional — to be replaced by the real plan once Phase 0 research lands.
 
 | Phase | Status | Notes |
 |---|---|---|
-| 0 — Research & decisions (verify open questions, write ADRs) | 🔄 In progress | G-02, G-03, G-06, G-07, G-08 resolved; drives `docs/GAPS.md` |
+| 0 — Research & decisions (verify open questions, write ADRs) | 🔄 In progress | G-02, G-03, G-06, G-07, G-08 resolved; ADRs 0001–0005 proposed in `docs/adr/`; drives `docs/GAPS.md` |
 | 1 — Scaffolding (git repo, CI, Makefile, per-directory READMEs) | ✅ Done | Makefile untested locally (no `make` installed); CI unrun, no remote |
 | 2 — Ingest → Bronze | ⏳ Pending | |
 | 3 — Silver + velocity features | ⏳ Pending | |

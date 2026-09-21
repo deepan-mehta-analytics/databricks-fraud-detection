@@ -77,7 +77,7 @@ Kafka events -> Bronze -> Silver (+ velocity features) -> ML scoring -> Gold ale
 .
 ├── app/            ← monitoring app (Phase 6)
 ├── data/           ← local datasets, gitignored
-├── docs/           ← brief, gaps register, cost model
+├── docs/           ← brief, gaps register, cost model, ADRs (docs/adr/)
 ├── notebooks/      ← Databricks notebooks (Phases 2–4)
 ├── sql/            ← Unity Catalog DDL and grants (Phase 5)
 ├── src/            ← shared Python modules
