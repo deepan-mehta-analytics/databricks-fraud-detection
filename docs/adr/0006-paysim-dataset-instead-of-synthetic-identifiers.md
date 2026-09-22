@@ -2,8 +2,8 @@
 
 ## Status
 Proposed. Supersedes [ADR 0004](0004-seeded-synthetic-identifiers.md). Not yet
-accepted by the user; row/fraud counts below still need verification against
-the real downloaded file.
+accepted by the user. Row/fraud counts verified 2026-09-22 against the real
+downloaded file (see Context).
 
 ## Context
 ADR 0004 worked around a real gap (G-04): the originally chosen Kaggle
@@ -44,7 +44,13 @@ content, not a title-only guess):
   returned the same implausible figure (`6,353,307`) as both "row count"
   and "fraud count" across two different PaySim page reads, and a third
   read of the canonical page returned a different, also-unverified row
-  count (`1,000,000`). None of these are reported as fact.
+  count (`1,000,000`). None of those were reported as fact.
+- **Verified 2026-09-22** by direct inspection of the real downloaded file
+  (`wc -l` / `awk`, not a scraper): 6,362,620 rows, 8,213 fraud
+  (`isFraud=1`, ~0.129%), 16 flagged-fraud (`isFlaggedFraud=1`), step range
+  1–743 (~30-day simulation, 1 step = 1 hour). File size (493,534,783
+  bytes) matches the earlier scraped figure exactly — it was specifically
+  the row/fraud counts that were scraper noise, not the file size.
 
 ## Decision
 - Adopt PaySim (`ealaxi/paysim1`) as the dataset driving the Kafka event
@@ -59,9 +65,9 @@ content, not a title-only guess):
   inspiration to adapt, not code to copy — Databricks' public export states
   no explicit reuse license, and the pipeline needs rewriting for
   serverless/streaming anyway.
-- Verify real row and fraud counts by inspecting the downloaded file
-  directly (same method already used to verify the original Kaggle
-  dataset for G-04), before Phase 2 ingest code is written.
+- Row and fraud counts have been verified by inspecting the downloaded file
+  directly (same method already used to verify the original Kaggle dataset
+  for G-04) — see Context.
 
 ## Consequences
 **Positive:** removes the synthetic-id workaround entirely — no generator
@@ -79,8 +85,7 @@ meaningfully larger than the previous dataset (documented as ~6.3M rows /
 ~493 MB vs. ~285K rows / ~151 MB) — this may interact with Free Edition's
 still-unverified daily compute quota (G-08) more than the smaller dataset
 would have; consider sampling for the streaming demo if quota pressure
-appears during Phase 2 testing. Exact row and fraud counts are still
-unverified (see Decision).
+appears during Phase 2 testing.
 
 ## Alternatives rejected
 - **Keep ADR 0004's synthetic-id approach** — rejected; PaySim removes the

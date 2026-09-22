@@ -116,7 +116,7 @@ None. No number is reported until it is measured from a real run.
 - Scaffold only; no pipeline exists
 - Open gaps are tracked in `docs/GAPS.md` (currently G-01, G-05, G-09)
 - Real-Time Mode needs classic compute and is unavailable on Free Edition; serverless streaming supports only `Trigger.AvailableNow` and Lakeflow pipelines (G-02)
-- PaySim (ADR 0006) is a synthetic mobile-money simulation, not real anonymized transaction data; exact row/fraud counts are still unverified pending a real-file inspection
+- PaySim (ADR 0006) is a synthetic mobile-money simulation, not real anonymized transaction data — verified counts: 6,362,620 rows, 8,213 fraud (~0.129%)
 - The Databricks Data Engineer Associate coverage map is not yet built
 
 ## 🔜 Roadmap
@@ -129,12 +129,14 @@ None. No number is reported until it is measured from a real run.
 
 ## 📂 Dataset
 
-Planned: [PaySim](https://www.kaggle.com/datasets/ealaxi/paysim1) mobile-money
+[PaySim](https://www.kaggle.com/datasets/ealaxi/paysim1) mobile-money
 transaction simulator (CC BY-SA 4.0) — `step, type, amount, nameOrig,
 oldbalanceOrg, newbalanceOrig, nameDest, oldbalanceDest, newbalanceDest,
 isFraud, isFlaggedFraud`. Supersedes the originally planned Kaggle Credit
-Card Fraud dataset (see ADR 0006 and `docs/GAPS.md` G-04). Not downloaded
-yet; exact row/fraud counts pending a real-file verification.
+Card Fraud dataset (see ADR 0006 and `docs/GAPS.md` G-04). Verified from the
+downloaded file: 6,362,620 rows, 8,213 fraud (`isFraud=1`, ~0.129%), 16
+flagged-fraud (`isFlaggedFraud=1`), a ~30-day simulation (steps 1–743, 1
+step = 1 hour).
 
 ---
 
