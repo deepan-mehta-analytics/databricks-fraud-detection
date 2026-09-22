@@ -26,11 +26,18 @@ joined views.
 ## Consequences
 **Positive:** governance work uses the documented native mechanisms, which is
 also what a reviewer would expect to see in a Unity Catalog project.
-**Negative:** three things are unverified on Free Edition: whether groups can
-be created and managed, whether row filters and column masks run on the
-available compute, and the runtime requirements noted in the docs. All three
-are checked in the first Phase 5 run, and any failure is recorded in
-`docs/GAPS.md`.
+**Confirmed 2026-09-22:** a real spike on `workspace.default` (Free Edition
+serverless) verified `GRANT USE CATALOG`/`USE SCHEMA`/`SELECT` to a group,
+`ALTER TABLE ... SET ROW FILTER`, and `ALTER TABLE ... ALTER COLUMN ...
+SET MASK` all work and are actually enforced — a row outside the filter
+was excluded entirely, and the masked column returned `REDACTED`. See
+`docs/GAPS.md` G-06.
+**Negative:** the spike granted to the pre-existing `account users` group,
+not a newly created one — whether Free Edition supports *creating* a new
+custom group is still unverified. Free Edition's documented "no account
+console access" limitation suggests it may not be possible; a
+workspace-admin-settings path (Settings → Identity and access → Groups)
+hasn't been tried yet and is the next thing to test.
 
 ## Alternatives rejected
 - **`TO ROLE` grants** — rejected; `role` is not a documented grant target.
