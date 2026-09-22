@@ -2,11 +2,11 @@
 
 ## ⚡ Quick Summary
 
-A portfolio project to build a streaming credit-card fraud detection pipeline
-on Databricks: transaction events from Kafka land in a medallion (Bronze,
-Silver, Gold) layout under Unity Catalog, get scored by an ML model, and
-surface as alerts in a monitoring app. It doubles as a hands-on map of the
-Databricks Data Engineer Associate syllabus.
+A portfolio project to build a streaming fraud detection pipeline on
+Databricks: mobile-money transaction events from Kafka land in a medallion
+(Bronze, Silver, Gold) layout under Unity Catalog, get scored by an ML
+model, and surface as alerts in a monitoring app. It doubles as a hands-on
+map of the Databricks Data Engineer Associate syllabus.
 
 **Status: scaffold only.** No pipeline code exists yet and no cloud resources
 are provisioned. Every architecture and stack choice is provisional until it
@@ -48,8 +48,8 @@ Provisional. Only rows marked "verified" have been checked against docs.
 
 ## 🎯 Business Problem
 
-> How quickly can a card transaction be flagged as likely fraud, and how do we
-> show that end to end on free or near-free infrastructure?
+> How quickly can a mobile-money transaction be flagged as likely fraud, and
+> how do we show that end to end on free or near-free infrastructure?
 
 ---
 
@@ -77,7 +77,7 @@ Kafka events -> Bronze -> Silver (+ velocity features) -> ML scoring -> Gold ale
 .
 ├── app/            ← monitoring app (Phase 6)
 ├── data/           ← local datasets, gitignored
-├── docs/           ← brief, gaps register, cost model, ADRs (docs/adr/)
+├── docs/           ← brief, gaps register, cost model, ADRs (docs/adr/), engineering decisions log
 ├── notebooks/      ← Databricks notebooks (Phases 2–4)
 ├── sql/            ← Unity Catalog DDL and grants (Phase 5)
 ├── src/            ← shared Python modules
@@ -114,8 +114,9 @@ None. No number is reported until it is measured from a real run.
 ## ⚠️ Known Limitations
 
 - Scaffold only; no pipeline exists
-- Open gaps are tracked in `docs/GAPS.md` (currently G-01, G-04, G-05, G-09)
+- Open gaps are tracked in `docs/GAPS.md` (currently G-01, G-05, G-09)
 - Real-Time Mode needs classic compute and is unavailable on Free Edition; serverless streaming supports only `Trigger.AvailableNow` and Lakeflow pipelines (G-02)
+- PaySim (ADR 0006) is a synthetic mobile-money simulation, not real anonymized transaction data; exact row/fraud counts are still unverified pending a real-file inspection
 - The Databricks Data Engineer Associate coverage map is not yet built
 
 ## 🔜 Roadmap
@@ -128,8 +129,12 @@ None. No number is reported until it is measured from a real run.
 
 ## 📂 Dataset
 
-Planned: Kaggle Credit Card Fraud dataset (PCA features V1–V28, `Time`,
-`Amount`, `Class`). Not downloaded yet; see G-04 for the schema gap.
+Planned: [PaySim](https://www.kaggle.com/datasets/ealaxi/paysim1) mobile-money
+transaction simulator (CC BY-SA 4.0) — `step, type, amount, nameOrig,
+oldbalanceOrg, newbalanceOrig, nameDest, oldbalanceDest, newbalanceDest,
+isFraud, isFlaggedFraud`. Supersedes the originally planned Kaggle Credit
+Card Fraud dataset (see ADR 0006 and `docs/GAPS.md` G-04). Not downloaded
+yet; exact row/fraud counts pending a real-file verification.
 
 ---
 

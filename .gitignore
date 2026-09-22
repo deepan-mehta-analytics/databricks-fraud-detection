@@ -5,6 +5,7 @@
 /MEMORY.md
 /feedback_*.md
 /reference_*.md
+/docs/superpowers/
 
 # ── Secrets and credentials ───────────────────────────────────
 .env

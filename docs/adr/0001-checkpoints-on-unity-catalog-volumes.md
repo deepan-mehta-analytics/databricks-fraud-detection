@@ -19,9 +19,13 @@ The path is supplied through the `UC_CHECKPOINT_VOLUME` setting in
 ## Consequences
 **Positive:** uses the supported, governed storage path; access to
 checkpoints follows the same Unity Catalog permissions as the tables.
-**Negative:** whether Free Edition serverless compute can write checkpoints
-to a Volume path has not been verified. It is confirmed only by the first real
-streaming run. Deleting the Volume deletes the checkpoints, so a stream
+**Confirmed 2026-09-22:** a real spike (Structured Streaming `rate` source,
+`Trigger.AvailableNow`, `checkpointLocation` on a `workspace.default.checkpoint_spike`
+Volume, run on serverless in a Databricks Free Edition workspace) produced a
+normal checkpoint directory (`commits/`, `metadata`, `offsets/`, `sources/`).
+Free Edition serverless can write streaming checkpoints to a Volume path.
+See `docs/GAPS.md` G-03 and `docs/superpowers/postmortems/2026-09-22-adr-chessboard-premortem.md`.
+**Negative:** deleting the Volume deletes the checkpoints, so a stream
 restarted afterwards reprocesses from scratch.
 
 ## Alternatives rejected

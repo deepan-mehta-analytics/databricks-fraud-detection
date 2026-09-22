@@ -1,7 +1,10 @@
 # ADR 0004: Seeded Synthetic Identifiers for the Event Schema
 
 ## Status
-Proposed
+Superseded by [ADR 0006](0006-paysim-dataset-instead-of-synthetic-identifiers.md) (2026-09-22).
+PaySim has real transaction actor keys natively, removing the need for the
+synthetic-id workaround this ADR describes. Kept for the record of why the
+original approach was chosen and what it would have cost.
 
 ## Context
 The brief drives the Kafka event schema from the Kaggle Credit Card Fraud
