@@ -102,10 +102,10 @@ synthetic ids. The brief's originally assumed Kafka schema (`card_id`,
 `merchant_id`, `device_id`) is actually a much closer shape to PaySim than
 to the PCA-anonymized dataset it was paired with — the brief was likely
 written with a PaySim-shaped dataset in mind. A public Databricks reference
-notebook built on PaySim was also confirmed readable and has reusable
-Phase-4 patterns (balance-delta features, a classifier pipeline, MLflow
-logging) — though it computes fraud via hand-rolled rules instead of
-PaySim's own `isFraud` label, a pattern this project does not copy.
+notebook built on PaySim was also confirmed readable and has some reusable
+Phase-4 patterns (a classifier pipeline, cross-validation, MLflow logging)
+— though it computes fraud via hand-rolled rules instead of PaySim's own
+`isFraud` label, a pattern this project does not copy.
 **We decided:** switch to PaySim, use its native `isFraud` label as ground
 truth, retire the synthetic-id workaround entirely. This also upgrades
 Phase 3's velocity features from demonstration-only to a real signal, since
@@ -116,9 +116,15 @@ framing moved from "credit-card fraud" to "mobile-money fraud" to stay
 honest about what the data actually is. PaySim is also considerably larger
 (~6.3M rows vs. ~285K), which may interact with Free Edition's
 still-unverified daily compute quota (G-08).
-**Still open:** exact row/fraud counts need verification from the real
-downloaded file — an automated read returned inconsistent numbers, so none
-were reported as fact.
+**Verified 2026-09-22:** row/fraud counts confirmed from the real
+downloaded file — 6,362,620 rows, 8,213 fraud (~0.129%). A first download
+came from an unlicensed Kaggle mirror; caught, cross-verified as content-
+identical to the canonical CC BY-SA 4.0 source, and corrected before
+committing. Separately, the reference notebook's balance-delta features
+turned out to be **label leakage** — the dataset author's own
+documentation says those columns must not be used for fraud detection,
+since fraud transactions have their balances zeroed after detection. That
+pattern is explicitly rejected, not adopted.
 → [ADR 0006](adr/0006-paysim-dataset-instead-of-synthetic-identifiers.md)
 
 ---
