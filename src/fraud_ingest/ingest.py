@@ -20,7 +20,7 @@ def build_autoloader_options(schema_location: str) -> dict[str, str]:  # constru
         "cloudFiles.inferColumnTypes": "false",             # default all-strings inference...
         "cloudFiles.schemaHints": SCHEMA_HINTS,             # ...with the important fields pinned
         "cloudFiles.schemaEvolutionMode": "addNewColumns",  # fails once on a new field, resumes on retry
-    }
+    }  # end autoloader options dict
 
 
 # ── Stream (Databricks only) ──────────────────────────────────

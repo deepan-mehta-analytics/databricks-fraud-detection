@@ -10,7 +10,7 @@ import pytest               # fixture decorator
 PAYSIM_HEADER = [  # header row of data/paysim.csv
     "step", "type", "amount", "nameOrig", "oldbalanceOrg", "newbalanceOrig",  # first six columns
     "nameDest", "oldbalanceDest", "newbalanceDest", "isFraud", "isFlaggedFraud",  # last five columns
-]
+]  # end PAYSIM_HEADER
 
 
 # ── CSV builder ───────────────────────────────────────────────
@@ -25,7 +25,7 @@ def write_paysim_csv(path: Path, steps: list[int]) -> Path:  # create PaySim-sha
             writer.writerow([  # one data row
                 step, "TRANSFER", amount, f"C{index}", "1000.0", "0.0",  # step, type, amount, sender, sender balances
                 f"M{index}", "0.0", "0.0", fraud, 0,  # receiver, receiver balances, labels
-            ])
+            ])  # end writerow
     return path  # hand the path back to the caller
 
 

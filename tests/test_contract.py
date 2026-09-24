@@ -10,7 +10,7 @@ from fraud_ingest.contract import (  # names under test
     segment_for_step,           # step -> segment
     transaction_time_for_step,  # step -> synthetic hourly timestamp
     volume_path,                # Unity Catalog volume path
-)
+)  # end import from fraud_ingest.contract
 
 
 def test_segment_boundaries_match_g10():  # test segment boundary values

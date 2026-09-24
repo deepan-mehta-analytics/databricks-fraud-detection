@@ -15,7 +15,7 @@ from fraud_ingest.scenarios import transform_lines                              
 PARAM_NAMES = (  # job parameters the release notebook reads (strings; "" means unset)
     "steps_per_run", "segment", "duplicate_step", "hold_steps",                # pacing and first scenarios
     "release_held", "schema_change_from_step", "malformed_step", "malformed_rows",  # remaining scenarios
-)
+)  # end PARAM_NAMES
 
 
 # ── Options ───────────────────────────────────────────────────
@@ -58,7 +58,7 @@ def options_from_params(params: dict[str, str]) -> ReleaseOptions:  # build type
         schema_change_from_step=optional_int("schema_change_from_step"),  # optional
         malformed_step=optional_int("malformed_step"),  # optional
         malformed_rows=optional_int("malformed_rows") or 0,  # default none
-    )
+    )  # end ReleaseOptions
 
 
 def utc_now_iso() -> str:  # default clock used by run_release when the caller doesn't supply one

@@ -8,7 +8,7 @@ from fraud_ingest.scenarios import (  # names under test
     MALFORMED_AMOUNT,    # text that cannot be a DECIMAL
     synthetic_channel,   # deterministic channel
     transform_lines,     # applies scenarios to a file's lines
-)
+)  # end import from fraud_ingest.scenarios
 
 # ── Test data ─────────────────────────────────────────────────
 LINES = [json.dumps({"transaction_id": f"ps-000000{i}", "amount": 10.5}) for i in (1, 2, 3)]  # three records

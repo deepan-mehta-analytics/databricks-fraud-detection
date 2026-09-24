@@ -9,7 +9,7 @@ def test_state_paths_live_under_one_volume_folder():  # verify state paths are o
     assert state_paths("/Volumes/workspace/fraud/pipeline_state") == {  # ADR 0001: state on a UC volume
         "schema": "/Volumes/workspace/fraud/pipeline_state/schema",          # schema tracking
         "checkpoint": "/Volumes/workspace/fraud/pipeline_state/checkpoint",  # stream progress
-    }
+    }  # end state_paths result dict
 
 
 def test_autoloader_options_match_the_spec():  # verify autoloader options match the spec
@@ -19,7 +19,7 @@ def test_autoloader_options_match_the_spec():  # verify autoloader options match
         "cloudFiles.inferColumnTypes": "false",               # default: strings, then hints pin types
         "cloudFiles.schemaHints": SCHEMA_HINTS,               # typed fields -> bad values rescued
         "cloudFiles.schemaEvolutionMode": "addNewColumns",    # new fields join the schema after one restart
-    }
+    }  # end autoloader options result dict
 
 
 def test_module_imports_without_pyspark():  # verify pyspark is not imported at module level

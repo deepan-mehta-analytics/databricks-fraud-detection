@@ -18,7 +18,7 @@ from fraud_ingest.contract import (  # shared contract
     outbox_file_name,               # flat file names
     segment_for_step,               # step -> segment
     transaction_time_for_step,      # step -> hourly time
-)
+)  # end import from fraud_ingest.contract
 
 
 # ── Row conversion ────────────────────────────────────────────

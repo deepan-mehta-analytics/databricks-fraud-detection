@@ -8,7 +8,7 @@ from typing import Any, Protocol           # loose Spark type + interface
 
 RELEASE_LOG_COLUMNS = (  # Delta column schema; must match sql/10_fraud_ingest_setup.sql
     "step INT, segment STRING, file_name STRING, scenario STRING, status STRING, released_at STRING"  # six columns
-)
+)  # end RELEASE_LOG_COLUMNS
 
 
 # ── Row type and interface ────────────────────────────────────

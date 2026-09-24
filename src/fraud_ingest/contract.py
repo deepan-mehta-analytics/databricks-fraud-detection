@@ -11,7 +11,7 @@ SEGMENT_RANGES = {  # inclusive (first, last) step per segment, in release order
     "backfill": (1, BACKFILL_LAST_STEP),                    # days 1-14
     "replay": (BACKFILL_LAST_STEP + 1, REPLAY_LAST_STEP),   # days 15-17
     "drift": (REPLAY_LAST_STEP + 1, LAST_STEP),             # days 18-31
-}
+}  # end SEGMENT_RANGES
 
 ANCHOR_DEFAULT = "2026-01-01T00:00:00Z"  # synthetic date for step 1 (PaySim has no real dates)
 TIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"       # ISO-8601 UTC, which Spark's JSON reader parses as TIMESTAMP
@@ -29,19 +29,19 @@ FIELD_MAP = {  # source header -> contract field (spec §5.2)
     "newbalanceDest": "receiver_balance_after",       # leaks the label: never a feature
     "isFraud": "fraud_label",                         # ground truth; hidden from scoring by a view
     "isFlaggedFraud": "flagged_by_old_rules",         # PaySim's legacy rule flag
-}
+}  # end FIELD_MAP
 INT_FIELDS = ("step", "fraud_label", "flagged_by_old_rules")  # written as JSON integers
 DECIMAL_FIELDS = (  # written as JSON numbers, typed DECIMAL(18,2) in Bronze
     "amount", "sender_balance_before", "sender_balance_after",  # sender side
     "receiver_balance_before", "receiver_balance_after",        # receiver side
-)
+)  # end DECIMAL_FIELDS
 
 # ── Auto Loader schema hints (typed fields send bad values to _rescued_data) ──
 SCHEMA_HINTS = ", ".join(  # SQL schema syntax, one "name TYPE" per field
     ["transaction_id STRING", "step INT", "transaction_time TIMESTAMP", "transaction_type STRING"]  # identity and time
     + [f"{name} DECIMAL(18,2)" for name in DECIMAL_FIELDS]  # money columns
     + ["sender_account STRING", "receiver_account STRING", "fraud_label INT", "flagged_by_old_rules INT"]  # accounts and labels
-)
+)  # end SCHEMA_HINTS
 
 
 # ── Helpers ───────────────────────────────────────────────────

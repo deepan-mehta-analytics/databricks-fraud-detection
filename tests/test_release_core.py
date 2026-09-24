@@ -77,7 +77,7 @@ def test_options_from_params_defaults_and_parsing():  # widget-string params par
     parsed = options_from_params({  # every parameter as a job would pass it (strings)
         "steps_per_run": "3", "segment": "drift", "duplicate_step": "340", "hold_steps": "345, 346",  # first four
         "release_held": "true", "schema_change_from_step": "360", "malformed_step": "350", "malformed_rows": "5",  # rest
-    })
+    })  # end params dict
     assert parsed == ReleaseOptions(3, "drift", 340, frozenset({345, 346}), True, 360, 350, 5)  # all parsed
 
 

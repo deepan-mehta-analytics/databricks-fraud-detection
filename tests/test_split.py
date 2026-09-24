@@ -14,7 +14,7 @@ EXPECTED_FIELDS = {  # every field a record must carry (spec §5.2)
     "sender_account", "sender_balance_before", "sender_balance_after",           # sender side
     "receiver_account", "receiver_balance_before", "receiver_balance_after",     # receiver side
     "fraud_label", "flagged_by_old_rules",                                       # labels
-}
+}  # end EXPECTED_FIELDS
 
 
 def read_lines(path: Path) -> list[dict]:  # read JSON Lines file and parse each line
@@ -28,7 +28,7 @@ def test_one_file_per_step_in_segment_folders(sample_csv, tmp_path):  # verify f
     assert totals == {"rows": 50, "fraud": 5, "files": 10}  # 10 distinct steps, every 10th row fraud
     assert sorted(p.name for p in (tmp_path / "outbox" / "backfill").iterdir()) == [  # steps 1, 2, 336
         "paysim_step-0001_backfill.jsonl", "paysim_step-0002_backfill.jsonl", "paysim_step-0336_backfill.jsonl",  # expected names
-    ]
+    ]  # end expected backfill files list
     assert len(list((tmp_path / "outbox" / "replay").iterdir())) == 3  # steps 337, 338, 408
     assert len(list((tmp_path / "outbox" / "drift").iterdir())) == 4   # steps 409, 410, 742, 743
 
