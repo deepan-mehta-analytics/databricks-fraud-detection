@@ -6,8 +6,8 @@ public-safe: no account IDs, workspace URLs, cluster IDs, or personal
 emails — placeholders only.
 
 ## Current phase
-Phase 0 in progress (8 of 12 gaps resolved: G-02, G-03, G-04, G-06, G-07,
-G-08, G-10, G-12) and Phase 1 scaffolding done. Phase 2
+Phase 0 in progress (9 of 12 gaps resolved: G-01, G-02, G-03, G-04, G-06,
+G-07, G-08, G-10, G-12) and Phase 1 scaffolding done. Phase 2
 (Auto Loader ingest to Bronze) has its code written and covered by 44 local
 unit tests, plus CI and a Databricks Asset Bundle job definition — none of
 it has yet been run in a Databricks workspace (V1–V6 verification pending).

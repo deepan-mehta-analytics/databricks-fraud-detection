@@ -144,11 +144,11 @@ None. No number is reported until it is measured from a real run.
 - Phase 2 ingest code is written and unit-tested locally (44 tests) but has
   not yet run in a Databricks workspace — no Bronze row counts, ingest lag,
   or runtime figures exist yet
-- Open gaps are tracked in `docs/GAPS.md` (currently G-01, G-05, G-09, G-11)
+- Open gaps are tracked in `docs/GAPS.md` (currently G-05, G-09, G-11)
 - Unverified until a real workspace run (ADR 0007): whether jobs declared as
   code (Asset Bundles) deploy on Free Edition (G-11), and what a completely
   invalid JSON line does on ingest
-- Kafka ingest via Confluent Cloud is not usable on Free Edition without outbound internet access, so events are replayed as files through Auto Loader instead (G-01)
+- Kafka ingest via Confluent Cloud is not usable on Free Edition without outbound internet access (measured: serverless compute cannot even resolve untrusted hostnames), so events are replayed as files through Auto Loader instead (G-01)
 - PaySim is not uniform over time: legitimate volume collapses after simulated day 17 while fraud stays constant, so only days 1–17 are used for training and scoring, and days 18–31 serve as a labelled drift scenario (G-10)
 - Real-Time Mode needs classic compute and is unavailable on Free Edition; serverless streaming supports only `Trigger.AvailableNow` and Lakeflow pipelines (G-02)
 - PaySim (ADR 0006) is a synthetic mobile-money simulation, not real anonymized transaction data — verified counts: 6,362,620 rows, 8,213 fraud (~0.129%)
