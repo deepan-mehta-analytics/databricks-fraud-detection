@@ -22,5 +22,5 @@ test: # no tests yet
 deploy: # no bundle or jobs yet
 	@echo "deploy: not implemented (Phase 6)"; exit 1
 
-teardown: # cloud teardown is a manual step until automated
-	@echo "teardown: manual for now. Delete the Confluent cluster and log it in docs/cost-model.md"; exit 1
+teardown: # nothing cost-bearing exists since ADR 0007 (Free Edition only); kept as a stub
+	@echo "teardown: nothing to tear down (ADR 0007, Free Edition only). Log any future cost-bearing teardown in docs/cost-model.md"; exit 1

@@ -33,8 +33,10 @@ mechanisms; dynamic views are still supported but positioned for curated or
 joined views, not as the primary row-security tool.
 **We decided:** grant to groups, use row filters and column masks on Gold
 tables, reserve dynamic views for genuinely curated views.
-**Still open:** whether groups, row filters and column masks all run on
-Free Edition — verification spike planned before Phase 5.
+**Verified 2026-09-22:** a grant to the built-in `account users` group, a
+row filter and a column mask all ran on Free Edition and were enforced (a
+filtered-out row disappeared; the masked column showed `REDACTED`).
+**Still open:** whether a *new* custom group can be created on Free Edition.
 → [ADR 0002](adr/0002-group-grants-and-native-row-security.md)
 
 ---
@@ -53,8 +55,8 @@ continuous mode.
 with a continuous Lakeflow pipeline evaluated as the always-on alternative.
 Latency is reported as the measured schedule interval plus run time — no
 sub-second claim.
-**Still open:** the ingest half of this decision depends on G-01 (whether
-Free Edition serverless can reach Confluent Cloud at all).
+**Update 2026-09-24:** the ingest half (Kafka as source) is superseded by
+ADR 0007; the `AvailableNow` trigger decision stands.
 → [ADR 0003](adr/0003-streaming-trigger-model-on-serverless.md)
 
 ---
@@ -74,7 +76,7 @@ features could still be built and tested, explicitly accepting they'd show
 
 ---
 
-## ADR 0005 — Bounded Confluent windows
+## ADR 0005 — Superseded — bounded Confluent windows
 
 **Brief assumed:** free Confluent credits comfortably cover a multi-month
 build.
@@ -84,8 +86,9 @@ spent, whichever is first; the payment method is charged after
 **We decided:** don't sign up until the G-01 connection test is actually
 ready to run, work in bounded windows, delete the cluster after each one,
 log every teardown in `docs/cost-model.md` with no identifiers.
-**Still open:** whether a Basic cluster can be paused, and the reactivation
-terms.
+**Superseded 2026-09-24** by ADR 0007 — Free Edition can't reach an
+external Kafka broker (G-01), so no Confluent account is created. Kept for
+the record.
 → [ADR 0005](adr/0005-bounded-confluent-windows.md)
 
 ---
@@ -125,7 +128,35 @@ turned out to be **label leakage** — the dataset author's own
 documentation says those columns must not be used for fraud detection,
 since fraud transactions have their balances zeroed after detection. That
 pattern is explicitly rejected, not adopted.
+**Found later (2026-09-24):** PaySim isn't uniform over time. Fraud stays at
+~250 per simulated day, but normal volume collapses after day 17, so any
+train/score split has to cut inside days 1–17 (G-10).
 → [ADR 0006](adr/0006-paysim-dataset-instead-of-synthetic-identifiers.md)
+
+---
+
+## ADR 0007 — File-based ingest with Auto Loader
+
+**Brief assumed:** transaction events stream in from Kafka on Confluent
+Cloud.
+**We found:** Free Edition limits outbound internet to trusted domains
+unless an identity-verification step is completed, which this project won't
+use, so an external Kafka broker isn't reachable (G-01). Separately, a
+per-day count of PaySim showed normal volume collapsing after simulated day
+17 (G-10).
+**We decided:** replay PaySim as JSON Lines files, one per simulated hour,
+and ingest them with Auto Loader in a single stream. Days 1–14 are loaded
+first as history; days 15–17 are released a few hours at a time as "live"
+data; days 18–31 are held back as a drift test for monitoring. The producer
+adds a deterministic `transaction_id` and plain-language time columns. Four
+opt-in flags stage real-world problems on purpose: a duplicate file, a late
+file, a new field mid-stream, and malformed values.
+**Trade-off, stated plainly:** this isn't a real message bus. Latency is
+bounded by the job schedule, and event timestamps are synthetic, so only
+pipeline lag is reported as a time measurement.
+**Still open:** Asset Bundle deploy on Free Edition (G-11), invalid-JSON-line
+behaviour, and whether the backfill run fits the daily quota (G-08).
+→ [ADR 0007](adr/0007-file-based-ingest-with-auto-loader.md)
 
 ---
 

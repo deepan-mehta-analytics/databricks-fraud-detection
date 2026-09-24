@@ -8,6 +8,10 @@ settled.
 
 ## Verified inputs
 
+**Since ADR 0007 (2026-09-24) no Confluent resources will be created.** Ingest
+runs entirely inside Databricks Free Edition, so the Confluent rows below are
+kept for reference only and are not part of this project's cost.
+
 | Item | Figure | Source | Fetched |
 |---|---|---|---|
 | Confluent trial credit | $400, expires 30 days after receipt or when spent, whichever is first | Confluent free-trial docs (via search summary) | 2026-09-21 |

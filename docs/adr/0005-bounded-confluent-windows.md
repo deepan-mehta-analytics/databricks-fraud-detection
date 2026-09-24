@@ -1,7 +1,11 @@
 # ADR 0005: Bounded Confluent Windows with Teardown
 
 ## Status
-Proposed
+Superseded by [ADR 0007](0007-file-based-ingest-with-auto-loader.md)
+(2026-09-24). Kafka on Confluent Cloud is blocked by Free Edition's
+outbound-network limit (G-01), so no Confluent account or cluster will be
+created. Kept for the record of the cost analysis and teardown discipline,
+which apply again if Kafka ever becomes reachable.
 
 ## Context
 The brief assumed free Confluent credits cover a multi-month build. Current

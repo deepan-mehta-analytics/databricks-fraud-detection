@@ -1,8 +1,10 @@
 # ADR 0003: Streaming Trigger Model on Serverless Compute
 
 ## Status
-Proposed. The Bronze ingest half depends on the G-01 connection test, which
-needs live accounts.
+Proposed. The Bronze-ingest half (Kafka as the source) is superseded by
+[ADR 0007](0007-file-based-ingest-with-auto-loader.md) (2026-09-24), because
+G-01 blocks Kafka on Free Edition. The trigger decision below
+(`Trigger.AvailableNow` jobs on serverless) still stands and ADR 0007 uses it.
 
 ## Context
 The brief targeted Structured Streaming "Real-Time Mode". Current
