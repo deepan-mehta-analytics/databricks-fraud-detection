@@ -23,6 +23,7 @@ options = options_from_params({name: dbutils.widgets.get(name) for name in PARAM
 log = DeltaReleaseLog(spark, f"{catalog}.{schema}.release_log")  # release history table
 released = run_release(volume_path(catalog, schema, "outbox"), volume_path(catalog, schema, "landing"), log, options)  # copy + log
 if not released:                                                 # nothing left in this segment
-    print("Nothing to release: segment finished. Set segment=drift to continue.")  # explicit no-op
+    hint = " Set segment=drift to continue." if options.segment == "replay" else " All segments are released."  # next step depends on segment
+    print(f"Nothing to release: segment {options.segment!r} is finished.{hint}")  # explicit no-op
 for entry in released:                                           # summary for the run page
     print(entry.step, entry.status, entry.scenario or "-", entry.file_name)  # one line per file
