@@ -70,10 +70,16 @@ Replay PaySim as files and ingest them with Auto Loader.
 - The event timestamps are synthetic. Only `ingested_at − file_arrived_at`
   (pipeline lag) is a meaningful time measurement.
 
-**Unverified (to be checked in real runs):**
-- Whether jobs declared as code (Asset Bundles) deploy on Free Edition (G-11).
-- What a completely invalid JSON line does.
-- Whether the first backfill run fits the daily quota (G-08).
+**Checked in real runs (2026-09-24, see `docs/GAPS.md`):**
+- Asset Bundles deploy on Free Edition from the workspace UI, with no CLI or
+  token (G-11).
+- A completely invalid JSON line becomes one all-null row, with
+  `_rescued_data` null too, and the run succeeds (GAPS §3, V5). Silver must
+  filter such rows.
+- The backfill (4,784,775 rows, 4m 22s) and the rest of the scenario runs
+  fitted within one day's quota (G-08; the numeric quota is still unknown).
+- The new-column fail-then-retry behaved as designed on the schema-change
+  run.
 
 ## Alternatives rejected
 - **Kafka on Confluent Cloud (ADR 0005)** — blocked by the outbound-network
