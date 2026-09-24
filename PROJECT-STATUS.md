@@ -47,6 +47,13 @@ Provisional — to be replaced by the real plan once Phase 0 research lands.
 ## Last commit
 See `git log` on `main`; CI runs on every push (GitHub Actions: hygiene + unit tests).
 
+## Releases
+| Version | Date | What |
+|---|---|---|
+| `v0.1.0` | 2026-09-24 | Verified Auto Loader ingest to Bronze (Phase 2) |
+
+Planned: `v0.2.0` Silver · `v0.3.0` ML scoring · `v0.4.0` Gold + governance · `v0.5.0` monitoring app · `v1.0.0` live demo and teardown.
+
 ## Metrics
 Phase 2 ingest verification (2026-09-24): see the README Results section — Bronze counts, per-run durations, per-file pipeline lag. No model metrics yet (Phase 4).
 
