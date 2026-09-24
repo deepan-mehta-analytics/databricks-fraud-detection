@@ -88,3 +88,20 @@ def test_options_reject_bad_values():  # invalid option combinations raise Value
         ReleaseOptions(steps_per_run=0)  # zero
     with pytest.raises(ValueError):  # malformed rows need a target step
         ReleaseOptions(malformed_rows=5)  # step missing
+
+
+def test_duplicate_redrop_keeps_channel_when_source_had_it(full_outbox, tmp_path):  # duplicate re-drops must be faithful re-deliveries, including any schema change
+    log = InMemoryReleaseLog()  # fresh log
+    release(full_outbox, tmp_path / "landing", log)  # backfill run
+    release(full_outbox, tmp_path / "landing", log, schema_change_from_step=337)  # releases 337..342, each carrying channel
+    out = release(full_outbox, tmp_path / "landing", log, duplicate_step=338)  # duplicate step 338, which has channel
+    dup_entry = next(e for e in out if e.scenario == "duplicate")  # the duplicate row logged this run
+    assert dup_entry.file_name == "paysim_step-0338_replay_dup-01.jsonl"  # expected duplicate file name
+    dup_lines = (tmp_path / "landing" / dup_entry.file_name).read_text(encoding="utf-8").splitlines()  # every record in the duplicate file
+    assert dup_lines and all('"channel"' in line for line in dup_lines)  # channel present on every record, matching the source
+
+
+def test_options_from_params_zero_steps_per_run_is_rejected():  # "0" must not silently become the default 6
+    with pytest.raises(ValueError):  # zero steps per run is invalid
+        options_from_params({"steps_per_run": "0"})  # explicit zero
+    assert options_from_params({"steps_per_run": ""}).steps_per_run == 6  # unset still defaults to 6

@@ -47,8 +47,10 @@ def options_from_params(params: dict[str, str]) -> ReleaseOptions:  # build type
     def optional_int(key: str) -> int | None:  # parse an optional integer parameter
         return int(text(key)) if text(key) else None  # "" -> None
 
+    steps_per_run = optional_int("steps_per_run")  # None means unset; "0" must stay 0, not silently become 6
+
     return ReleaseOptions(  # assemble options
-        steps_per_run=optional_int("steps_per_run") or 6,  # default K
+        steps_per_run=6 if steps_per_run is None else steps_per_run,  # default K only when the param is unset
         segment=text("segment") or "replay",  # default segment
         duplicate_step=optional_int("duplicate_step"),  # optional
         hold_steps=frozenset(int(p) for p in text("hold_steps").split(",") if p.strip()),  # "345, 346" -> {345, 346}
@@ -133,7 +135,8 @@ def run_release(outbox_dir: str | Path, landing_dir: str | Path, log: ReleaseLog
         step = options.duplicate_step  # step to re-drop (validated above)
         count = sum(1 for e in entries if e.step == step and e.scenario == "duplicate")  # earlier duplicates
         segment = segment_for_step(step)  # the step's own segment
-        record(step, segment, _write_release(outbox_dir, landing_dir, step, segment, f"_dup-{count + 1:02d}", False, 0), "duplicate", "released")  # plain re-drop
+        add_channel = channel_from is not None and step >= channel_from  # faithful re-delivery: keep the source's schema
+        record(step, segment, _write_release(outbox_dir, landing_dir, step, segment, f"_dup-{count + 1:02d}", add_channel, 0), "duplicate", "released")  # re-drop with the same schema as the original
 
     # ── Late file scenario ──
     if options.release_held:  # flag set
