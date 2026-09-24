@@ -24,6 +24,7 @@ stack choice is provisional until it has been checked against current docs
 ## 🏷️ Project Badges
 
 ![Status](https://img.shields.io/badge/Status-Phase_2_In_Progress-yellow?style=for-the-badge)
+![CI](https://img.shields.io/github/actions/workflow/status/deepan-mehta-analytics/databricks-fraud-detection/ci.yml?branch=main&style=for-the-badge&label=CI)
 ![Platform](https://img.shields.io/badge/Platform-Databricks-red?style=for-the-badge)
 ![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
 
