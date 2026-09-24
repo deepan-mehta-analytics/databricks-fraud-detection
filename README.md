@@ -48,6 +48,7 @@ Provisional. Only rows marked "verified" have been checked against docs.
 | Streaming source | Auto Loader over Unity Catalog Volume file drops | Transaction events replayed as JSON Lines files (primary path; Kafka via Confluent is blocked by Free Edition's outbound-network limit, G-01) |
 | Governance | Unity Catalog | Grants to groups, row filters, column masks (verified, G-06) |
 | Checkpoints | Unity Catalog Volumes | DBFS root is deprecated (verified, G-03) |
+| Code delivery | Databricks Git folder | Workspace runs pull this repo by commit (public clone verified on Free Edition, G-12) |
 
 ---
 
@@ -114,7 +115,7 @@ File drops (Auto Loader) -> Bronze -> Silver (+ velocity features) -> ML scoring
 
 **Workspace (outline — not yet run; see `docs/GAPS.md` G-11 and Task 9):**
 
-1. Run `sql/10_fraud_ingest_setup.sql` once in the SQL editor
+1. Create a Git folder from this repo (public GitHub clone works on Free Edition with no token, G-12), then run `sql/10_fraud_ingest_setup.sql` once in the SQL editor
 2. Upload the PaySim CSV to the `raw` volume
 3. Run `notebooks/01_prepare_outbox.py` once to split it into the `outbox` volume (V1)
 4. Deploy `resources/fraud_ingest_job.yml` via the Databricks Asset Bundle CLI (`databricks bundle deploy`), or recreate the job manually in the UI if bundle deploy is unsupported on Free Edition
