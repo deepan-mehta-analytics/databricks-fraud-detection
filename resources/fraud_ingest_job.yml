@@ -1,0 +1,42 @@
+# ── Job: release the next PaySim steps, then ingest them with Auto Loader (ADR 0007) ──
+resources:                                        # bundle resources
+  jobs:                                           # job resources
+    fraud_ingest:                                 # resource key (used in tests)
+      name: fraud-ingest                          # job name in the workspace
+      max_concurrent_runs: 1                      # never overlap release runs
+      schedule:                                   # hands-off demo schedule
+        quartz_cron_expression: "0 0/10 * * * ?"  # every 10 minutes
+        timezone_id: UTC                          # schedule clock
+        pause_status: PAUSED                      # off until the user enables it (quota unconfirmed, G-08)
+      parameters:                                 # job parameters, pushed to notebook widgets of the same name
+        - name: catalog                           # Unity Catalog catalog
+          default: workspace                      # Free Edition default catalog
+        - name: schema                            # project schema
+          default: fraud                          # created by sql/10_fraud_ingest_setup.sql
+        - name: steps_per_run                     # K
+          default: "6"                            # 72 replay steps = 12 runs
+        - name: segment                           # replay or drift
+          default: replay                         # drift only when chosen
+        - name: duplicate_step                    # duplicate-file scenario
+          default: ""                             # off
+        - name: hold_steps                        # late-file scenario, part 1
+          default: ""                             # off
+        - name: release_held                      # late-file scenario, part 2
+          default: ""                             # off
+        - name: schema_change_from_step           # schema-change scenario
+          default: ""                             # off
+        - name: malformed_step                    # malformed-values scenario: target step
+          default: ""                             # off
+        - name: malformed_rows                    # malformed-values scenario: row count
+          default: ""                             # off
+      tasks:                                      # task graph
+        - task_key: release                       # copy the next steps to landing
+          notebook_task:                          # runs a notebook on serverless (no cluster block)
+            notebook_path: ../notebooks/02_release.py  # path relative to this file
+        - task_key: ingest                        # Auto Loader into Bronze
+          depends_on:                             # ordering
+            - task_key: release                   # after release finishes
+          max_retries: 1                          # one automatic retry for the UnknownFieldException restart
+          min_retry_interval_millis: 10000        # wait 10 s before retrying
+          notebook_task:                          # runs a notebook on serverless
+            notebook_path: ../notebooks/03_ingest_bronze.py  # path relative to this file

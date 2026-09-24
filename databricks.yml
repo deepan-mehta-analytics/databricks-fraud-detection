@@ -1,0 +1,11 @@
+# ── Databricks Asset Bundle root (workspace host comes from the CLI profile, never this file) ──
+bundle:                  # bundle metadata
+  name: fraud-detection  # bundle name shown in the workspace
+
+include:                 # extra resource files to load
+  - resources/*.yml      # job definitions live under resources/
+
+targets:                 # deployment targets
+  dev:                   # the only target: Databricks Free Edition
+    default: true        # used when no -t flag is given
+    mode: development    # per-user copies; schedules stay paused
