@@ -10,7 +10,7 @@ app. It doubles as a hands-on map of the Databricks Data Engineer Associate
 syllabus.
 
 **Status: Phase 2 code written; workspace verification pending.** The Auto
-Loader ingest path (splitter, release task, Bronze stream, 37 local unit
+Loader ingest path (splitter, release task, Bronze stream, 44 local unit
 tests, CI, Databricks Asset Bundle job definition) is written and tested
 locally; it has not yet been run in a Databricks workspace. A free Databricks
 workspace is used only for short verification spikes. Every architecture and
@@ -91,7 +91,7 @@ File drops (Auto Loader) -> Bronze -> Silver (+ velocity features) -> ML scoring
 │   └── 20_verify_bronze.sql       ← V2-V4 workspace verification queries
 ├── src/
 │   └── fraud_ingest/           ← contract, split, scenarios, release_log, release, ingest (stdlib only)
-├── tests/                      ← 37 unit tests covering the package above
+├── tests/                      ← 44 unit tests covering the package above
 ├── .github/workflows/ci.yml    ← hygiene check + unit test job
 ├── .env.example                ← placeholder configuration
 ├── databricks.yml              ← Asset Bundle root (dev target, Free Edition)
@@ -108,7 +108,7 @@ File drops (Auto Loader) -> Bronze -> Silver (+ velocity features) -> ML scoring
 **Local (unit tests only — no Databricks needed):**
 
 1. `python -m pip install -r requirements-dev.txt` — install pytest and PyYAML
-2. `python -m pytest -q` — run the 37 unit tests (or `make test`, where `make` is available)
+2. `python -m pytest -q` — run the 44 unit tests (or `make test`, where `make` is available)
 3. `make check-hygiene` — verify no local-only or secret file is tracked
 4. `make help` — list targets; `lint`, `deploy` and `teardown` are stubs that fail until their phase lands
 
@@ -118,13 +118,13 @@ File drops (Auto Loader) -> Bronze -> Silver (+ velocity features) -> ML scoring
 2. Upload the PaySim CSV to the `raw` volume
 3. Run `notebooks/01_prepare_outbox.py` once to split it into the `outbox` volume (V1)
 4. Deploy `resources/fraud_ingest_job.yml` via the Databricks Asset Bundle CLI (`databricks bundle deploy`), or recreate the job manually in the UI if bundle deploy is unsupported on Free Edition
-5. Run the `fraud-ingest` job repeatedly (backfill, then K-step replay/drift runs) and verify Bronze with `sql/20_verify_bronze.sql` (V2–V6)
+5. Run the `fraud-ingest` job repeatedly (backfill, then K-step replay/drift runs) and verify Bronze with `sql/20_verify_bronze.sql` (V2–V4)
 
 ---
 
 ## 🧪 Tests
 
-`python -m pytest -q` runs **37 passed**, all local — no Databricks needed.
+`python -m pytest -q` runs **44 passed**, all local — no Databricks needed.
 See `tests/README.md` for the file-by-file breakdown. Notebook behavior and
 the Delta release log / Bronze table are verified by workspace runs (V1–V6),
 not by this local suite.
@@ -139,7 +139,7 @@ None. No number is reported until it is measured from a real run.
 
 ## ⚠️ Known Limitations
 
-- Phase 2 ingest code is written and unit-tested locally (37 tests) but has
+- Phase 2 ingest code is written and unit-tested locally (44 tests) but has
   not yet run in a Databricks workspace — no Bronze row counts, ingest lag,
   or runtime figures exist yet
 - Open gaps are tracked in `docs/GAPS.md` (currently G-01, G-05, G-09, G-11)
@@ -151,12 +151,13 @@ None. No number is reported until it is measured from a real run.
 - Real-Time Mode needs classic compute and is unavailable on Free Edition; serverless streaming supports only `Trigger.AvailableNow` and Lakeflow pipelines (G-02)
 - PaySim (ADR 0006) is a synthetic mobile-money simulation, not real anonymized transaction data — verified counts: 6,362,620 rows, 8,213 fraud (~0.129%)
 - The Databricks Data Engineer Associate coverage map is not yet built
+- If a release run fails and is retried with different scenario flags than the failed attempt, a step can land twice (once under each flag combination); recovery is `99_reset`
 
 ## 🔜 Roadmap
 
 - [ ] Phase 0 — research and ADRs
 - [x] Phase 1 — scaffolding
-- [ ] Phase 2 — ingest to Bronze (code + 37 unit tests done; workspace runs V1–V6 pending)
+- [ ] Phase 2 — ingest to Bronze (code + 44 unit tests done; workspace runs V1–V6 pending)
 - [ ] Phases 3–7 — features, ML, governance, app, live demo and teardown
 
 ---

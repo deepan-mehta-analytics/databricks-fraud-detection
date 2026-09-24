@@ -16,10 +16,10 @@ test: # run the local unit tests (no Databricks needed)
 	python -m pytest -q
 
 # ── Stubs (exit 1 so nothing pretends to pass) ────────────────────
-lint: # no Python source yet
+lint: # Python source exists (src/fraud_ingest); no lint tool is wired up yet
 	@echo "lint: not implemented (Phase 2)"; exit 1
 
-deploy: # no bundle or jobs yet
+deploy: # resources/fraud_ingest_job.yml exists; bundle deploy on Free Edition is unverified (G-11) and user-run only
 	@echo "deploy: not implemented (Phase 6)"; exit 1
 
 teardown: # nothing cost-bearing exists since ADR 0007 (Free Edition only); kept as a stub

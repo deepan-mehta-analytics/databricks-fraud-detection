@@ -8,7 +8,7 @@ emails — placeholders only.
 ## Current phase
 Phase 0 in progress (7 of 11 gaps resolved: G-02, G-03, G-04, G-06, G-07,
 G-08, G-10) and Phase 1 scaffolding done, both committed locally. Phase 2
-(Auto Loader ingest to Bronze) has its code written and covered by 37 local
+(Auto Loader ingest to Bronze) has its code written and covered by 44 local
 unit tests, plus CI and a Databricks Asset Bundle job definition — none of
 it has yet been run in a Databricks workspace (V1–V6 verification pending).
 Local git repo initialised (no remote yet). A Databricks Free
@@ -36,7 +36,7 @@ Provisional — to be replaced by the real plan once Phase 0 research lands.
 |---|---|---|
 | 0 — Research & decisions (verify open questions, write ADRs) | 🔄 In progress | G-02, G-03, G-04, G-06, G-07, G-08 resolved; ADRs 0001–0007 proposed in `docs/adr/` (0004 superseded by 0006; 0005 and the Bronze half of 0003 superseded by 0007, 2026-09-24); ADR 0001 checkpoint-write spike verified 2026-09-22; ADR 0002 grant/row-filter/mask spike verified 2026-09-22 (group creation still open); dataset switched to PaySim, canonical source verified, balance-column leakage risk excluded (ADR 0006, 2026-09-22); G-01 not expected near-term, Auto Loader file ingest designed and recorded as ADR 0007 (2026-09-24); G-10 PaySim volume profile measured and train/replay cut set (2026-09-24); G-11 Asset Bundle deploy on Free Edition open; drives `docs/GAPS.md` |
 | 1 — Scaffolding (git repo, CI, Makefile, per-directory READMEs) | ✅ Done | Makefile untested locally (no `make` installed); CI unrun, no remote |
-| 2 — Ingest → Bronze | 🔄 In progress | Designed (ADR 0007, 2026-09-24); code + 37 unit tests; workspace runs V1–V6 pending |
+| 2 — Ingest → Bronze | 🔄 In progress | Designed (ADR 0007, 2026-09-24); code + 44 unit tests; workspace runs V1–V6 pending |
 | 3 — Silver + velocity features | ⏳ Pending | |
 | 4 — ML training + in-stream scoring | ⏳ Pending | |
 | 5 — Gold alerts + Unity Catalog governance | ⏳ Pending | |
