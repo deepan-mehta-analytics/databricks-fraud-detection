@@ -9,7 +9,10 @@ Catalog, get scored by an ML model, and surface as alerts in a monitoring
 app. It doubles as a hands-on map of the Databricks Data Engineer Associate
 syllabus.
 
-**Status: scaffold only.** No pipeline code exists yet. A free Databricks
+**Status: Phase 2 code written; workspace verification pending.** The Auto
+Loader ingest path (splitter, release task, Bronze stream, 37 local unit
+tests, CI, Databricks Asset Bundle job definition) is written and tested
+locally; it has not yet been run in a Databricks workspace. A free Databricks
 workspace is used only for short verification spikes. Every architecture and
 stack choice is provisional until it has been checked against current docs
 (see `docs/GAPS.md`).
@@ -20,7 +23,7 @@ stack choice is provisional until it has been checked against current docs
 
 ## 🏷️ Project Badges
 
-![Status](https://img.shields.io/badge/Status-Scaffold-orange?style=for-the-badge)
+![Status](https://img.shields.io/badge/Status-Phase_2_In_Progress-yellow?style=for-the-badge)
 ![Platform](https://img.shields.io/badge/Platform-Databricks-red?style=for-the-badge)
 ![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
 
@@ -77,16 +80,24 @@ File drops (Auto Loader) -> Bronze -> Silver (+ velocity features) -> ML scoring
 
 ```
 .
-├── app/            ← monitoring app (Phase 6)
-├── data/           ← local datasets, gitignored
-├── docs/           ← brief, gaps register, cost model, ADRs (docs/adr/), engineering decisions log
-├── notebooks/      ← Databricks notebooks (Phases 2–4)
-├── sql/            ← Unity Catalog DDL and grants (Phase 5)
-├── src/            ← shared Python modules
-├── tests/          ← tests (none yet)
-├── .github/workflows/ci.yml  ← hygiene check only
-├── .env.example    ← placeholder configuration
-├── Makefile        ← honest stubs
+├── app/                        ← monitoring app (Phase 6)
+├── data/                       ← local datasets, gitignored
+├── docs/                       ← brief, gaps register, cost model, ADRs (docs/adr/), engineering decisions log
+├── notebooks/                  ← Databricks notebooks: 01_prepare_outbox, 02_release, 03_ingest_bronze, 99_reset
+├── resources/
+│   └── fraud_ingest_job.yml    ← Asset Bundle job: release -> ingest tasks, paused 10-min schedule
+├── sql/
+│   ├── 10_fraud_ingest_setup.sql  ← schema, volumes, release_log (run once)
+│   └── 20_verify_bronze.sql       ← V2-V4 workspace verification queries
+├── src/
+│   └── fraud_ingest/           ← contract, split, scenarios, release_log, release, ingest (stdlib only)
+├── tests/                      ← 37 unit tests covering the package above
+├── .github/workflows/ci.yml    ← hygiene check + unit test job
+├── .env.example                ← placeholder configuration
+├── databricks.yml              ← Asset Bundle root (dev target, Free Edition)
+├── pyproject.toml              ← pytest config (pythonpath, testpaths)
+├── requirements-dev.txt        ← pytest, PyYAML
+├── Makefile                    ← check-hygiene and test are real; lint/deploy/teardown are honest stubs
 └── PROJECT-STATUS.md
 ```
 
@@ -94,16 +105,29 @@ File drops (Auto Loader) -> Bronze -> Silver (+ velocity features) -> ML scoring
 
 ## ▶️ How to Run
 
-Nothing runs yet. Available today:
+**Local (unit tests only — no Databricks needed):**
 
-1. `make check-hygiene` — verify no local-only or secret file is tracked
-2. `make help` — list targets; the rest are stubs that fail until their phase lands
+1. `python -m pip install -r requirements-dev.txt` — install pytest and PyYAML
+2. `python -m pytest -q` — run the 37 unit tests (or `make test`, where `make` is available)
+3. `make check-hygiene` — verify no local-only or secret file is tracked
+4. `make help` — list targets; `lint`, `deploy` and `teardown` are stubs that fail until their phase lands
+
+**Workspace (outline — not yet run; see `docs/GAPS.md` G-11 and Task 9):**
+
+1. Run `sql/10_fraud_ingest_setup.sql` once in the SQL editor
+2. Upload the PaySim CSV to the `raw` volume
+3. Run `notebooks/01_prepare_outbox.py` once to split it into the `outbox` volume (V1)
+4. Deploy `resources/fraud_ingest_job.yml` via the Databricks Asset Bundle CLI (`databricks bundle deploy`), or recreate the job manually in the UI if bundle deploy is unsupported on Free Edition
+5. Run the `fraud-ingest` job repeatedly (backfill, then K-step replay/drift runs) and verify Bronze with `sql/20_verify_bronze.sql` (V2–V6)
 
 ---
 
 ## 🧪 Tests
 
-No tests yet. Planned with the first Python source in Phase 2.
+`python -m pytest -q` runs **37 passed**, all local — no Databricks needed.
+See `tests/README.md` for the file-by-file breakdown. Notebook behavior and
+the Delta release log / Bronze table are verified by workspace runs (V1–V6),
+not by this local suite.
 
 ---
 
@@ -115,8 +139,13 @@ None. No number is reported until it is measured from a real run.
 
 ## ⚠️ Known Limitations
 
-- Scaffold only; no pipeline exists
+- Phase 2 ingest code is written and unit-tested locally (37 tests) but has
+  not yet run in a Databricks workspace — no Bronze row counts, ingest lag,
+  or runtime figures exist yet
 - Open gaps are tracked in `docs/GAPS.md` (currently G-01, G-05, G-09, G-11)
+- Unverified until a real workspace run (ADR 0007): whether jobs declared as
+  code (Asset Bundles) deploy on Free Edition (G-11), and what a completely
+  invalid JSON line does on ingest
 - Kafka ingest via Confluent Cloud is not usable on Free Edition without outbound internet access, so events are replayed as files through Auto Loader instead (G-01)
 - PaySim is not uniform over time: legitimate volume collapses after simulated day 17 while fraud stays constant, so only days 1–17 are used for training and scoring, and days 18–31 serve as a labelled drift scenario (G-10)
 - Real-Time Mode needs classic compute and is unavailable on Free Edition; serverless streaming supports only `Trigger.AvailableNow` and Lakeflow pipelines (G-02)
@@ -127,7 +156,8 @@ None. No number is reported until it is measured from a real run.
 
 - [ ] Phase 0 — research and ADRs
 - [x] Phase 1 — scaffolding
-- [ ] Phases 2–7 — ingest, features, ML, governance, app, live demo and teardown
+- [ ] Phase 2 — ingest to Bronze (code + 37 unit tests done; workspace runs V1–V6 pending)
+- [ ] Phases 3–7 — features, ML, governance, app, live demo and teardown
 
 ---
 
