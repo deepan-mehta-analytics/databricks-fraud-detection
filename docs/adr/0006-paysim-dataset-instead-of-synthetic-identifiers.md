@@ -110,6 +110,13 @@ still-unverified daily compute quota (G-08) more than the smaller dataset
 would have; consider sampling for the streaming demo if quota pressure
 appears during Phase 2 testing.
 
+**Dataset caveat (measured 2026-09-24, G-10):** PaySim is not uniform over
+time. Fraud stays at ~250 per simulated day, but legitimate volume collapses
+from ~400k rows/day (days 1–17) to ~10k–55k/day from day 18, and day 31 is
+entirely fraud. Train/score splits must therefore cut inside days 1–17
+(backfill days 1–14, replay days 15–17). Days 18–31 are used only as a
+labelled drift scenario, never as scoring data for reported metrics.
+
 ## Alternatives rejected
 - **Keep ADR 0004's synthetic-id approach** — rejected; PaySim removes the
   need for it outright.

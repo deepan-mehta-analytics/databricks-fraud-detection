@@ -6,8 +6,8 @@ public-safe: no account IDs, workspace URLs, cluster IDs, or personal
 emails — placeholders only.
 
 ## Current phase
-Phase 0 in progress (6 of 9 gaps resolved: G-02, G-03, G-04, G-06, G-07,
-G-08) and Phase 1 scaffolding done, both committed locally. Local git repo
+Phase 0 in progress (7 of 11 gaps resolved: G-02, G-03, G-04, G-06, G-07,
+G-08, G-10) and Phase 1 scaffolding done, both committed locally. Local git repo
 initialised (no remote yet), no pipeline code written. A Databricks Free
 Edition workspace has been provisioned (2026-09-22); no Confluent Cloud
 resources exist yet. The dataset was switched from Kaggle Credit Card Fraud
@@ -17,10 +17,13 @@ Databricks reference notebook cited in ADR 0006 had a balance-column
 label-leakage issue, caught and excluded before any Phase 3/4 code was
 written. G-01 (Kafka ingest via Confluent) is not expected to resolve
 near-term; the Auto Loader fallback is now the primary planned Phase 2
-ingest path rather than a contingency. The original brief is captured in
+ingest path rather than a contingency; its design is being worked out
+(2026-09-24). A per-day count of PaySim showed legitimate volume collapsing
+after simulated day 17, so the train/score split and replay window were
+set inside days 1–17 (G-10). The original brief is captured in
 `docs/00-initial-brief.md` and is a **non-binding draft**; every stack and
 architecture decision is to be re-researched before it is adopted (see
-`docs/GAPS.md`). (as of 2026-09-22)
+`docs/GAPS.md`). (as of 2026-09-24)
 
 ## Phase status
 
@@ -28,7 +31,7 @@ Provisional — to be replaced by the real plan once Phase 0 research lands.
 
 | Phase | Status | Notes |
 |---|---|---|
-| 0 — Research & decisions (verify open questions, write ADRs) | 🔄 In progress | G-02, G-03, G-04, G-06, G-07, G-08 resolved; ADRs 0001–0006 proposed in `docs/adr/` (0004 superseded by 0006); ADR 0001 checkpoint-write spike verified 2026-09-22; ADR 0002 grant/row-filter/mask spike verified 2026-09-22 (group creation still open); dataset switched to PaySim, canonical source verified, balance-column leakage risk excluded (ADR 0006, 2026-09-22); G-01 not expected near-term, Auto Loader fallback promoted to primary Phase 2 path; drives `docs/GAPS.md` |
+| 0 — Research & decisions (verify open questions, write ADRs) | 🔄 In progress | G-02, G-03, G-04, G-06, G-07, G-08 resolved; ADRs 0001–0006 proposed in `docs/adr/` (0004 superseded by 0006); ADR 0001 checkpoint-write spike verified 2026-09-22; ADR 0002 grant/row-filter/mask spike verified 2026-09-22 (group creation still open); dataset switched to PaySim, canonical source verified, balance-column leakage risk excluded (ADR 0006, 2026-09-22); G-01 not expected near-term, Auto Loader fallback promoted to primary Phase 2 path, design in progress; G-10 PaySim volume profile measured and train/replay cut set (2026-09-24); G-11 Asset Bundle deploy on Free Edition open; drives `docs/GAPS.md` |
 | 1 — Scaffolding (git repo, CI, Makefile, per-directory READMEs) | ✅ Done | Makefile untested locally (no `make` installed); CI unrun, no remote |
 | 2 — Ingest → Bronze | ⏳ Pending | |
 | 3 — Silver + velocity features | ⏳ Pending | |
