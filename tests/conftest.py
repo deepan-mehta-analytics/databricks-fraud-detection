@@ -14,7 +14,7 @@ PAYSIM_HEADER = [  # header row of data/paysim.csv
 
 
 # ── CSV builder ───────────────────────────────────────────────
-def write_paysim_csv(path: Path, steps: list[int]) -> Path:
+def write_paysim_csv(path: Path, steps: list[int]) -> Path:  # create PaySim-shaped CSV file with specified steps
     """Write one PaySim-shaped row per entry in `steps` (steps must be sorted)."""  # docstring
     with open(path, "w", newline="", encoding="utf-8") as handle:  # create the CSV file
         writer = csv.writer(handle)  # standard CSV writer
@@ -31,14 +31,14 @@ def write_paysim_csv(path: Path, steps: list[int]) -> Path:
 
 # ── Fixtures ──────────────────────────────────────────────────
 @pytest.fixture  # marks this function as a pytest fixture
-def sample_csv(tmp_path: Path) -> Path:
+def sample_csv(tmp_path: Path) -> Path:  # fixture providing 50-row sample CSV spanning all segment boundaries
     """50 rows, 5 per step, spanning every segment boundary; 5 of them fraud."""  # docstring
     steps = [s for s in (1, 2, 336, 337, 338, 408, 409, 410, 742, 743) for _ in range(5)]  # sorted, 10 steps x 5 rows
     return write_paysim_csv(tmp_path / "paysim.csv", steps)  # write and return the CSV path
 
 
 @pytest.fixture  # marks this function as a pytest fixture
-def full_outbox(tmp_path: Path) -> Path:
+def full_outbox(tmp_path: Path) -> Path:  # fixture providing full 743-step outbox built by split_csv
     """An outbox holding every step 1..743, two rows per step, built by split_csv."""  # docstring
     from fraud_ingest.split import split_csv  # imported here so Task 1 tests run before split.py exists
     csv_path = write_paysim_csv(tmp_path / "full.csv", [s for s in range(1, 744) for _ in range(2)])  # 1,486 rows

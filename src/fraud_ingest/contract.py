@@ -45,7 +45,7 @@ SCHEMA_HINTS = ", ".join(  # SQL schema syntax, one "name TYPE" per field
 
 
 # ── Helpers ───────────────────────────────────────────────────
-def segment_for_step(step: int) -> str:
+def segment_for_step(step: int) -> str:  # returns segment name for a given step
     """Return the segment (backfill / replay / drift) a PaySim step belongs to."""  # docstring
     for name, (first, last) in SEGMENT_RANGES.items():  # check each segment in order
         if first <= step <= last:  # step falls inside this segment
@@ -53,22 +53,22 @@ def segment_for_step(step: int) -> str:
     raise ValueError(f"step {step} is outside PaySim's range 1..{LAST_STEP}")  # no such step
 
 
-def outbox_file_name(step: int, segment: str, suffix: str = "") -> str:
+def outbox_file_name(step: int, segment: str, suffix: str = "") -> str:  # format flat file name for outbox step file
     """Flat file name for one step; suffix marks scenario copies (_dup-01, _late, _malformed)."""  # docstring
     return f"paysim_step-{step:04d}_{segment}{suffix}.jsonl"  # no step= folders (Auto Loader would infer partitions)
 
 
-def make_transaction_id(row_number: int) -> str:
+def make_transaction_id(row_number: int) -> str:  # create transaction ID from row number
     """Deterministic ID from the 1-based data-row number in the original CSV."""  # docstring
     return f"ps-{row_number:07d}"  # 7 digits covers all 6,362,620 rows
 
 
-def transaction_time_for_step(step: int, anchor: str = ANCHOR_DEFAULT) -> str:
+def transaction_time_for_step(step: int, anchor: str = ANCHOR_DEFAULT) -> str:  # calculate ISO-8601 timestamp for step
     """Hourly event time: anchor + (step - 1) hours, as ISO-8601 UTC."""  # docstring
     start = datetime.strptime(anchor, TIME_FORMAT).replace(tzinfo=timezone.utc)  # parse the anchor as UTC
     return (start + timedelta(hours=step - 1)).strftime(TIME_FORMAT)  # step 1 = anchor itself
 
 
-def volume_path(catalog: str, schema: str, volume: str) -> str:
+def volume_path(catalog: str, schema: str, volume: str) -> str:  # format Unity Catalog volume mount path
     """POSIX path of a Unity Catalog volume, as seen from Databricks compute."""  # docstring
     return f"/Volumes/{catalog}/{schema}/{volume}"  # standard UC volume mount
