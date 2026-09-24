@@ -6,8 +6,9 @@ from pathlib import Path    # filesystem paths
 
 import pytest               # raises() helper
 
-from conftest import write_paysim_csv          # CSV builder from tests/conftest.py
-from fraud_ingest.split import split_csv       # function under test
+from conftest import write_paysim_csv                    # CSV builder from tests/conftest.py
+from fraud_ingest.contract import transaction_time_for_step  # expected-value helper for the anchor test
+from fraud_ingest.split import split_csv                 # function under test
 
 EXPECTED_FIELDS = {  # every field a record must carry (spec §5.2)
     "transaction_id", "step", "transaction_time", "transaction_type", "amount",  # identity, time, type, value
@@ -66,3 +67,12 @@ def test_rejects_csv_not_sorted_by_step(tmp_path):  # verify split_csv rejects u
     csv_path = write_paysim_csv(tmp_path / "bad.csv", [2, 1])  # step goes backwards
     with pytest.raises(ValueError, match="not sorted"):  # the split relies on sorted input
         split_csv(csv_path, tmp_path / "outbox")  # should refuse
+
+
+def test_custom_anchor_shifts_transaction_time(sample_csv, tmp_path):  # a non-default anchor must reach the written records
+    """split_csv(..., anchor=...) uses the custom anchor for every step's transaction_time."""  # docstring
+    anchor = "2030-06-01T00:00:00Z"  # a deliberately non-default anchor
+    split_csv(sample_csv, tmp_path / "outbox", anchor=anchor)  # split with the custom anchor
+    first = read_lines(tmp_path / "outbox" / "backfill" / "paysim_step-0001_backfill.jsonl")[0]  # step 1 record
+    assert first["transaction_time"] == transaction_time_for_step(1, anchor)  # anchor + 0 hours == the anchor itself
+    assert first["transaction_time"] == "2030-06-01T00:00:00Z"  # literal check against the anchor passed in

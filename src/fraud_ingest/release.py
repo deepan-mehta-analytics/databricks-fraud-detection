@@ -37,6 +37,8 @@ class ReleaseOptions:  # everything one call to run_release needs, beyond the lo
             raise ValueError("steps_per_run must be at least 1")  # reject
         if self.malformed_rows < 0 or (self.malformed_rows and self.malformed_step is None):  # need a target
             raise ValueError("malformed_rows needs malformed_step and must not be negative")  # reject
+        if self.malformed_step is not None and not self.malformed_rows:  # a target with nothing to break is pointless
+            raise ValueError("malformed_step needs malformed_rows to be greater than 0")  # reject
 
 
 def options_from_params(params: dict[str, str]) -> ReleaseOptions:  # build typed options from string job parameters
@@ -49,12 +51,16 @@ def options_from_params(params: dict[str, str]) -> ReleaseOptions:  # build type
 
     steps_per_run = optional_int("steps_per_run")  # None means unset; "0" must stay 0, not silently become 6
 
+    release_held_text = text("release_held").lower()  # normalise case before validating
+    if release_held_text not in ("", "true", "false"):  # only these three spellings are legal widget values
+        raise ValueError(f"release_held must be '', 'true' or 'false', got {text('release_held')!r}")  # reject
+
     return ReleaseOptions(  # assemble options
         steps_per_run=6 if steps_per_run is None else steps_per_run,  # default K only when the param is unset
         segment=text("segment") or "replay",  # default segment
         duplicate_step=optional_int("duplicate_step"),  # optional
         hold_steps=frozenset(int(p) for p in text("hold_steps").split(",") if p.strip()),  # "345, 346" -> {345, 346}
-        release_held=text("release_held").lower() == "true",  # only the exact word true enables it
+        release_held=release_held_text == "true",  # only the exact word true enables it
         schema_change_from_step=optional_int("schema_change_from_step"),  # optional
         malformed_step=optional_int("malformed_step"),  # optional
         malformed_rows=optional_int("malformed_rows") or 0,  # default none
@@ -79,10 +85,16 @@ def _write_release(outbox_dir: str | Path, landing_dir: str | Path, step: int, s
     return name  # name for the log
 
 
+def _logged_channel_from(entries: list[ReleaseEntry]) -> int | None:  # earliest step already logged with `channel`, ignoring this run's own flag
+    """Earliest step already released with `channel`, from the log alone (excludes this run's own flag)."""  # docstring
+    logged = [e.step for e in entries if "schema_change" in e.scenario]  # steps already released with channel
+    return min(logged) if logged else None  # earliest logged wins, or None if never logged
+
+
 def _channel_from(entries: list[ReleaseEntry], options: ReleaseOptions) -> int | None:  # earliest step that should carry the `channel` field
     """First step carrying `channel`: once the producer upgrades, it stays upgraded."""  # docstring
-    logged = [e.step for e in entries if "schema_change" in e.scenario]  # steps already released with channel
-    candidates = logged + ([options.schema_change_from_step] if options.schema_change_from_step else [])  # plus flag
+    logged_from = _logged_channel_from(entries)  # already-recorded start, if any
+    candidates = [s for s in (logged_from, options.schema_change_from_step) if s is not None]  # plus this run's flag
     return min(candidates) if candidates else None  # earliest wins
 
 
@@ -102,24 +114,48 @@ def run_release(outbox_dir: str | Path, landing_dir: str | Path, log: ReleaseLog
     first, last = SEGMENT_RANGES["backfill"]  # steps 1..336
     done = {e.step for e in entries if e.segment == "backfill"}  # already released backfill steps
     if len(done) < last - first + 1:  # backfill not complete yet
+        if any((options.duplicate_step is not None, options.hold_steps, options.release_held,  # any scenario flag...
+                options.schema_change_from_step is not None, options.malformed_step is not None)):  # ...set now
+            raise ValueError("scenario flags are not allowed while backfill is incomplete")  # refuse; nothing copied
+        batch: list[ReleaseEntry] = []  # rows for every step copied this run, logged together at the end
         for step in range(first, last + 1):  # every backfill step
             if step not in done:  # skip steps already released
-                record(step, "backfill", _write_release(outbox_dir, landing_dir, step, "backfill", "", False, 0), "", "released")  # copy + log
+                name = _write_release(outbox_dir, landing_dir, step, "backfill", "", False, 0)  # copy the file
+                batch.append(ReleaseEntry(step, "backfill", name, "", "released", clock()))  # queue the row
+        log.append_many(batch)  # one Delta write for the whole backfill batch (or [] if nothing was missing)
+        released.extend(batch)  # rows just logged
+        # Backfill file names are deterministic, so a crash before this append_many just re-copies
+        # (overwrite) the same missing steps on the next run; nothing is ever double-logged.  # crash-safety note
         return released  # a backfill run releases nothing else
 
     # ── Validate the duplicate request before copying anything ──
     if options.duplicate_step is not None and not any(  # flag set but...
         e.step == options.duplicate_step and e.status == "released" and e.scenario not in ("duplicate", "late")  # ...no earlier normal release
         for e in entries  # only earlier runs count
-    ):
+    ):  # end duplicate_step guard condition
         raise ValueError(f"step {options.duplicate_step} has not been released yet, so it cannot be duplicated")  # refuse; nothing copied
 
     # ── Next K steps of the chosen segment ──
-    channel_from = _channel_from(entries, options)  # schema-change start, if any
     first, last = SEGMENT_RANGES[options.segment]  # segment bounds
     seen = [e.step for e in entries if e.segment == options.segment]  # includes held, duplicate and late rows
     start = max(seen) + 1 if seen else first  # pointer; duplicates and late rows are never above it
-    for step in range(start, min(start + options.steps_per_run - 1, last) + 1):  # next K steps
+    # never above it: a duplicate needs an earlier normal release (checked above); a late file needs an earlier hold  # cross-reference
+    end = min(start + options.steps_per_run - 1, last)  # last step this run's copy loop covers (inclusive)
+
+    # ── Reject scenario flags this run cannot honour, before copying anything ──
+    if options.malformed_step is not None and not (start <= options.malformed_step <= end):  # target must land in this run
+        raise ValueError(f"malformed_step {options.malformed_step} is outside this run's range {start}..{end}")  # refuse; nothing copied
+    bad_holds = sorted(h for h in options.hold_steps if not (start <= h <= end))  # requested holds this run cannot reach
+    if bad_holds:  # at least one hold is unreachable this run
+        raise ValueError(f"hold_steps {bad_holds} are outside this run's range {start}..{end}")  # refuse; nothing copied
+    logged_channel_from = _logged_channel_from(entries)  # already-recorded channel start, from the log alone
+    if (options.schema_change_from_step is not None  # flag set...
+            and not (start <= options.schema_change_from_step <= end)  # ...unreachable this run...
+            and options.schema_change_from_step != logged_channel_from):  # ...and not just repeating what's already recorded
+        raise ValueError(f"schema_change_from_step {options.schema_change_from_step} is outside this run's range {start}..{end}")  # refuse; nothing copied
+
+    channel_from = _channel_from(entries, options)  # schema-change start, if any (this run's flag or an earlier one)
+    for step in range(start, end + 1):  # next K steps
         if step in options.hold_steps:  # late-file scenario: skip now
             record(step, options.segment, outbox_file_name(step, options.segment, "_late"), "late", "held")  # log the hold
             continue  # no file this run

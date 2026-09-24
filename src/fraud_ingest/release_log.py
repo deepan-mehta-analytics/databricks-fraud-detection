@@ -23,8 +23,9 @@ class ReleaseEntry:  # one row of the release log: a released or held PaySim ste
 
 
 class ReleaseLogStore(Protocol):  # interface both log implementations satisfy
-    def entries(self) -> list[ReleaseEntry]: ...        # every row so far
-    def append(self, entry: ReleaseEntry) -> None: ...  # add one row
+    def entries(self) -> list[ReleaseEntry]: ...                    # every row so far
+    def append(self, entry: ReleaseEntry) -> None: ...              # add one row
+    def append_many(self, entries: list[ReleaseEntry]) -> None: ...  # add many rows in one write (e.g. a backfill run)
 
 
 # ── Implementations ───────────────────────────────────────────
@@ -39,6 +40,9 @@ class InMemoryReleaseLog:  # list-backed log store, used by local tests
 
     def append(self, entry: ReleaseEntry) -> None:  # add one row to the log
         self._entries.append(entry)  # add the row
+
+    def append_many(self, entries: list[ReleaseEntry]) -> None:  # add many rows in one call
+        self._entries.extend(entries)  # list-backed, so a batch is just an extend
 
 
 class DeltaReleaseLog:  # Delta-table-backed log store, used on Databricks
@@ -55,3 +59,9 @@ class DeltaReleaseLog:  # Delta-table-backed log store, used on Databricks
     def append(self, entry: ReleaseEntry) -> None:  # append one row to the Delta table
         frame = self._spark.createDataFrame([asdict(entry)], schema=RELEASE_LOG_COLUMNS)  # one-row DataFrame
         frame.write.mode("append").saveAsTable(self._table)  # append to the Delta table
+
+    def append_many(self, entries: list[ReleaseEntry]) -> None:  # append every row as a single Delta write
+        if not entries:  # nothing to write (e.g. an already-complete backfill)
+            return  # avoid writing an empty DataFrame
+        frame = self._spark.createDataFrame([asdict(e) for e in entries], schema=RELEASE_LOG_COLUMNS)  # one DataFrame for the whole batch
+        frame.write.mode("append").saveAsTable(self._table)  # one append covering every row

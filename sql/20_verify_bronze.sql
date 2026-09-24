@@ -1,7 +1,9 @@
 -- ── V2 (after run 1) / V3 (after run 13): totals. Expected values: see plan Task 9. ──
 SELECT COUNT(*) AS row_count,                              -- all Bronze rows
        SUM(fraud_label) AS fraud_rows,                     -- fraud rows
-       COUNT(DISTINCT transaction_id) AS distinct_ids      -- unique transactions
+       COUNT(DISTINCT transaction_id) AS distinct_ids,     -- unique transactions
+       COUNT_IF(_rescued_data IS NOT NULL) AS rescued_total, -- expect 5 after run 13 (0 before the malformed run)
+       COUNT_IF(transaction_time IS NULL) AS null_times    -- expect 0: every row must carry a parsed event time
 FROM workspace.fraud.bronze_transactions;                  -- Bronze table
 
 -- ── V4 duplicate proof: step 340 appears twice per transaction ──

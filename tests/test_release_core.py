@@ -105,3 +105,76 @@ def test_options_from_params_zero_steps_per_run_is_rejected():  # "0" must not s
     with pytest.raises(ValueError):  # zero steps per run is invalid
         options_from_params({"steps_per_run": "0"})  # explicit zero
     assert options_from_params({"steps_per_run": ""}).steps_per_run == 6  # unset still defaults to 6
+
+
+def test_options_from_params_rejects_bad_release_held_text():  # only "", "true" or "false" (any case) are legal
+    with pytest.raises(ValueError):  # anything else is a mistyped widget value, not a silent false
+        options_from_params({"release_held": "yes"})  # not one of the three legal spellings
+    assert options_from_params({"release_held": "TRUE"}).release_held is True  # case-insensitive true
+    assert options_from_params({"release_held": "False"}).release_held is False  # case-insensitive false
+    assert options_from_params({"release_held": ""}).release_held is False  # unset stays off
+
+
+def test_malformed_step_without_rows_is_rejected():  # a target step with nothing to break is a mistake, not a no-op
+    with pytest.raises(ValueError):  # malformed_rows defaults to 0
+        ReleaseOptions(malformed_step=350)  # step set, rows left unset
+    with pytest.raises(ValueError):  # explicit zero is just as invalid
+        ReleaseOptions(malformed_step=350, malformed_rows=0)  # step set, rows explicitly 0
+
+
+def test_scenario_flag_during_backfill_is_rejected(full_outbox, tmp_path):  # scenario flags cannot take effect until backfill is done
+    log = InMemoryReleaseLog()  # empty log = first run ever (backfill incomplete)
+    landing = tmp_path / "landing"  # landing folder
+    with pytest.raises(ValueError, match="backfill is incomplete"):  # refused before any file is copied
+        release(full_outbox, landing, log, hold_steps=frozenset({5}))  # a flag set during backfill
+    assert log.entries() == []  # nothing logged
+    assert not landing.exists() or not list(landing.iterdir())  # nothing copied
+
+
+def test_malformed_step_outside_the_run_is_rejected(full_outbox, tmp_path):  # a target step this run will never reach is refused, not silently ignored
+    log = InMemoryReleaseLog()  # fresh log
+    landing = tmp_path / "landing"  # landing folder
+    release(full_outbox, landing, log)  # backfill run
+    release(full_outbox, landing, log)  # first replay run: 337..342
+    before = len(log.entries())  # log size before the bad run
+    with pytest.raises(ValueError, match="malformed_step"):  # 999 is nowhere near 343..348
+        release(full_outbox, landing, log, malformed_step=999, malformed_rows=1)  # out of range
+    assert len(log.entries()) == before  # nothing logged by the refused run
+    assert not list(landing.glob("paysim_step-0343_*"))  # the normal next step was not copied either
+
+
+def test_hold_steps_outside_the_run_is_rejected(full_outbox, tmp_path):  # a hold target this run will never reach is refused, not silently ignored
+    log = InMemoryReleaseLog()  # fresh log
+    landing = tmp_path / "landing"  # landing folder
+    release(full_outbox, landing, log)  # backfill run
+    release(full_outbox, landing, log)  # first replay run: 337..342
+    before = len(log.entries())  # log size before the bad run
+    with pytest.raises(ValueError, match="hold_steps"):  # 999 is nowhere near 343..348
+        release(full_outbox, landing, log, hold_steps=frozenset({999}))  # out of range
+    assert len(log.entries()) == before  # nothing logged by the refused run
+    assert not list(landing.glob("paysim_step-0343_*"))  # the normal next step was not copied either
+
+
+class _SpyReleaseLog:  # wraps InMemoryReleaseLog to count append() vs append_many() calls
+    def __init__(self) -> None:  # start with an empty backing store and zero counters
+        self._inner = InMemoryReleaseLog()  # real storage
+        self.append_calls = 0  # per-row append() call count
+        self.append_many_calls = 0  # batched append_many() call count
+
+    def entries(self) -> list[ReleaseEntry]:  # delegate to the backing store
+        return self._inner.entries()  # read-through
+
+    def append(self, entry: ReleaseEntry) -> None:  # count then delegate a single-row write
+        self.append_calls += 1  # one more single-row call
+        self._inner.append(entry)  # store it
+
+    def append_many(self, entries: list[ReleaseEntry]) -> None:  # count then delegate a batched write
+        self.append_many_calls += 1  # one more batch call
+        self._inner.append_many(entries)  # store them
+
+
+def test_backfill_run_logs_in_a_single_batch(full_outbox, tmp_path):  # backfill copies every file, then logs once (spec §6 crash-safety)
+    spy = _SpyReleaseLog()  # counts append vs append_many
+    release(full_outbox, tmp_path / "landing", spy)  # one backfill run
+    assert spy.append_many_calls == 1 and spy.append_calls == 0  # one batch write, no per-row appends
+    assert [e.step for e in spy.entries()] == list(range(1, 337))  # same rows an unbatched run would have logged

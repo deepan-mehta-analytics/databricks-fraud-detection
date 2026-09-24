@@ -7,7 +7,7 @@ import csv                          # stream the CSV line by line (Spark would n
 import json                         # write one JSON object per line
 from decimal import Decimal         # exact parsing of values like 2.369524933E7
 from pathlib import Path            # filesystem paths
-from typing import TextIO           # type of an open file handle
+from typing import Any, TextIO      # loose value type for a record + type of an open file handle
 
 from fraud_ingest.contract import (  # shared contract
     ANCHOR_DEFAULT,                 # default synthetic date for step 1
@@ -22,9 +22,9 @@ from fraud_ingest.contract import (  # shared contract
 
 
 # ── Row conversion ────────────────────────────────────────────
-def csv_row_to_record(row: dict[str, str], row_number: int, anchor: str = ANCHOR_DEFAULT) -> dict:  # convert one CSV row into a contract record
+def csv_row_to_record(row: dict[str, str], row_number: int, anchor: str = ANCHOR_DEFAULT) -> dict[str, Any]:  # convert one CSV row into a contract record
     """Convert one CSV row (1-based data-row number) into a contract record."""  # docstring
-    record: dict = {"transaction_id": make_transaction_id(row_number)}  # ID first
+    record: dict[str, Any] = {"transaction_id": make_transaction_id(row_number)}  # ID first
     for source, target in FIELD_MAP.items():  # every PaySim column
         text = row[source]  # raw CSV text
         if target in INT_FIELDS:  # integer columns

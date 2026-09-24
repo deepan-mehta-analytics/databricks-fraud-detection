@@ -51,7 +51,7 @@ def test_schema_hints_pin_the_typed_fields():  # test schema hints contain all r
         "step INT", "transaction_time TIMESTAMP", "amount DECIMAL(18,2)",  # core fields
         "sender_balance_before DECIMAL(18,2)", "receiver_balance_after DECIMAL(18,2)",  # sample balance fields
         "fraud_label INT", "flagged_by_old_rules INT",  # labels
-    ):
+    ):  # end schema-hint fields tuple
         assert hint in SCHEMA_HINTS  # hint present
 
 
