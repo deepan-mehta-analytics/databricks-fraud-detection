@@ -1,0 +1,2 @@
+pytest>=9.0      # test runner (local version 9.0.2)
+PyYAML>=6.0      # parses the job definition in tests/test_job_definition.py

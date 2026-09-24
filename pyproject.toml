@@ -1,0 +1,4 @@
+# ── pytest configuration ──────────────────────────────────────
+[tool.pytest.ini_options]  # pytest reads its settings from this table
+pythonpath = ["src"]       # make src/fraud_ingest importable without installing it
+testpaths = ["tests"]      # only collect tests from tests/
