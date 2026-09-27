@@ -53,9 +53,10 @@ row), 19 not started; 23 planned, 7 stretch, 3 not planned. Delta log:
 
 ## Last commit
 See `git log` on `main`; CI runs on every push (GitHub Actions: hygiene + unit tests).
-`e92bfd6` added the exam-coverage map (`docs/exam-guide-map.md`,
-`docs/exam-guide-delta.md`); the follow-up commit adds the public
-plain-English concept notes in `docs/concepts/`.
+Latest content commits (2026-09-27): `e92bfd6` added the exam-coverage map
+(`docs/exam-guide-map.md`, `docs/exam-guide-delta.md`), `57063ac` added the
+plain-English concept notes in `docs/concepts/`, and `fc56fdd` listed both in
+the README. Later commits are doc upkeep only.
 
 ## Releases
 | Version | Date | What |
