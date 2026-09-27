@@ -6,6 +6,7 @@
 /feedback_*.md
 /reference_*.md
 /docs/superpowers/
+/.superpowers/
 
 # ── Secrets and credentials ───────────────────────────────────
 .env
