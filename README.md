@@ -57,6 +57,7 @@ stream through **Auto Loader into a Unity Catalog medallion layout**.
 - **Jobs as code**: a two-task Databricks job (release → ingest) declared in an Asset Bundle and deployed from the workspace UI, with no token
 - **Guarded parameters**: scenario settings that can't take effect raise an error before any file is copied
 - **Tested and CI-gated**: 44 local unit tests, and a GitHub Actions job running hygiene checks plus tests on every push
+- **Exam-skills coverage map**: every Data Engineer Associate exam item mapped to repo evidence (10 of 33 shown), with short concept notes in [`docs/concepts/`](docs/concepts/)
 
 **🔜 Planned**
 
@@ -207,6 +208,9 @@ databricks-fraud-detection/
 │   ├── GAPS.md                    ← brief-vs-reality register + accepted limitations
 │   ├── ENGINEERING-DECISIONS.md   ← decision log
 │   ├── cost-model.md              ← free-tier cost tracking
+│   ├── exam-guide-map.md          ← DE Associate skills-coverage map (33 items)
+│   ├── exam-guide-delta.md        ← log of each re-check against the exam guide
+│   ├── concepts/                  ← short plain-English notes for each shown skill
 │   └── 00-initial-brief.md        ← original non-binding brief
 │
 ├── app/                           ← monitoring app (Phase 6)
@@ -376,6 +380,7 @@ shown.
 - [x] Phase 1: scaffolding and CI
 - [x] Phase 2: ingest to Bronze (44 unit tests; workspace V1–V6 verified 2026-09-24)
 - [ ] Phase 3: Silver (dedup on `transaction_id`, invalid-row filter, velocity features)
+- [ ] Phase 3 add-on: dev and prod bundle targets, and CI deploys from a protected GitHub environment (exam items 5.2, 5.4)
 - [ ] Phase 4: ML training and in-stream scoring
 - [ ] Phase 5: Gold alerts and Unity Catalog governance
 - [ ] Phase 6: monitoring app and alerting
