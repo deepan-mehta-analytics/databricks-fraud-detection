@@ -38,16 +38,8 @@ table with their decision, so the reasoning remains auditable.
 Databricks Certified Data Engineer Associate syllabus versus what this
 project actually demonstrates.
 
-**Not populated yet.** In the working session, fetch the current official
-exam guide first (do not fill this from memory), record its version and
-fetch date here, then add one row per official sub-objective:
-
-| § | Sub-objective | Module in this repo | Status |
-|---|---|---|---|
-| — | — | — | ⏳ Open |
-
-Rows with no module are the gaps. Decide for each: build it, or record it
-under Known Limitations.
+Moved to [exam-guide-map.md](exam-guide-map.md) (guide Exam Guide - May 2026,
+fetched 2026-09-27): 10 ✅ / 4 🟡 / 19 ⬜ of 33.
 
 ---
 

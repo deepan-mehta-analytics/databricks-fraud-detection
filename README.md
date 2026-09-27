@@ -34,6 +34,7 @@ mid-stream, and corrupted values.
 [![CI](https://img.shields.io/github/actions/workflow/status/deepan-mehta-analytics/databricks-fraud-detection/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI)](https://github.com/deepan-mehta-analytics/databricks-fraud-detection/actions)
 [![Release](https://img.shields.io/github/v/release/deepan-mehta-analytics/databricks-fraud-detection?style=for-the-badge&logo=github)](https://github.com/deepan-mehta-analytics/databricks-fraud-detection/releases)
 [![Status](https://img.shields.io/badge/Status-Phase_2_Verified_·_In_Development-yellow?style=for-the-badge)](PROJECT-STATUS.md)
+[![Exam coverage](https://img.shields.io/badge/DE_Associate-10%2F33_shown-blue?style=for-the-badge)](docs/exam-guide-map.md)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
 ---
@@ -342,6 +343,20 @@ No model metrics yet: training starts in Phase 4.
 
 ---
 
+## 🎓 Exam Alignment
+
+This repo doubles as verifiable skills coverage for the **Databricks
+Certified Data Engineer Associate** exam guide: 10 of 33 official items are
+shown with real code or a verified run, 4 more are designed (an ADR or a
+`docs/GAPS.md` row), and 19 are not started. See the full breakdown in
+[`docs/exam-guide-map.md`](docs/exam-guide-map.md), and the study notes
+building toward it in [`docs/concepts/`](docs/concepts/). This is a skills
+coverage map, not exam prep. Several ✅ rows are partial rather than
+complete — the map's Skill column always says exactly what is and isn't
+shown.
+
+---
+
 ## ⚠️ Known Limitations
 
 - **Single verification day**: Phase 2 figures are single runs, not averages. The daily compute quota is still unknown; only that one day's runs fit inside it (G-08)
@@ -352,6 +367,8 @@ No model metrics yet: training starts in Phase 4.
 - **Storage duplication**: landing files are kept after ingest, so the data sits in the workspace about three times (CSV, outbox, landing) plus Bronze. There is no stated storage quota; `cleanSource` archiving is not yet implemented
 - **Retry with changed flags**: if a failed release is retried with different scenario flags, a step can land twice; recovery is `99_reset`
 - **Open gaps**: G-05 (model metrics, which need training) and G-09 (cost recompute) in [`docs/GAPS.md`](docs/GAPS.md)
+- **Exam items out of scope for this project**: 2.2 (COPY INTO), 2.4 (Lakeflow Connect) and 2.5 (JDBC/ODBC/REST landing) are not planned — see [`docs/exam-guide-map.md`](docs/exam-guide-map.md) for why
+- **Keyless CI/CD unavailable**: Keyless OIDC deploys from GitHub Actions need a Databricks account console, which Free Edition does not have, so CI deploys will use a stored credential in a protected GitHub environment instead ([docs](https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation-policy), checked 2026-09-27)
 
 ## 🔜 Roadmap
 
@@ -363,7 +380,7 @@ No model metrics yet: training starts in Phase 4.
 - [ ] Phase 5: Gold alerts and Unity Catalog governance
 - [ ] Phase 6: monitoring app and alerting
 - [ ] Phase 7: live demo window and teardown
-- [ ] Databricks Data Engineer Associate coverage map
+- [x] Databricks Data Engineer Associate coverage map
 
 ---
 

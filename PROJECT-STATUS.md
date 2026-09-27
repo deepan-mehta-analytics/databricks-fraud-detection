@@ -44,8 +44,18 @@ Provisional — to be replaced by the real plan once Phase 0 research lands.
 | 6 — Monitoring app + Workflows/alerting | ⏳ Pending | |
 | 7 — Live demo window + teardown | ⏳ Pending | |
 
+## Exam coverage
+[Databricks Certified Data Engineer Associate skills-coverage map](docs/exam-guide-map.md)
+(guide "Exam Guide - May 2026", fetched 2026-09-27): 10 of 33 official items
+shown with real code or a verified run, 4 designed (an ADR or a `docs/GAPS.md`
+row), 19 not started; 23 planned, 7 stretch, 3 not planned. Delta log:
+`docs/exam-guide-delta.md`.
+
 ## Last commit
 See `git log` on `main`; CI runs on every push (GitHub Actions: hygiene + unit tests).
+This commit adds the exam-coverage map (`docs/exam-guide-map.md`,
+`docs/exam-guide-delta.md`); the commit hash is recorded here in the next
+update (the follow-up commit for the study-app concept notes).
 
 ## Releases
 | Version | Date | What |
