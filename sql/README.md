@@ -19,7 +19,8 @@ not roles (see G-06).
   pipeline's only source, so materialized views can refresh incrementally.
 - `31_verify_silver.sql` — verification queries for the Silver checks S2–S6:
   accounting and counts, rejected rows by reason, features against an
-  independent self-join, and the pipeline event log (refresh technique and
-  update durations). The receiver and pipeline ID are named parameters
-  (`:receiver`, `:pipeline_id`); no real ID is committed. The expected
-  values are filled in by Task 4.
+  independent self-join covering all seven features, and the pipeline event
+  log (refresh technique and update durations). The receiver and pipeline
+  ID are named parameters (`:receiver`, `:pipeline_id`); no real ID is
+  committed. The expected counts were measured with
+  `scripts/expected_silver.py` over `data/paysim.csv`.
