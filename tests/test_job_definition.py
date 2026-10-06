@@ -5,7 +5,10 @@ from pathlib import Path  # locate the YAML
 
 import yaml               # PyYAML parser
 
+from fraud_ingest.contract import ANCHOR_DEFAULT  # the pipeline's anchor must match the producer
 from fraud_ingest.release import PARAM_NAMES  # parameters the release notebook reads
+
+PIPELINE_FILE = Path(__file__).resolve().parents[1] / "resources" / "fraud_silver_pipeline.yml"  # pipeline definition path
 
 JOB_FILE = Path(__file__).resolve().parents[1] / "resources" / "fraud_ingest_job.yml"  # job definition path
 
@@ -14,13 +17,36 @@ def load_job() -> dict:  # load and return the fraud_ingest job block from the b
     return yaml.safe_load(JOB_FILE.read_text(encoding="utf-8"))["resources"]["jobs"]["fraud_ingest"]  # the job block
 
 
-def test_tasks_run_release_then_ingest_with_one_retry():  # verify task graph and retry policy
+def load_pipeline() -> dict:  # load and return the fraud_silver pipeline block from the bundle YAML
+    return yaml.safe_load(PIPELINE_FILE.read_text(encoding="utf-8"))["resources"]["pipelines"]["fraud_silver"]  # the block
+
+
+def test_tasks_run_release_then_ingest_then_silver():  # verify task graph and retry policy
     tasks = {t["task_key"]: t for t in load_job()["tasks"]}  # tasks by key
-    assert set(tasks) == {"release", "ingest"}  # exactly two tasks
+    assert set(tasks) == {"release", "ingest", "silver"}  # exactly three tasks
     assert tasks["ingest"]["depends_on"] == [{"task_key": "release"}]  # ingest waits for release
+    assert tasks["silver"]["depends_on"] == [{"task_key": "ingest"}]  # Silver waits for Bronze
     assert tasks["ingest"]["max_retries"] == 1  # absorbs the designed schema-evolution restart
     assert tasks["release"]["notebook_task"]["notebook_path"] == "../notebooks/02_release.py"  # release notebook
     assert tasks["ingest"]["notebook_task"]["notebook_path"] == "../notebooks/03_ingest_bronze.py"  # ingest notebook
+    assert tasks["silver"]["pipeline_task"] == {  # runs the bundle's pipeline, never a full refresh by default
+        "pipeline_id": "${resources.pipelines.fraud_silver.id}", "full_refresh": False}  # exact reference
+
+
+def test_pipeline_is_serverless_triggered_and_targets_the_project_schema():  # spec §4, §7
+    pipeline = load_pipeline()  # the pipeline block
+    assert pipeline["name"] == "fraud-silver"  # name shown in the workspace
+    assert pipeline["serverless"] is True  # Free Edition is serverless-only
+    assert pipeline["continuous"] is False  # triggered: active only while the job runs it
+    assert (pipeline["catalog"], pipeline["schema"]) == ("workspace", "fraud")  # same place as Bronze
+    assert pipeline["configuration"] == {"anchor": ANCHOR_DEFAULT}  # matches the producer's anchor
+
+
+def test_pipeline_lists_exactly_the_four_sql_files_in_order():  # spec §7
+    paths = [lib["file"]["path"] for lib in load_pipeline()["libraries"]]  # library paths
+    assert paths == [f"../pipelines/silver/{name}" for name in (  # relative to resources/
+        "01_checked_transactions.sql", "02_transactions.sql",  # verdict view and clean table
+        "03_rejected_transactions.sql", "04_transaction_features.sql")]  # rejected shelf and features
 
 
 def test_schedule_is_defined_but_paused_and_runs_never_overlap():  # verify schedule and concurrency guard

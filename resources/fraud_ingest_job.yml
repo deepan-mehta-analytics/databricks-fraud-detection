@@ -1,4 +1,4 @@
-# ── Job: release the next PaySim steps, then ingest them with Auto Loader (ADR 0007) ──
+# ── Job: release the next PaySim steps, ingest them with Auto Loader, then refresh Silver (ADR 0007, ADR 0008) ──
 resources:                                        # bundle resources
   jobs:                                           # job resources
     fraud_ingest:                                 # resource key (used in tests)
@@ -40,3 +40,9 @@ resources:                                        # bundle resources
           min_retry_interval_millis: 10000        # wait 10 s before retrying
           notebook_task:                          # runs a notebook on serverless
             notebook_path: ../notebooks/03_ingest_bronze.py  # path relative to this file
+        - task_key: silver                        # Silver pipeline refresh
+          depends_on:                             # ordering
+            - task_key: ingest                    # after Bronze is up to date
+          pipeline_task:                          # runs the bundle's Lakeflow pipeline (serverless)
+            pipeline_id: ${resources.pipelines.fraud_silver.id}  # resolved at deploy time; no ID in the repo
+            full_refresh: false                   # incremental by default; full refresh only by hand after a reset
