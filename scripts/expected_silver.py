@@ -3,13 +3,14 @@
 # ── Imports ───────────────────────────────────────────────────
 import argparse  # command-line flags
 import sys       # path setup
+from collections import Counter  # tallies
 from pathlib import Path  # locate src/
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))  # import the package without installing it
 
 from fraud_silver.expected import (  # noqa: E402  reference model
-    BronzeScenario, TODAY_SCENARIO, count_verdicts, features_for_receiver,  # scenario + counting + features
-    iter_bronze_records, judge, suggest_receiver,  # simulation + verdicts + spot-check pick
+    BronzeScenario, TODAY_SCENARIO, busiest, features_for_receiver,  # scenario + pick rule + features
+    iter_bronze_records, judge,  # simulation + verdicts
 )  # end import
 
 
@@ -35,16 +36,25 @@ def main() -> None:  # parse flags, simulate Bronze, print the numbers
     def ok_records():  # re-iterable source of ok rows (re-reads the CSV each call)
         return (r for v, r in judge(iter_bronze_records(args.csv, scenario)) if v == "ok")  # ok only
 
-    counts = count_verdicts(judge(iter_bronze_records(args.csv, scenario)))  # verdict totals
+    counts: Counter[str] = Counter()  # verdict -> rows
+    fraud = 0  # fraud rows in Silver
+    in_range: Counter[str] = Counter()  # ok payments per receiver inside the suggestion window
+    first, last = args.suggest_from, args.suggest_to or args.suggest_from  # suggestion window (None = off)
+    for verdict, record in judge(iter_bronze_records(args.csv, scenario)):  # ONE pass for counts, fraud and suggestion
+        counts[verdict] += 1  # tally the verdict
+        if verdict == "ok":  # Silver row
+            fraud += record["fraud_label"]  # count fraud
+            if first is not None and first <= record["step"] <= last:  # inside the window
+                in_range[record["receiver_account"]] += 1  # count for the suggestion
     bronze = sum(counts.values())  # all Bronze rows
     rejected = bronze - counts["ok"] - counts["duplicate_copy"]  # rejected shelf rows
     print(f"bronze_rows={bronze} silver_rows={counts['ok']} rejected_rows={rejected} "  # accounting line
           f"duplicate_copies_removed={counts['duplicate_copy']}")  # removed copies
     print("verdicts=" + ", ".join(f"{k}:{counts[k]}" for k in sorted(counts)))  # every verdict
-    print(f"silver_fraud={sum(r['fraud_label'] for r in ok_records())}")  # fraud rows in Silver
+    print(f"silver_fraud={fraud}")  # fraud rows in Silver
     receiver = args.receiver  # explicit choice first
-    if receiver is None and args.suggest_from is not None:  # otherwise suggest
-        receiver = suggest_receiver(ok_records(), args.suggest_from, args.suggest_to or args.suggest_from)  # busiest
+    if receiver is None and first is not None:  # otherwise suggest
+        receiver = busiest(in_range)  # same rule as suggest_receiver
         print(f"suggested_receiver={receiver}")  # show the pick
     if receiver:  # spot-check requested
         for row in features_for_receiver(ok_records, receiver):  # one line per payment

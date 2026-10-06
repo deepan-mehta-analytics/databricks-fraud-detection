@@ -9,10 +9,10 @@ resources:                                        # bundle resources
         timezone_id: UTC                          # schedule clock
         pause_status: PAUSED                      # off until the user enables it (quota unconfirmed, G-08)
       parameters:                                 # job parameters, pushed to notebook widgets of the same name
-        - name: catalog                           # Unity Catalog catalog
-          default: workspace                      # Free Edition default catalog
-        - name: schema                            # project schema
-          default: fraud                          # created by sql/10_fraud_ingest_setup.sql
+        - name: catalog                           # Unity Catalog catalog (change via the bundle variable, not at Run now)
+          default: ${var.catalog}                 # same value the Silver pipeline is deployed with
+        - name: schema                            # project schema (change via the bundle variable, not at Run now)
+          default: ${var.schema}                  # same value the Silver pipeline is deployed with
         - name: steps_per_run                     # K
           default: "6"                            # 72 replay steps = 12 runs
         - name: segment                           # replay or drift

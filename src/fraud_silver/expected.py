@@ -183,6 +183,10 @@ def features_for_receiver(ok_records_factory: Callable[[], Iterable[dict[str, An
 def suggest_receiver(ok_records: Iterable[dict[str, Any]], first_step: int, last_step: int) -> str | None:  # spot-check pick
     """The receiver with the most ok payments in [first_step, last_step]; ties go to the smallest ID."""  # docstring
     counts = Counter(r["receiver_account"] for r in ok_records if first_step <= r["step"] <= last_step)  # payments per receiver
-    if not counts:  # nothing in range
+    return busiest(counts)  # same pick rule as the one-pass CLI
+
+
+def busiest(counts: Counter[str]) -> str | None:  # the receiver with the most payments; ties go to the smallest ID
+    if not counts:  # nothing counted
         return None  # no suggestion
     return min(counts, key=lambda k: (-counts[k], k))  # busiest, then alphabetical

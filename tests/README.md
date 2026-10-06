@@ -1,6 +1,6 @@
 # tests/
 
-`python -m pytest -q` runs 77 tests, all local (no Databricks needed):
+`python -m pytest -q` runs 79 tests, all local (no Databricks needed):
 
 - `test_contract.py` — segment boundaries, file naming, transaction ID and
   timestamp derivation, schema hints, volume paths.
@@ -17,13 +17,16 @@
 - `test_job_definition.py` — parses `resources/fraud_ingest_job.yml` and
   checks the three tasks (release, ingest, silver), retry, schedule and
   parameter list, plus the `fraud_silver` pipeline resource (serverless,
-  triggered, anchor, the four SQL files in order).
+  triggered, anchor, the four SQL files in order), and that the job and
+  the pipeline share one catalog/schema through the bundle variables.
 - `test_silver_expected.py` — the verdict rules in precedence order, duplicate
   ranking, the Bronze scenario simulation, strict-past features and the
-  empty-history nulls.
+  empty-history nulls, and the one-pass command-line tool against the
+  library helpers.
 - `test_silver_sql.py` — text-level guards on the pipeline SQL: private
   verdict view, every verdict and expectation named, FAIL guards, no
-  synthetic or balance columns selected, strict-past frames, `try_divide`.
+  synthetic or balance columns selected, the clean table's fixed 12-column
+  list (no `*`), every window with a strict-past frame, `try_divide`.
 
 Notebook behavior and the Delta release log/Bronze table are verified by
 workspace runs (V1–V6), not by this local suite.

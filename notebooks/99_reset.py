@@ -15,5 +15,7 @@ spark.sql(f"DELETE FROM {catalog}.{schema}.release_log")                   # emp
 for volume in ("landing", "pipeline_state"):                               # folders to clear
     for item in dbutils.fs.ls(f"/Volumes/{catalog}/{schema}/{volume}"):    # every file or folder inside
         dbutils.fs.rm(item.path, True)                                     # remove recursively
-print("Reset done: rerun the job to start from the backfill, then rerun sql/30_silver_setup.sql "  # Bronze is recreated...
-      "and run the fraud-silver pipeline once with 'Full refresh all' (Silver must rebuild on the new table).")  # ...so Silver rebuilds
+print("Reset done. Rebuild in this order: "                                  # Bronze is recreated, so Silver must rebuild
+      "1) run the fraud-ingest job once (backfill recreates Bronze; its silver task result does not matter yet); "  # step 1
+      "2) run sql/30_silver_setup.sql (turns incremental-refresh support back on for the new Bronze table); "  # step 2
+      "3) open the fraud-silver pipeline and click 'Full refresh all'. Later job runs are incremental again.")  # step 3

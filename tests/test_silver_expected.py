@@ -143,3 +143,24 @@ def test_zero_average_gives_null_ratio():  # history amounts sum to zero
 def test_suggest_receiver_prefers_the_busiest_in_range():  # spot-check helper
     assert suggest_receiver(history(), 1, 30) == "M9"  # M9 is the only receiver
     assert suggest_receiver(history(), 100, 200) is None  # nothing in range
+
+
+# ── Command-line tool ─────────────────────────────────────────
+def test_cli_one_pass_matches_the_library(tmp_path):  # the one-pass CLI must agree with the multi-pass helpers
+    import subprocess, sys  # run the script as the owner would
+    from pathlib import Path  # locate the script
+    csv_path = write_paysim_csv(tmp_path / "p.csv", [1, 1, 2, 2, 2, 3, 3, 3, 3, 3])  # 10 rows, row 10 is fraud
+    scenario = BronzeScenario(last_step=3, held_steps=frozenset(), duplicate_steps=frozenset({1}),  # step 1 twice
+                              malformed_step=2, malformed_rows=1)  # first row of step 2 broken
+    counts = count_verdicts(judge(iter_bronze_records(csv_path, scenario)))  # library totals
+    ok = [r for v, r in judge(iter_bronze_records(csv_path, scenario)) if v == "ok"]  # library Silver rows
+    script = Path(__file__).resolve().parents[1] / "scripts" / "expected_silver.py"  # CLI path
+    out = subprocess.run([sys.executable, str(script), "--csv", str(csv_path), "--last-step", "3",  # same scenario...
+                          "--held-steps", "", "--duplicate-steps", "1", "--malformed-step", "2",  # ...flag by flag
+                          "--malformed-rows", "1", "--suggest-from", "2", "--suggest-to", "3"],  # suggestion window
+                         capture_output=True, text=True, check=True).stdout.splitlines()  # printed lines
+    assert out[0] == (f"bronze_rows={sum(counts.values())} silver_rows={counts['ok']} rejected_rows=1 "  # accounting
+                      f"duplicate_copies_removed={counts['duplicate_copy']}")  # 2 copies of step 1
+    assert out[2] == f"silver_fraud={sum(r['fraud_label'] for r in ok)}"  # fraud total
+    assert out[3] == f"suggested_receiver={suggest_receiver(ok, 2, 3)}"  # same pick rule
+    assert sum(line.startswith("{") for line in out) == 1  # one feature row for the suggested receiver

@@ -36,7 +36,7 @@ WITH rules AS (                                                                 
       WHEN NOT COALESCE(fraud_label IN (0, 1) AND flagged_by_old_rules IN (0, 1), FALSE) THEN 'bad_label'  -- rule 7
       WHEN _rescued_data IS NOT NULL THEN 'unparsed_value'                                     -- rule 8
     END AS rule_verdict                                                                        -- NULL = passed rules 1-8
-  FROM workspace.fraud.bronze_transactions                                                     -- Bronze (outside the pipeline)
+  FROM ${bronze_table}                                                                         -- Bronze (outside the pipeline; set in the pipeline configuration)
 ),                                                                                             -- end rules
 -- ── Rule 9: rank copies among valid rows only, earliest arrival first ──
 ranked AS (                                                                                    -- copy number per ID

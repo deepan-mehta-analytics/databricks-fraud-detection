@@ -3,12 +3,13 @@ resources:                                          # bundle resources
   pipelines:                                        # pipeline resources
     fraud_silver:                                   # resource key (used by the job task and tests)
       name: fraud-silver                            # pipeline name in the workspace
-      catalog: workspace                            # Free Edition default catalog
-      schema: fraud                                 # same schema as Bronze; ① is private, ②③④ publish here
+      catalog: ${var.catalog}                       # bundle variable shared with the job (databricks.yml)
+      schema: ${var.schema}                         # same schema as Bronze; ① is private, ②③④ publish here
       serverless: true                              # Free Edition is serverless-only (G-08)
       continuous: false                             # triggered: runs only when the job calls it
       configuration:                                # values the SQL reads as ${key}
         anchor: "2026-01-01T00:00:00Z"              # must equal ANCHOR_DEFAULT and the prepare notebook's anchor
+        bronze_table: ${var.catalog}.${var.schema}.bronze_transactions  # Silver's only source, same place as the job writes it
       libraries:                                    # SQL sources, in dependency order
         - file:                                     # ① verdict view
             path: ../pipelines/silver/01_checked_transactions.sql  # relative to this file

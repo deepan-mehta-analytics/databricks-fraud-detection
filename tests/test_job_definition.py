@@ -10,6 +10,8 @@ from fraud_ingest.release import PARAM_NAMES  # parameters the release notebook 
 
 PIPELINE_FILE = Path(__file__).resolve().parents[1] / "resources" / "fraud_silver_pipeline.yml"  # pipeline definition path
 
+BUNDLE_FILE = Path(__file__).resolve().parents[1] / "databricks.yml"  # bundle root (variables)
+
 JOB_FILE = Path(__file__).resolve().parents[1] / "resources" / "fraud_ingest_job.yml"  # job definition path
 
 
@@ -38,8 +40,18 @@ def test_pipeline_is_serverless_triggered_and_targets_the_project_schema():  # s
     assert pipeline["name"] == "fraud-silver"  # name shown in the workspace
     assert pipeline["serverless"] is True  # Free Edition is serverless-only
     assert pipeline["continuous"] is False  # triggered: active only while the job runs it
-    assert (pipeline["catalog"], pipeline["schema"]) == ("workspace", "fraud")  # same place as Bronze
-    assert pipeline["configuration"] == {"anchor": ANCHOR_DEFAULT}  # matches the producer's anchor
+    assert (pipeline["catalog"], pipeline["schema"]) == ("${var.catalog}", "${var.schema}")  # same place as Bronze
+    assert pipeline["configuration"] == {  # anchor matches the producer; source follows the shared location
+        "anchor": ANCHOR_DEFAULT, "bronze_table": "${var.catalog}.${var.schema}.bronze_transactions"}  # exact values
+
+
+def test_job_and_pipeline_share_one_location():  # security review S-1: Bronze and Silver can never split
+    variables = yaml.safe_load(BUNDLE_FILE.read_text(encoding="utf-8"))["variables"]  # bundle variables
+    assert {k: v["default"] for k, v in variables.items()} == {"catalog": "workspace", "schema": "fraud"}  # defaults
+    defaults = {p["name"]: p["default"] for p in load_job()["parameters"]}  # job parameter defaults
+    assert (defaults["catalog"], defaults["schema"]) == ("${var.catalog}", "${var.schema}")  # same variables
+    sql = (PIPELINE_FILE.parents[1] / "pipelines" / "silver" / "01_checked_transactions.sql").read_text(encoding="utf-8")  # verdict view
+    assert "FROM ${bronze_table}" in sql and "workspace.fraud" not in sql  # source comes from configuration only
 
 
 def test_pipeline_lists_exactly_the_four_sql_files_in_order():  # spec §7
