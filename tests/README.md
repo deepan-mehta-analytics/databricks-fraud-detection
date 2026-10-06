@@ -1,6 +1,6 @@
 # tests/
 
-`python -m pytest -q` runs 69 tests, all local (no Databricks needed):
+`python -m pytest -q` runs 75 tests, all local (no Databricks needed):
 
 - `test_contract.py` — segment boundaries, file naming, transaction ID and
   timestamp derivation, schema hints, volume paths.
@@ -19,6 +19,9 @@
 - `test_silver_expected.py` — the verdict rules in precedence order, duplicate
   ranking, the Bronze scenario simulation, strict-past features and the
   empty-history nulls.
+- `test_silver_sql.py` — text-level guards on the pipeline SQL: private
+  verdict view, every verdict and expectation named, FAIL guards, no
+  synthetic or balance columns selected, strict-past frames, `try_divide`.
 
 Notebook behavior and the Delta release log/Bronze table are verified by
 workspace runs (V1–V6), not by this local suite.
