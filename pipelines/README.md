@@ -6,8 +6,9 @@ Lakeflow declarative pipeline sources (SQL), deployed by the Asset Bundle
 
 `silver/` — Phase 3 Silver (design: ADR 0008):
 
-- `01_checked_transactions.sql` — private (unpublished) view: every Bronze
-  row plus a verdict, with nine warn-only expectations that count each rule
+- `01_checked_transactions.sql` — private materialized view (stored for the
+  pipeline's lifetime but not published to the catalog): every Bronze row
+  plus a verdict, with nine warn-only expectations that count each rule
   on the pipeline's Data quality tab.
 - `02_transactions.sql` — `silver_transactions`: clean payments, first copy
   per ID, fixed columns (no synthetic `channel`, no label-leaking balances),

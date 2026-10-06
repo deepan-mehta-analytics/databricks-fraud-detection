@@ -1,4 +1,6 @@
 -- ── Silver verification (spec §8, S2-S6). Expected values measured 2026-10-06 with scripts/expected_silver.py over data/paysim.csv. ──
+-- Location: written for the default bundle variables (catalog workspace, schema fraud); edit the table names if you changed them.
+-- S2's duplicate count is derived by subtraction; S3's first_copy = 10 on the Data quality tab is the independent check.
 -- Named parameters (:receiver, :pipeline_id) are typed into the SQL editor's parameter boxes; never commit real IDs.
 
 -- ── S2: accounting and counts (one row) ──
