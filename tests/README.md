@@ -1,6 +1,6 @@
 # tests/
 
-`python -m pytest -q` runs 44 tests, all local (no Databricks needed):
+`python -m pytest -q` runs 69 tests, all local (no Databricks needed):
 
 - `test_contract.py` — segment boundaries, file naming, transaction ID and
   timestamp derivation, schema hints, volume paths.
@@ -16,6 +16,9 @@
   imports without PySpark installed.
 - `test_job_definition.py` — parses `resources/fraud_ingest_job.yml` and
   checks the task graph, retry, schedule and parameter list.
+- `test_silver_expected.py` — the verdict rules in precedence order, duplicate
+  ranking, the Bronze scenario simulation, strict-past features and the
+  empty-history nulls.
 
 Notebook behavior and the Delta release log/Bronze table are verified by
 workspace runs (V1–V6), not by this local suite.

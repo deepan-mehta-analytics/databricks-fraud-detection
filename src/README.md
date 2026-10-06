@@ -22,3 +22,10 @@ tests without a Spark install.
   malformed scenarios.
 - `ingest.py` — consumer: one Auto Loader stream from the landing folder
   into the Bronze table (`Trigger.AvailableNow`).
+
+`fraud_silver/`:
+
+- `expected.py` — the local reference model of the Silver pipeline (Bronze
+  simulation from the CSV and scenarios, verdict rules 1–9, strict-past
+  features for one receiver). It gives exact expected values for the workspace
+  checks S2–S5. Stdlib only.
