@@ -30,10 +30,10 @@ mid-stream, and corrupted values.
 [![Asset Bundles](https://img.shields.io/badge/Asset_Bundles-Jobs_as_Code-1B3139?style=for-the-badge&logo=databricks&logoColor=white)](https://docs.databricks.com/aws/en/dev-tools/bundles/)
 
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
-[![pytest](https://img.shields.io/badge/pytest-44_passing-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white)](tests/README.md)
+[![pytest](https://img.shields.io/badge/pytest-79_passing-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white)](tests/README.md)
 [![CI](https://img.shields.io/github/actions/workflow/status/deepan-mehta-analytics/databricks-fraud-detection/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI)](https://github.com/deepan-mehta-analytics/databricks-fraud-detection/actions)
 [![Release](https://img.shields.io/github/v/release/deepan-mehta-analytics/databricks-fraud-detection?style=for-the-badge&logo=github)](https://github.com/deepan-mehta-analytics/databricks-fraud-detection/releases)
-[![Status](https://img.shields.io/badge/Status-Phase_2_Verified_·_In_Development-yellow?style=for-the-badge)](PROJECT-STATUS.md)
+[![Status](https://img.shields.io/badge/Status-Phase_3_Silver_Verified_·_Docs_In_Progress-yellow?style=for-the-badge)](PROJECT-STATUS.md)
 [![Exam coverage](https://img.shields.io/badge/DE_Associate-10%2F33_shown-blue?style=for-the-badge)](docs/exam-guide-map.md)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
@@ -56,7 +56,7 @@ stream through **Auto Loader into a Unity Catalog medallion layout**.
 - **Staged failure scenarios**: duplicate delivery, late arrival, a new column mid-stream and malformed values, each switched on per run and each proven with a SQL check
 - **Jobs as code**: a two-task Databricks job (release → ingest) declared in an Asset Bundle and deployed from the workspace UI, with no token
 - **Guarded parameters**: scenario settings that can't take effect raise an error before any file is copied
-- **Tested and CI-gated**: 44 local unit tests, and a GitHub Actions job running hygiene checks plus tests on every push
+- **Tested and CI-gated**: 79 local unit tests, and a GitHub Actions job running hygiene checks plus tests on every push
 - **Exam-skills coverage map**: every Data Engineer Associate exam item mapped to repo evidence (10 of 33 shown), with short concept notes in [`docs/concepts/`](docs/concepts/)
 
 **🔜 Planned**
@@ -88,7 +88,7 @@ stream through **Auto Loader into a Unity Catalog medallion layout**.
 | 🧩 Orchestration | Databricks Jobs + Asset Bundle (`databricks.yml`) | Two-task job as code, deployed from the workspace UI (G-11) |
 | 🔗 Code delivery | Databricks Git folder | Workspace runs use this repo at a known commit (G-12) |
 | 🐍 Language | Python 3.11 (stdlib-only package) | Splitter, release logic, scenario transforms |
-| 🧪 Testing | pytest (44 tests), PyYAML | Contract, split, scenarios, release, ingest options, job definition |
+| 🧪 Testing | pytest (79 tests), PyYAML | Contract, split, scenarios, release, ingest options, job and pipeline definition, Silver reference model and SQL guards |
 | ⚙️ CI | GitHub Actions | Hygiene check + unit tests on every push |
 | 📊 Data | PaySim (CC BY-SA 4.0) | Synthetic mobile-money transactions with fraud labels |
 
@@ -167,7 +167,7 @@ flowchart LR
 | 0 | Research, gaps register, ADRs | 🔄 10 of 12 gaps resolved |
 | 1 | Scaffolding, CI | ✅ Done |
 | 2 | Ingest to Bronze | ✅ Verified 2026-09-24 |
-| 3 | Silver and features | ⏳ Next |
+| 3 | Silver and features | 🔄 Built and verified in the workspace 2026-10-06 (S1–S6); write-up in progress |
 | 4 | Training and scoring | ⏳ |
 | 5 | Gold alerts and governance | ⏳ |
 | 6 | Monitoring app and alerting | ⏳ |
@@ -187,6 +187,9 @@ databricks-fraud-detection/
 │   ├── release.py                 ← release pointer, flag validation, per-run copy
 │   ├── release_log.py             ← in-memory + Delta release-log stores
 │   └── ingest.py                  ← Auto Loader options and stream builder
+├── src/fraud_silver/expected.py   ← local Silver reference model (expected counts and features)
+├── scripts/expected_silver.py     ← prints the expected Silver numbers from data/paysim.csv
+├── pipelines/silver/              ← Lakeflow pipeline: 4 SQL materialized views (Phase 3)
 │
 ├── notebooks/                     ← Databricks entry points
 │   ├── 01_prepare_outbox.py       ← one-time split (V1)
@@ -196,13 +199,16 @@ databricks-fraud-detection/
 │
 ├── sql/
 │   ├── 10_fraud_ingest_setup.sql  ← schema, 4 volumes, release_log (run once)
-│   └── 20_verify_bronze.sql       ← V2–V4 checks + one-row check of every proof
+│   ├── 20_verify_bronze.sql       ← V2–V4 checks + one-row check of every proof
+│   ├── 30_silver_setup.sql        ← Bronze table properties for incremental refresh
+│   └── 31_verify_silver.sql       ← Silver checks S2–S6
 │
 ├── resources/
-│   └── fraud_ingest_job.yml       ← job: release → ingest, retries, paused schedule
-├── databricks.yml                 ← Asset Bundle root (dev target)
+│   ├── fraud_ingest_job.yml       ← job: release → ingest → silver, retries, paused schedule
+│   └── fraud_silver_pipeline.yml  ← Silver Lakeflow pipeline (serverless, triggered)
+├── databricks.yml                 ← Asset Bundle root (dev target, catalog/schema variables)
 │
-├── tests/                         ← 44 pytest tests (see tests/README.md)
+├── tests/                         ← 79 pytest tests (see tests/README.md)
 ├── docs/
 │   ├── adr/                       ← ADRs 0001–0007
 │   ├── GAPS.md                    ← brief-vs-reality register + accepted limitations
@@ -238,7 +244,7 @@ python -m pip install -r requirements-dev.txt
 
 #### 2. Run the checks
 ```bash
-python -m pytest -q      # 44 unit tests (or: make test)
+python -m pytest -q      # 79 unit tests (or: make test)
 make check-hygiene       # no local-only or secret file is tracked
 make help                # lint / deploy / teardown are stubs until their phase lands
 ```
@@ -278,7 +284,7 @@ pytest).
 ## 🧪 Tests
 
 ```bash
-python -m pytest -q      # → 44 passed
+python -m pytest -q      # → 79 passed
 ```
 
 | File | What it covers |
@@ -289,10 +295,12 @@ python -m pytest -q      # → 44 passed
 | `test_release_core.py` | Backfill-first, K-per-run pacing, crash/resume repair, parameter validation, batched logging |
 | `test_release_scenarios.py` | Duplicate, late, schema-change and malformed scenarios as applied by `run_release` |
 | `test_ingest.py` | Auto Loader option construction; module imports without PySpark |
-| `test_job_definition.py` | Bundle YAML: task graph, retry, schedule, parameter list |
+| `test_job_definition.py` | Bundle YAML: task graph, retry, schedule, parameter list, Silver pipeline, shared catalog/schema |
+| `test_silver_expected.py` | Silver reference model: verdict rules, duplicate ranking, Bronze simulation, strict-past features, CLI |
+| `test_silver_sql.py` | Text guards on the pipeline SQL: private view, expectations, fixed columns, strict-past frames |
 
 Notebook behaviour, the Delta tables and Auto Loader itself are verified by
-workspace runs (V1–V6), not by this local suite. File-by-file detail is in
+workspace runs (V1–V6, and S1–S6 for Silver), not by this local suite. File-by-file detail is in
 [`tests/README.md`](tests/README.md).
 
 ---
@@ -380,7 +388,7 @@ shown.
 
 - [ ] Phase 0: research and ADRs (10 of 12 gaps resolved)
 - [x] Phase 1: scaffolding and CI
-- [x] Phase 2: ingest to Bronze (44 unit tests; workspace V1–V6 verified 2026-09-24)
+- [x] Phase 2: ingest to Bronze (44 unit tests at ship; workspace V1–V6 verified 2026-09-24)
 - [ ] Phase 3: Silver (dedup on `transaction_id`, invalid-row filter, velocity features)
 - [ ] Phase 3 add-on: dev and prod bundle targets, and CI deploys from a protected GitHub environment (exam items 5.2, 5.4)
 - [ ] Phase 4: ML training and in-stream scoring
