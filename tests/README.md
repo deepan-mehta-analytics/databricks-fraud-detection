@@ -1,6 +1,6 @@
 # tests/
 
-`python -m pytest -q` runs 108 tests, all local (no Databricks needed):
+`python -m pytest -q` runs 115 tests, all local (no Databricks needed):
 
 - `test_contract.py` — segment boundaries, file naming, transaction ID and
   timestamp derivation, schema hints, volume paths.
@@ -42,6 +42,9 @@
   all-missing column is kept, feature importances, step chunking.
 - `test_model_scoring.py` — the decision-log schema, DDL and rows, and a
   text guard that the scoring code never reads the label.
+- `test_model_runtime.py` — only a not-found registry error may skip
+  scoring; MLflow 3 is required; a scikit-learn minor-version mismatch
+  between training and scoring is refused.
 
 Notebook behavior, the Delta tables, the Silver pipeline and the model
 registry are verified by workspace runs (V1–V6, S1–S6, M1–M7), not by this

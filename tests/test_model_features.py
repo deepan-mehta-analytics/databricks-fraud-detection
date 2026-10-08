@@ -65,3 +65,21 @@ def test_missing_input_column_is_named():  # a schema slip fails loudly with the
         assert "sender_earlier_payments" in str(error)  # names the column
     else:  # no error is a bug
         raise AssertionError("build_feature_frame accepted a frame with a missing column")  # fail
+
+
+def test_spark_select_casts_money_to_double_in_input_order():  # final review I3: no Decimal objects in pandas
+    from fraud_model.features import DECIMAL_COLUMNS, input_select_expressions  # added by the fix
+    assert DECIMAL_COLUMNS == ("amount", "receiver_amount_last_24_hours", "receiver_largest_amount_last_24_hours")  # money columns
+    expressions = input_select_expressions()  # Spark selectExpr arguments
+    assert len(expressions) == len(INPUT_COLUMNS)  # one per input column
+    for column, expression in zip(INPUT_COLUMNS, expressions):  # same order as INPUT_COLUMNS
+        expected = f"CAST({column} AS DOUBLE) AS {column}" if column in DECIMAL_COLUMNS else column  # cast money only
+        assert expression == expected  # exact text
+
+
+def test_double_input_builds_the_same_features_as_decimal_input():  # final review I3: the cast changes nothing
+    decimal_row = make_input(amount=Decimal("12345.67"), receiver_amount_last_24_hours=Decimal("890.12"),  # Decimal inputs
+                             receiver_largest_amount_last_24_hours=Decimal("500.00"))  # as toPandas() gave before
+    double_row = make_input(amount=12345.67, receiver_amount_last_24_hours=890.12,  # the same values as DOUBLE
+                            receiver_largest_amount_last_24_hours=500.0)  # as toPandas() gives after the cast
+    pd.testing.assert_frame_equal(build_feature_frame(decimal_row), build_feature_frame(double_row))  # identical model input

@@ -10,20 +10,24 @@ SELECT COUNT(*)                         AS scored_rows,        -- expect 1205673
 FROM workspace.fraud.transaction_risk_scores;                  -- the decision log
 
 SELECT COUNT(*) AS silver_rows_to_score                        -- expect 1205673 (1202637 replay + 3036 drift from S5)
-FROM workspace.fraud.silver_transactions
+FROM workspace.fraud.silver_transactions                       -- clean payments
 WHERE step >= 337;                                             -- same filter as the score task
 
 SELECT COUNT(*) AS answer_columns_in_log                       -- expect 0
-FROM workspace.information_schema.columns
-WHERE table_schema = 'fraud' AND table_name = 'transaction_risk_scores'
+FROM workspace.information_schema.columns                      -- catalog metadata
+WHERE table_schema = 'fraud' AND table_name = 'transaction_risk_scores'  -- the decision log
   AND column_name IN ('fraud_label', 'flagged_by_old_rules');  -- no answer stored with a decision
 
 SELECT COUNT(*) AS features_differ_from_silver                 -- expect 0 (no late file since scoring)
-FROM workspace.fraud.transaction_risk_scores s
-JOIN workspace.fraud.silver_transaction_features f USING (transaction_id)
-WHERE NOT (s.receiver_payments_last_24_hours <=> CAST(f.receiver_payments_last_24_hours AS DOUBLE)  -- count
-       AND s.receiver_amount_last_24_hours <=> CAST(f.receiver_amount_last_24_hours AS DOUBLE)      -- sum (NULL-safe)
-       AND s.amount_vs_receiver_average_24_hours <=> f.amount_vs_receiver_average_24_hours);        -- ratio (NULL-safe)
+FROM workspace.fraud.transaction_risk_scores s                 -- features as the model saw them
+JOIN workspace.fraud.silver_transaction_features f USING (transaction_id)  -- features in Silver now
+WHERE NOT (s.receiver_payments_previous_hour <=> CAST(f.receiver_payments_previous_hour AS DOUBLE)                  -- count, previous hour
+       AND s.receiver_payments_last_24_hours <=> CAST(f.receiver_payments_last_24_hours AS DOUBLE)                  -- count, 24 hours
+       AND s.receiver_amount_last_24_hours <=> CAST(f.receiver_amount_last_24_hours AS DOUBLE)                      -- sum (NULL-safe)
+       AND s.receiver_largest_amount_last_24_hours <=> CAST(f.receiver_largest_amount_last_24_hours AS DOUBLE)      -- max (NULL-safe)
+       AND s.receiver_distinct_senders_last_24_hours <=> CAST(f.receiver_distinct_senders_last_24_hours AS DOUBLE)  -- distinct payers
+       AND s.amount_vs_receiver_average_24_hours <=> f.amount_vs_receiver_average_24_hours                          -- ratio (NULL-safe)
+       AND s.sender_earlier_payments <=> CAST(f.sender_earlier_payments AS DOUBLE));                                -- sender history
 
 -- ── M5: run the job again (nothing to release): scored_rows above must still be 1205673 ──
 
@@ -31,7 +35,7 @@ WHERE NOT (s.receiver_payments_last_24_hours <=> CAST(f.receiver_payments_last_2
 SELECT model_version,                                          -- expect two rows:
        COUNT(*)  AS scored_rows,                               --   version 1: 1205673 rows, steps 337-417
        MIN(step) AS first_step,                                --   version 2: 6 rows, steps 418-418
-       MAX(step) AS last_step
-FROM workspace.fraud.transaction_risk_scores
-GROUP BY model_version
-ORDER BY model_version;
+       MAX(step) AS last_step                                  -- last step scored by this version
+FROM workspace.fraud.transaction_risk_scores                   -- the decision log
+GROUP BY model_version                                         -- one row per version
+ORDER BY CAST(model_version AS INT);                           -- numeric order (text would put 10 before 2)

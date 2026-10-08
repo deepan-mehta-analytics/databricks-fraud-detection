@@ -8,13 +8,20 @@ import mlflow                       # tracking and registry
 import mlflow.sklearn               # scikit-learn flavour
 import sklearn                      # version evidence
 from mlflow import MlflowClient     # aliases and descriptions
-from fraud_model.features import INPUT_COLUMNS, MODEL_FEATURES, build_feature_frame  # shared feature builder
+from fraud_model.features import MODEL_FEATURES, build_feature_frame, input_select_expressions  # shared feature builder
 from fraud_model.metrics import flatten_metrics  # MLflow-ready metric dicts
+from fraud_model.runtime import runtime_problems  # environment guard
 from fraud_model.training import MODEL_NAMES, build_models, compare_models, feature_importances  # model code
 from fraud_model.windows import (    # defaults and window math
     ALERT_BUDGET_DEFAULT, COMPARISON_DAYS_DEFAULT, CUT_STEP_DEFAULT, LABEL_DELAY_DAYS_DEFAULT,  # window defaults
     NEGATIVE_SAMPLE_RATE_DEFAULT, SEED_DEFAULT, training_windows,  # sampling defaults and the window function
 )  # end imports
+
+print("versions", "mlflow", mlflow.__version__, "sklearn", sklearn.__version__)  # evidence line (M2: record it)
+problems = runtime_problems(mlflow.__version__, sklearn.__version__)  # MLflow 3 needed for log_model(name=...)
+if problems:                                                    # unsafe environment
+    raise RuntimeError("; ".join(problems))                     # stop before any work
+mlflow.autolog(disable=True)                                    # only the two planned runs per training job
 
 # COMMAND ----------
 # ── Parameters (job parameters override these widgets) ────────
@@ -40,7 +47,7 @@ print("windows", windows)                                                       
 features = spark.table(f"{catalog}.{schema}.silver_transaction_features")      # strict-past features
 clean = spark.table(f"{catalog}.{schema}.silver_transactions").select(          # clean payments...
     "transaction_id", "transaction_type", "amount", "fraud_label")              # ...only what training needs
-rows = features.join(clean, "transaction_id").select(*INPUT_COLUMNS, "fraud_label")  # one row per payment
+rows = features.join(clean, "transaction_id").selectExpr(*input_select_expressions(), "fraud_label")  # one row per payment, money as DOUBLE
 fit_rows = rows.where(f"step BETWEEN {windows.fit_first} AND {windows.fit_last}")  # fit window
 fit_set = fit_rows.where("fraud_label = 1").unionByName(                        # every fraud row...
     fit_rows.where("fraud_label = 0").sample(fraction=rate, seed=seed))         # ...plus sampled normal rows

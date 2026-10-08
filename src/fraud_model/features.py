@@ -23,6 +23,13 @@ FORBIDDEN_INPUTS = (  # columns that must never be read for scoring or used as f
     "channel",  # synthetic scenario column
 )  # end FORBIDDEN_INPUTS
 MODEL_FEATURES = ("amount", "hour_of_day", *SILVER_FEATURES, *(f"type_{name}" for name in TRANSACTION_TYPES))  # 14 inputs, fixed order
+DECIMAL_COLUMNS = ("amount", "receiver_amount_last_24_hours", "receiver_largest_amount_last_24_hours")  # Silver money columns (DECIMAL)
+
+
+# ── Spark side ────────────────────────────────────────────────
+def input_select_expressions() -> tuple[str, ...]:  # selectExpr arguments, in INPUT_COLUMNS order
+    """Cast the money columns to DOUBLE in Spark, so toPandas() yields floats, not Python Decimal objects (final review I3)."""  # docstring
+    return tuple(f"CAST({name} AS DOUBLE) AS {name}" if name in DECIMAL_COLUMNS else name for name in INPUT_COLUMNS)  # money cast, rest as is
 
 
 # ── Helpers ───────────────────────────────────────────────────
