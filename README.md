@@ -14,7 +14,11 @@ the next begins. **Phase 2 is done:** about 6 million simulated transactions
 were streamed into the platform and checked against their expected counts.
 Every count matched exactly. The runs included deliberately staged problems:
 a file sent twice, a file that arrived late, a new column appearing
-mid-stream, and corrupted values.
+mid-stream, and corrupted values. **Phase 3 is done:** those transactions
+are now checked against quality rules, copies are removed, bad rows are set
+aside with the reason, and each payment gets warning signs, such as how many
+payments its receiving account got in the previous 24 hours. Every count
+again matched an independent calculation exactly.
 
 ### Streaming fraud detection on a Databricks lakehouse, built in verified steps, measured rather than claimed
 
@@ -33,8 +37,8 @@ mid-stream, and corrupted values.
 [![pytest](https://img.shields.io/badge/pytest-79_passing-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white)](tests/README.md)
 [![CI](https://img.shields.io/github/actions/workflow/status/deepan-mehta-analytics/databricks-fraud-detection/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI)](https://github.com/deepan-mehta-analytics/databricks-fraud-detection/actions)
 [![Release](https://img.shields.io/github/v/release/deepan-mehta-analytics/databricks-fraud-detection?style=for-the-badge&logo=github)](https://github.com/deepan-mehta-analytics/databricks-fraud-detection/releases)
-[![Status](https://img.shields.io/badge/Status-Phase_3_Silver_Verified_·_Docs_In_Progress-yellow?style=for-the-badge)](PROJECT-STATUS.md)
-[![Exam coverage](https://img.shields.io/badge/DE_Associate-10%2F33_shown-blue?style=for-the-badge)](docs/exam-guide-map.md)
+[![Status](https://img.shields.io/badge/Status-Phase_3_Done_·_Phase_4_Next-yellow?style=for-the-badge)](PROJECT-STATUS.md)
+[![Exam coverage](https://img.shields.io/badge/DE_Associate-15%2F33_shown-blue?style=for-the-badge)](docs/exam-guide-map.md)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
 ---
@@ -54,14 +58,22 @@ stream through **Auto Loader into a Unity Catalog medallion layout**.
 - **Replayable event stream**: a splitter turns the CSV into 743 hourly JSON Lines files, and a release task drops them into a landing volume a few hours at a time
 - **Auto Loader ingest**: incremental file discovery, pinned schema hints, `addNewColumns` schema evolution, rescued data, and an exactly-once checkpoint on a UC Volume
 - **Staged failure scenarios**: duplicate delivery, late arrival, a new column mid-stream and malformed values, each switched on per run and each proven with a SQL check
-- **Jobs as code**: a two-task Databricks job (release → ingest) declared in an Asset Bundle and deployed from the workspace UI, with no token
+- **Jobs as code**: a three-task Databricks job (release → ingest → silver) and the Silver pipeline, declared in an Asset Bundle with shared catalog/schema variables and deployed from the workspace UI, with no token
 - **Guarded parameters**: scenario settings that can't take effect raise an error before any file is copied
 - **Tested and CI-gated**: 79 local unit tests, and a GitHub Actions job running hygiene checks plus tests on every push
-- **Exam-skills coverage map**: every Data Engineer Associate exam item mapped to repo evidence (10 of 33 shown), with short concept notes in [`docs/concepts/`](docs/concepts/)
+- **Exam-skills coverage map**: every Data Engineer Associate exam item mapped to repo evidence (15 of 33 shown), with short concept notes in [`docs/concepts/`](docs/concepts/)
+
+**✅ Implemented and verified (Phase 3: Silver)**
+
+- **Declarative pipeline**: a Lakeflow pipeline of four SQL materialized views, run as a job task after ingest, serverless and triggered
+- **Quality rules with quarantine**: every Bronze row gets a verdict; nine expectations count each rule on the Data quality tab, clean rows go to `silver_transactions` (with fail-loud guards), and rejected rows go to a shelf with their reason
+- **Duplicate handling**: the first arrival of each `transaction_id` is kept, identical copies are dropped and counted, and conflicting copies are rejected
+- **Point-in-time features**: six receiver features (the "mule account" signal) and one sender feature, from earlier hours only, with no leakage from the same hour
+- **Late data corrected**: a file released late updates the affected features on the next refresh, which was proven in a staged run
+- **Measured refresh**: the full build and the later incremental refreshes were read from the pipeline event log, not assumed
 
 **🔜 Planned**
 
-- **Silver**: deduplication, filtering of invalid rows, velocity features
 - **ML**: fraud model training and in-stream scoring
 - **Gold and governance**: alert tables, group grants, row filters and column masks
 - **Monitoring app**: alert dashboard and job alerting
@@ -70,7 +82,7 @@ stream through **Auto Loader into a Unity Catalog medallion layout**.
 
 - **Research first**: every claim in the original brief is re-verified and logged in [`docs/GAPS.md`](docs/GAPS.md) before adoption
 - **Measured results only**: no number is reported unless it came from a real run
-- **Decisions on record**: seven ADRs in [`docs/adr/`](docs/adr/) capture each choice and what it cost
+- **Decisions on record**: eight ADRs in [`docs/adr/`](docs/adr/) capture each choice and what it cost
 - **Cost-disciplined and public-safe**: free tier only, placeholders for every workspace identifier
 
 ---
@@ -83,11 +95,12 @@ stream through **Auto Loader into a Unity Catalog medallion layout**.
 | 📥 Ingestion | Auto Loader (`cloudFiles`) | Incremental JSON Lines ingest with schema hints, evolution and rescued data |
 | 🔄 Stream engine | Spark Structured Streaming, `Trigger.AvailableNow` | Batch-style streaming, the trigger serverless supports (G-02) |
 | 🗄️ Storage | Delta Lake | Append-only Bronze table and the release log |
+| 🥈 Transformation | Lakeflow declarative pipeline (SQL materialized views, expectations) | Silver: quality rules, quarantine, dedup and strict-past window features, refreshed incrementally on serverless |
 | 🏛️ Governance | Unity Catalog: schema, 4 Volumes, grants | Files, checkpoints and tables under one namespace; row filters and masks verified (G-06) |
 | 💾 Checkpoints | Unity Catalog Volume | DBFS root is deprecated (G-03) |
-| 🧩 Orchestration | Databricks Jobs + Asset Bundle (`databricks.yml`) | Two-task job as code, deployed from the workspace UI (G-11) |
+| 🧩 Orchestration | Databricks Jobs + Asset Bundle (`databricks.yml`) | Three-task job (two notebooks and a pipeline task) plus the pipeline, as code, deployed from the workspace UI (G-11) |
 | 🔗 Code delivery | Databricks Git folder | Workspace runs use this repo at a known commit (G-12) |
-| 🐍 Language | Python 3.11 (stdlib-only package) | Splitter, release logic, scenario transforms |
+| 🐍 Language | Python 3.11 (stdlib-only packages), SQL | Splitter, release logic, scenario transforms, a local Silver reference model; Silver in SQL |
 | 🧪 Testing | pytest (79 tests), PyYAML | Contract, split, scenarios, release, ingest options, job and pipeline definition, Silver reference model and SQL guards |
 | ⚙️ CI | GitHub Actions | Hygiene check + unit tests on every push |
 | 📊 Data | PaySim (CC BY-SA 4.0) | Synthetic mobile-money transactions with fraud labels |
@@ -140,15 +153,28 @@ flowchart LR
     ING <-->|schema + offsets| STATE
     ING -->|append| BRONZE
 
-    BRONZE -.-> SILVER["🥈 Silver<br/>dedup + features"]
-    SILVER -.-> ML["🤖 ML scoring"]
+    subgraph PIPE["🥈 fraud-silver pipeline · job task 3"]
+        direction TB
+        CHK["silver_checked_transactions<br/>private · verdict + expectations"]
+        CLEAN[["silver_transactions<br/>clean payments"]]
+        REJ[["silver_rejected_transactions<br/>rejected + reason"]]
+        FEAT[["silver_transaction_features<br/>strict-past features"]]
+        CHK -->|ok| CLEAN
+        CHK -->|rule broken| REJ
+        CLEAN --> FEAT
+    end
+
+    ING -->|then| CHK
+    BRONZE --> CHK
+
+    FEAT -.-> ML["🤖 ML scoring"]
     ML -.-> GOLD["🥇 Gold alerts"]
     GOLD -.-> APP["📊 Monitoring app"]
 
     classDef planned fill:#f5f5f5,stroke:#999,stroke-dasharray:4 3,color:#666
     classDef done fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20
-    class SILVER,ML,GOLD,APP planned
-    class REL,ING,SPLIT,BRONZE done
+    class ML,GOLD,APP planned
+    class REL,ING,SPLIT,BRONZE,CHK,CLEAN,REJ,FEAT done
 ```
 
 *Solid lines are built and verified; dashed nodes are planned phases.*
@@ -161,13 +187,17 @@ flowchart LR
 | `release_log` | Delta table | One row per released or held step, the replay pointer |
 | `bronze_transactions` | Delta table | Raw events plus `source_file`, `file_arrived_at`, `ingested_at`, `_rescued_data` |
 | `pipeline_state` | UC Volume | Auto Loader schema location and streaming checkpoint |
+| `silver_checked_transactions` | Private materialized view | Every Bronze row plus its verdict; nine warn expectations count each rule |
+| `silver_transactions` | Materialized view | Clean payments: first copy only, fixed columns, three fail-loud guards |
+| `silver_rejected_transactions` | Materialized view | Rows that broke a rule or conflicted, with `rejection_reason` and the raw evidence |
+| `silver_transaction_features` | Materialized view | 6 receiver features + 1 sender feature, earlier hours only |
 
 | Phase | Layer | Status |
 |---|---|---|
-| 0 | Research, gaps register, ADRs | 🔄 10 of 12 gaps resolved |
+| 0 | Research, gaps register, ADRs | 🔄 13 of 17 gaps resolved |
 | 1 | Scaffolding, CI | ✅ Done |
 | 2 | Ingest to Bronze | ✅ Verified 2026-09-24 |
-| 3 | Silver and features | 🔄 Built and verified in the workspace 2026-10-06 (S1–S6); write-up in progress |
+| 3 | Silver and features | ✅ Verified 2026-10-06/07 (S1–S6) |
 | 4 | Training and scoring | ⏳ |
 | 5 | Gold alerts and governance | ⏳ |
 | 6 | Monitoring app and alerting | ⏳ |
@@ -189,7 +219,13 @@ databricks-fraud-detection/
 │   └── ingest.py                  ← Auto Loader options and stream builder
 ├── src/fraud_silver/expected.py   ← local Silver reference model (expected counts and features)
 ├── scripts/expected_silver.py     ← prints the expected Silver numbers from data/paysim.csv
-├── pipelines/silver/              ← Lakeflow pipeline: 4 SQL materialized views (Phase 3)
+│
+├── pipelines/                     ← Lakeflow pipeline sources (see pipelines/README.md)
+│   └── silver/
+│       ├── 01_checked_transactions.sql  ← private verdict view + 9 expectations
+│       ├── 02_transactions.sql          ← clean payments + fail guards
+│       ├── 03_rejected_transactions.sql ← rejected shelf with reason
+│       └── 04_transaction_features.sql  ← strict-past window features
 │
 ├── notebooks/                     ← Databricks entry points
 │   ├── 01_prepare_outbox.py       ← one-time split (V1)
@@ -210,7 +246,7 @@ databricks-fraud-detection/
 │
 ├── tests/                         ← 79 pytest tests (see tests/README.md)
 ├── docs/
-│   ├── adr/                       ← ADRs 0001–0007
+│   ├── adr/                       ← ADRs 0001–0008
 │   ├── GAPS.md                    ← brief-vs-reality register + accepted limitations
 │   ├── ENGINEERING-DECISIONS.md   ← decision log
 │   ├── cost-model.md              ← free-tier cost tracking
@@ -251,8 +287,8 @@ make help                # lint / deploy / teardown are stubs until their phase 
 
 ### ☁️ Option 2: Databricks Free Edition workspace
 
-This is the path used for the 2026-09-24 verification. Every step is done by
-hand in the workspace UI.
+This is the path used for the 2026-09-24 (Bronze) and 2026-10-06/07 (Silver)
+verifications. Every step is done by hand in the workspace UI.
 
 1. **Git folder**: Workspace → Home → Create → Git folder → this repo's URL. A public clone needs no token (G-12)
 2. **Setup SQL**: in the SQL editor, on a **SQL warehouse**, run `sql/10_fraud_ingest_setup.sql` once
@@ -271,7 +307,12 @@ hand in the workspace UI.
    | 6 | `steps_per_run=48` | 361–408 |
    | 7 | none | nothing: prints "Nothing to release" |
 
-7. **Verify**: run the one-row check at the end of `sql/20_verify_bronze.sql` and compare with the Results below
+   The `silver` task runs after ingest in every run above. If the pipeline is deployed only after Bronze already exists, do step 8 first, then run the job once with no settings.
+
+7. **Verify Bronze**: run the one-row check at the end of `sql/20_verify_bronze.sql` and compare with the Results below
+8. **Silver setup**: run `sql/30_silver_setup.sql` once Bronze exists. It turns on the table features that incremental refresh needs (deletion vectors, row tracking, change data feed)
+9. **Verify Silver**: run the S2–S6 queries in `sql/31_verify_silver.sql`. The expected values are written inline. The S6 queries need the pipeline ID from the `fraud-silver` page, typed in the editor only
+10. **Reset**: `notebooks/99_reset` drops the state and prints the rebuild order: re-ingest, run `30_silver_setup.sql`, then **Full refresh all** on the pipeline
 
 ### ⚙️ Option 3: CI (GitHub Actions)
 
@@ -351,6 +392,31 @@ and ingest starts only when release finishes, so the first file copied in a
 run waits longest. The ~14 s floor is the hand-off between the two tasks plus
 stream start-up.
 
+### 🥈 Phase 3 Silver, verified 2026-10-06/07
+
+> Same workspace, code at commit `14fa8b3`. Expected values come from a
+> pure-Python reference model (`scripts/expected_silver.py`) run over the
+> same CSV, independent of Spark.
+
+| Check | Expected | Measured |
+|---|---|---|
+| S2 row accounting: Bronze = clean + rejected + identical copies | 5,987,427 = 5,987,412 + 5 + 10 | ✅ exact |
+| S2 Silver fraud / unique IDs | 4,589 / every ID unique | ✅ exact |
+| S2 rejected reasons | `bad_amount` 5 (the malformed values) | ✅ exact |
+| S3 Data quality tab: `amount_valid` / `fully_parsed` / `first_copy` failures | 5 / 5 / 10, all others 0 | ✅ exact |
+| S4 no-peeking check: one receiver's 21 payments, all 7 features | pipeline = hand-written self-join = reference model | ✅ identical |
+| S5 late file: step 413 held, then released late | a step-416 payment changes from no history to 1 payment, 348,118.37 | ✅ changed as calculated |
+
+| S6 pipeline update | Refresh technique (from the event log) | Duration |
+|---|---|---|
+| First build | full recompute, all 4 views | 105 s |
+| Drift run A | incremental: `WINDOW_FUNCTION` (verdict, features), `APPEND_ONLY` (clean, rejected) | 115 s |
+| Drift run B (late file) | incremental, same techniques | 107 s |
+
+💡 **What S6 shows.** The materialized views refreshed incrementally even with
+expectations in place, but at about 6M rows that did not make updates faster:
+fixed pipeline start-up and planning (about 1.5–2 minutes) dominates (G-15).
+
 No model metrics yet: training starts in Phase 4.
 
 ---
@@ -358,9 +424,9 @@ No model metrics yet: training starts in Phase 4.
 ## 🎓 Exam Alignment
 
 This repo doubles as verifiable skills coverage for the **Databricks
-Certified Data Engineer Associate** exam guide: 10 of 33 official items are
-shown with real code or a verified run, 4 more are designed (an ADR or a
-`docs/GAPS.md` row), and 19 are not started. See the full breakdown in
+Certified Data Engineer Associate** exam guide: 15 of 33 official items are
+shown with real code or a verified run, 5 more are designed (an ADR or a
+`docs/GAPS.md` row), and 13 are not started. See the full breakdown in
 [`docs/exam-guide-map.md`](docs/exam-guide-map.md), and the study notes
 building toward it in [`docs/concepts/`](docs/concepts/). This is a skills
 coverage map, not exam prep. Several ✅ rows are partial rather than
@@ -372,13 +438,17 @@ shown.
 ## ⚠️ Known Limitations
 
 - **Single verification day**: Phase 2 figures are single runs, not averages. The daily compute quota is still unknown; only that one day's runs fit inside it (G-08)
-- **Invalid JSON is silent**: a line that is not valid JSON lands as one all-null row (its text is lost, and the run succeeds). The `null_times` check flags it, and Silver will filter it (GAPS §3, V5)
+- **Invalid JSON loses its text**: a line that is not valid JSON lands in Bronze as one all-null row (its text is lost, and the run succeeds). Silver rejects such a row as `missing_id` onto the rejected shelf, so it is visible there, but the original text cannot be recovered (GAPS §3, V5)
+- **Hourly features and warm-up**: PaySim time is in whole hours, so the features count earlier hours only, never the same hour. The first 24 hours have partial history (GAPS §3, S-HOURS)
+- **SQL logic is not unit-tested in CI**: CI checks the Silver SQL's structure (names, frames, column lists, guards). The logic is proven by the workspace runs against the reference model (GAPS §3, CI-SQL)
+- **Reset needs a manual full refresh**: after a Bronze reset, Silver keeps its old results until someone clicks **Full refresh all** on the pipeline (GAPS §3, S-RESET)
+- **Batch-sized Silver**: materialized views fit 6M rows. At bank scale this would be streaming tables plus a feature store with online lookups (ADR 0008)
 - **No Kafka on this tier**: serverless compute cannot even resolve untrusted hostnames (measured), so Confluent Kafka is out. Events are replayed as files instead (G-01)
 - **Not sub-second streaming**: Real-Time Mode needs classic compute. Serverless supports `AvailableNow` and Lakeflow pipelines only (G-02)
 - **Synthetic, uneven data**: PaySim is a simulation. Legitimate volume collapses after simulated day 17 while fraud stays constant, so days 1–17 are used for training and scoring, and days 18–31 are held back as a drift scenario (G-10)
 - **Storage duplication**: landing files are kept after ingest, so the data sits in the workspace about three times (CSV, outbox, landing) plus Bronze. There is no stated storage quota; `cleanSource` archiving is not yet implemented
 - **Retry with changed flags**: if a failed release is retried with different scenario flags, a step can land twice; recovery is `99_reset`
-- **Open gaps**: G-05 (model metrics, which need training) and G-09 (cost recompute) in [`docs/GAPS.md`](docs/GAPS.md)
+- **Open gaps**: G-05 (model metrics, which need training), G-09 (cost recompute), G-16 (Feature Engineering on Free Edition) and G-17 (Phase 4 carry-overs: a scoring decision log, label delay, warm-up hours) in [`docs/GAPS.md`](docs/GAPS.md)
 - **Exam items out of scope for this project**: 2.2 (COPY INTO), 2.4 (Lakeflow Connect) and 2.5 (JDBC/ODBC/REST landing) are not planned — see [`docs/exam-guide-map.md`](docs/exam-guide-map.md) for why
 - **Keyless CI/CD unavailable**: Keyless OIDC deploys from GitHub Actions need a Databricks account console, which Free Edition does not have, so CI deploys will use a stored credential in a protected GitHub environment instead ([docs](https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation-policy), checked 2026-09-27)
 
@@ -386,10 +456,10 @@ shown.
 
 ## 🔜 Roadmap
 
-- [ ] Phase 0: research and ADRs (10 of 12 gaps resolved)
+- [ ] Phase 0: research and ADRs (13 of 17 gaps resolved)
 - [x] Phase 1: scaffolding and CI
 - [x] Phase 2: ingest to Bronze (44 unit tests at ship; workspace V1–V6 verified 2026-09-24)
-- [ ] Phase 3: Silver (dedup on `transaction_id`, invalid-row filter, velocity features)
+- [x] Phase 3: Silver (quality rules with quarantine, dedup on `transaction_id`, strict-past velocity features; workspace S1–S6 verified 2026-10-06/07)
 - [ ] Phase 3 add-on: dev and prod bundle targets, and CI deploys from a protected GitHub environment (exam items 5.2, 5.4)
 - [ ] Phase 4: ML training and in-stream scoring
 - [ ] Phase 5: Gold alerts and Unity Catalog governance

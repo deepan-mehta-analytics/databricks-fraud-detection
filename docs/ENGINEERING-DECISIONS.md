@@ -160,6 +160,36 @@ behaviour, and whether the backfill run fits the daily quota (G-08).
 
 ---
 
+## ADR 0008 — Silver on a declarative pipeline
+
+**Brief assumed:** a Silver layer that "cleans and enriches" the stream,
+without saying how bad rows, duplicates, late data or feature timing are
+handled.
+**We found:** in PaySim, senders almost never repeat, but receivers do: 3,877
+of the 4,563 accounts that receive fraud receive more than one payment. So
+the warning signs belong on the receiving account. Four zero-amount payments
+are all fraud, so a "positive amount" rule would discard real fraud. Time
+moves in whole hours, so "same hour" needs an explicit rule.
+**We decided:** a Lakeflow declarative pipeline of four materialized views,
+run as a job task after ingest. A private view gives every Bronze row a
+verdict, counted by warn-only expectations. The verdict splits the rows into
+a clean table (with fail-loud guards) and a rejected shelf that keeps the
+reason and the raw evidence. Identical copies are dropped and counted. Six
+receiver features and one sender feature use earlier hours only. Payments
+are immutable, so there is no upsert path.
+**Trade-off, stated plainly:** at bank scale this would be streaming tables
+plus a feature store. Materialized views fit 6M rows, and they correct late
+data on their own. CI checks the SQL's structure, not its logic. The logic
+was proven in the workspace against a local calculator.
+**Verified 2026-10-06/07:** the row accounting reconciled exactly (5,987,412
+clean + 5 rejected + 10 copies = 5,987,427). One receiver's features matched
+three ways. A late file corrected a later payment's features. After the first
+full build, updates ran incrementally, even with expectations in place, though
+fixed overhead kept each update at about 2 minutes.
+→ [ADR 0008](adr/0008-silver-on-a-declarative-pipeline.md)
+
+---
+
 ## Reading this alongside the code
 
 Every decision above is `Proposed`, not yet `Accepted` — that flip happens
