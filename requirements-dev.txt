@@ -1,2 +1,4 @@
-pytest>=9.0      # test runner (local version 9.0.2)
-PyYAML>=6.0      # parses the job definition in tests/test_job_definition.py
+pytest>=9.0           # test runner (local version 9.0.2)
+PyYAML>=6.0           # parses the job definitions in tests/test_job_definition.py
+scikit-learn>=1.7     # model code in src/fraud_model (serverless environment 6 has 1.7.2)
+pandas>=2.2           # feature frames in src/fraud_model (serverless environment 6 has 2.3.3)
