@@ -1,8 +1,8 @@
 # notebooks/
 
-Databricks notebooks for the Phase 2 ingest pipeline (features, training and
-scoring land in Phases 3–4). Notebooks must contain no workspace URLs, IDs or
-secrets. Each imports `fraud_ingest` from `../src` at the top.
+Databricks notebooks for ingest (Phase 2) and the fraud model (Phase 4);
+Silver is a Lakeflow pipeline (`pipelines/`). Notebooks must contain no workspace URLs, IDs or
+secrets. Each imports `fraud_ingest` or `fraud_model` from `../src` at the top.
 
 Run order:
 
@@ -15,6 +15,21 @@ Run order:
 3. `03_ingest_bronze.py` — the `ingest` job task: runs the Auto Loader
    stream from `landing` into `bronze_transactions` (`Trigger.AvailableNow`,
    one automatic retry).
-4. `99_reset.py` — **destructive**. Drops Bronze, empties the release log,
-   and clears `landing`/`pipeline_state` (never `outbox` or `raw`). Requires
+4. `04_train_model.py` — the `fraud-train` job task (on demand): fits
+   gradient-boosted trees and a logistic baseline on Silver, compares them on
+   a held-out time window, logs both to MLflow and registers the winner in
+   Unity Catalog as `@challenger`.
+5. `05_score_transactions.py` — the `score` task of `fraud-ingest`, after
+   `silver`: scores payments from step 337 on that are not yet scored, with
+   the `@champion` version, and appends them with the features it saw to
+   `transaction_risk_scores`. With no champion yet it scores nothing and
+   succeeds.
+6. `06_promote_model.py` — owner-run: points `@champion` (or another alias)
+   at a chosen model version and prints before and after.
+7. `07_evaluate_model.py` — owner-run, after the fact: scores steps 337–408
+   with a given model, reads the labels, and logs precision and recall at 50
+   alerts per hour, PR-AUC and two baselines to that model's MLflow run.
+8. `99_reset.py` — **destructive**. Drops Bronze and the risk scores, empties
+   the release log, and clears `landing`/`pipeline_state` (never `outbox` or
+   `raw`). Requires
    the widget `confirm=RESET`; otherwise it raises and changes nothing.

@@ -24,3 +24,7 @@ not roles (see G-06).
   ID are named parameters (`:receiver`, `:pipeline_id`); no real ID is
   committed. The expected counts were measured with
   `scripts/expected_silver.py` over `data/paysim.csv`.
+- `40_verify_model.sql` — verification queries for the model checks M4, M5
+  and M7: scored rows against Silver, no label column in the decision log,
+  stored features equal to Silver's, and rows per model version after a
+  promotion. The expected values were measured from `data/paysim.csv`.
