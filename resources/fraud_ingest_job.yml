@@ -1,4 +1,4 @@
-# ── Job: release the next PaySim steps, ingest them with Auto Loader, then refresh Silver (ADR 0007, ADR 0008) ──
+# ── Job: release the next PaySim steps, ingest them with Auto Loader, refresh Silver, then score new payments (ADR 0007, ADR 0008, ADR 0009) ──
 resources:                                        # bundle resources
   jobs:                                           # job resources
     fraud_ingest:                                 # resource key (used in tests)
@@ -29,6 +29,10 @@ resources:                                        # bundle resources
           default: ""                             # off
         - name: malformed_rows                    # malformed-values scenario: row count
           default: ""                             # off
+        - name: score_from_step                   # first step the score task considers (training data ends at 336)
+          default: "337"                          # equals SCORE_FROM_STEP_DEFAULT
+        - name: model_alias                       # which registered model version scores
+          default: champion                       # set only by notebooks/06_promote_model.py
       tasks:                                      # task graph
         - task_key: release                       # copy the next steps to landing
           notebook_task:                          # runs a notebook on serverless (no cluster block)
@@ -46,3 +50,8 @@ resources:                                        # bundle resources
           pipeline_task:                          # runs the bundle's Lakeflow pipeline (serverless)
             pipeline_id: ${resources.pipelines.fraud_silver.id}  # resolved at deploy time; no ID in the repo
             full_refresh: false                   # incremental by default; full refresh only by hand after a reset
+        - task_key: score                         # fraud risk scores for new payments
+          depends_on:                             # ordering
+            - task_key: silver                    # after the features are refreshed
+          notebook_task:                          # serverless notebook (no cluster block)
+            notebook_path: ../notebooks/05_score_transactions.py  # path relative to this file

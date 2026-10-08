@@ -1,5 +1,5 @@
 # Databricks notebook source
-# ── DESTRUCTIVE: clears Bronze, landing, pipeline state and the release log. User-run only. ──
+# ── DESTRUCTIVE: clears Bronze, landing, pipeline state, the release log and the risk scores. User-run only. ──
 dbutils.widgets.text("catalog", "workspace")  # UC catalog
 dbutils.widgets.text("schema", "fraud")       # project schema
 dbutils.widgets.text("confirm", "")           # must be exactly RESET
@@ -11,6 +11,7 @@ if dbutils.widgets.get("confirm") != "RESET":  # safety gate
 # COMMAND ----------
 # ── Reset (outbox and raw are never touched) ──────────────────
 spark.sql(f"DROP TABLE IF EXISTS {catalog}.{schema}.bronze_transactions")  # drop Bronze
+spark.sql(f"DROP TABLE IF EXISTS {catalog}.{schema}.transaction_risk_scores")  # drop the decision log (IDs repeat after a reset)
 spark.sql(f"DELETE FROM {catalog}.{schema}.release_log")                   # empty the release log
 for volume in ("landing", "pipeline_state"):                               # folders to clear
     for item in dbutils.fs.ls(f"/Volumes/{catalog}/{schema}/{volume}"):    # every file or folder inside

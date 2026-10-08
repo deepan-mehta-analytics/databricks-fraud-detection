@@ -6,7 +6,6 @@ from decimal import Decimal              # Silver money type
 from pathlib import Path                 # read notebook/module text
 
 import pandas as pd                      # frames
-import pytest                            # skip marker until Task 5 adds the notebook
 
 from fraud_model.features import INPUT_COLUMNS, SILVER_FEATURES  # shared columns
 from fraud_model.scoring import (        # code under test
@@ -42,7 +41,6 @@ def test_decision_log_rows_keep_the_features_as_seen():  # one row per scored pa
     assert first.amount == 12.0 and pd.isna(first.receiver_amount_last_24_hours)  # floats as the model saw them
 
 
-@pytest.mark.skipif(not (ROOT / "notebooks/05_score_transactions.py").exists(), reason="notebook lands in Task 5")  # removed in Task 5
 def test_scoring_reads_no_label_and_job_parameters_are_named():  # spec §6 guard
     for path in ("notebooks/05_score_transactions.py", "src/fraud_model/scoring.py"):  # scoring code
         assert "fraud_label" not in (ROOT / path).read_text(encoding="utf-8")  # not even in a comment

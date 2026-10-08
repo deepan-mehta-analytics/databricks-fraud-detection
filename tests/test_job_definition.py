@@ -7,6 +7,7 @@ import yaml               # PyYAML parser
 
 from fraud_ingest.contract import ANCHOR_DEFAULT  # the pipeline's anchor must match the producer
 from fraud_ingest.release import PARAM_NAMES  # parameters the release notebook reads
+from fraud_model.scoring import SCORING_PARAM_NAMES  # parameters the score notebook reads
 
 PIPELINE_FILE = Path(__file__).resolve().parents[1] / "resources" / "fraud_silver_pipeline.yml"  # pipeline definition path
 
@@ -23,14 +24,17 @@ def load_pipeline() -> dict:  # load and return the fraud_silver pipeline block 
     return yaml.safe_load(PIPELINE_FILE.read_text(encoding="utf-8"))["resources"]["pipelines"]["fraud_silver"]  # the block
 
 
-def test_tasks_run_release_then_ingest_then_silver():  # verify task graph and retry policy
+def test_tasks_run_release_ingest_silver_then_score():  # verify task graph and retry policy
     tasks = {t["task_key"]: t for t in load_job()["tasks"]}  # tasks by key
-    assert set(tasks) == {"release", "ingest", "silver"}  # exactly three tasks
+    assert set(tasks) == {"release", "ingest", "silver", "score"}  # exactly four tasks
     assert tasks["ingest"]["depends_on"] == [{"task_key": "release"}]  # ingest waits for release
     assert tasks["silver"]["depends_on"] == [{"task_key": "ingest"}]  # Silver waits for Bronze
+    assert tasks["score"]["depends_on"] == [{"task_key": "silver"}]  # scoring waits for features
     assert tasks["ingest"]["max_retries"] == 1  # absorbs the designed schema-evolution restart
+    assert "max_retries" not in tasks["score"]  # a scoring failure must be loud, not retried
     assert tasks["release"]["notebook_task"]["notebook_path"] == "../notebooks/02_release.py"  # release notebook
     assert tasks["ingest"]["notebook_task"]["notebook_path"] == "../notebooks/03_ingest_bronze.py"  # ingest notebook
+    assert tasks["score"]["notebook_task"]["notebook_path"] == "../notebooks/05_score_transactions.py"  # score notebook
     assert tasks["silver"]["pipeline_task"] == {  # runs the bundle's pipeline, never a full refresh by default
         "pipeline_id": "${resources.pipelines.fraud_silver.id}", "full_refresh": False}  # exact reference
 
@@ -68,9 +72,11 @@ def test_schedule_is_defined_but_paused_and_runs_never_overlap():  # verify sche
     assert job["max_concurrent_runs"] == 1  # release runs must not overlap
 
 
-def test_job_exposes_every_release_parameter():  # verify job parameters cover catalog/schema plus every release option
-    names = {p["name"] for p in load_job()["parameters"]}  # declared job parameters
-    assert names == {"catalog", "schema", *PARAM_NAMES}  # location + every release option
+def test_job_exposes_every_release_and_scoring_parameter():  # location + release options + scoring options
+    from fraud_model.windows import SCORE_FROM_STEP_DEFAULT  # module default
+    params = {p["name"]: p["default"] for p in load_job()["parameters"]}  # declared job parameters
+    assert set(params) == {"catalog", "schema", *PARAM_NAMES, *SCORING_PARAM_NAMES}  # nothing missing, nothing extra
+    assert params["score_from_step"] == str(SCORE_FROM_STEP_DEFAULT) and params["model_alias"] == "champion"  # agreed defaults
 
 
 TRAIN_JOB_FILE = Path(__file__).resolve().parents[1] / "resources" / "fraud_train_job.yml"  # training job definition
