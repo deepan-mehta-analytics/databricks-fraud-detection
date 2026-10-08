@@ -198,7 +198,7 @@ flowchart LR
 | 1 | Scaffolding, CI | ✅ Done |
 | 2 | Ingest to Bronze | ✅ Verified 2026-09-24 |
 | 3 | Silver and features | ✅ Verified 2026-10-06/07 (S1–S6) |
-| 4 | Training and scoring | 🔄 Built 2026-10-08; workspace checks M1–M2 passed, M3–M7 next |
+| 4 | Training and scoring | 🔄 Built 2026-10-08; workspace checks M1–M4a passed (both training runs exact, v1 promoted), first scoring run next |
 | 5 | Gold alerts and governance | ⏳ |
 | 6 | Monitoring app and alerting | ⏳ |
 | 7 | Live demo window and teardown | ⏳ |
@@ -498,7 +498,7 @@ shown.
 
 ## ⚠️ Known Limitations
 
-- **Single verification day**: Phase 2 figures are single runs, not averages. The daily compute quota is still unknown; only that one day's runs fit inside it (G-08)
+- **Single verification day**: Phase 2 figures are single runs, not averages. The daily compute quota is unpublished. Phase 2's runs fit inside one day's allowance; on 2026-10-08, after a day of Phase 4 runs (deploy, two training runs, two job runs), a job's Silver step was refused with `CLUSTER_CREATION_RESOURCE_EXHAUSTED`, so heavy verification days are split across days (G-08)
 - **Invalid JSON loses its text**: a line that is not valid JSON lands in Bronze as one all-null row (its text is lost, and the run succeeds). Silver rejects such a row as `missing_id` onto the rejected shelf, so it is visible there, but the original text cannot be recovered (GAPS §3, V5)
 - **Hourly features and warm-up**: PaySim time is in whole hours, so the features count earlier hours only, never the same hour. The first 24 hours have partial history (GAPS §3, S-HOURS)
 - **SQL logic is not unit-tested in CI**: CI checks the Silver SQL's structure (names, frames, column lists, guards). The logic is proven by the workspace runs against the reference model (GAPS §3, CI-SQL)
