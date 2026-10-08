@@ -74,7 +74,7 @@ stream through **Auto Loader into a Unity Catalog medallion layout**.
 
 **🔜 Planned**
 
-- **ML**: fraud model training and in-stream scoring
+- **ML** (designed): fraud model training with MLflow and the Unity Catalog model registry, and batch scoring after each data load
 - **Gold and governance**: alert tables, group grants, row filters and column masks
 - **Monitoring app**: alert dashboard and job alerting
 
@@ -82,7 +82,7 @@ stream through **Auto Loader into a Unity Catalog medallion layout**.
 
 - **Research first**: every claim in the original brief is re-verified and logged in [`docs/GAPS.md`](docs/GAPS.md) before adoption
 - **Measured results only**: no number is reported unless it came from a real run
-- **Decisions on record**: eight ADRs in [`docs/adr/`](docs/adr/) capture each choice and what it cost
+- **Decisions on record**: eight ADRs in [`docs/adr/`](docs/adr/) capture each choice and what it cost, summarised in [Key Design Choices](#-key-design-choices)
 - **Cost-disciplined and public-safe**: free tier only, placeholders for every workspace identifier
 
 ---
@@ -421,6 +421,48 @@ No model metrics yet: training starts in Phase 4.
 
 ---
 
+## 🧩 Key Design Choices
+
+The engineering decisions behind each layer. Every row links to an ADR with
+the evidence and the alternatives rejected. Full narrative:
+[`docs/ENGINEERING-DECISIONS.md`](docs/ENGINEERING-DECISIONS.md).
+
+| Layer | Choice | Why | What production would add |
+|---|---|---|---|
+| Ingest | Replay the data as hourly files and ingest with Auto Loader, not Kafka ([ADR 0007](docs/adr/0007-file-based-ingest-with-auto-loader.md)) | Free Edition blocks outbound connections to an external broker (measured); files keep every step reproducible | A message bus (Kafka/Event Hubs) with sub-second delivery |
+| Ingest | `Trigger.AvailableNow` jobs instead of an always-on stream ([ADR 0003](docs/adr/0003-streaming-trigger-model-on-serverless.md)) | The only streaming trigger serverless jobs support; no compute burns between file drops | Continuous streaming on dedicated compute where latency matters |
+| Ingest | Pinned schema hints, `addNewColumns` evolution and rescued data | A bad value or a new column never silently breaks or drops data; it fails once by design and retries | Schema-registry contracts with the producing team |
+| Ingest | A deterministic `transaction_id` stamped at the source | PaySim has no ID; a content hash would merge genuinely identical payments | IDs issued by the payment system itself |
+| Ingest | Time-based train/score cut inside days 1–17 ([ADR 0006](docs/adr/0006-paysim-dataset-instead-of-synthetic-identifiers.md)) | Measured: normal volume collapses after day 17, so a later cut would compare a 0.1% fraud rate with 1.5% | The same rule: always split by time, never randomly |
+| Silver | A Lakeflow declarative pipeline of materialized views ([ADR 0008](docs/adr/0008-silver-on-a-declarative-pipeline.md)) | Late files correct the results on the next refresh with no hand-written recompute logic; incremental refresh measured | Streaming tables with stateful dedup at bank scale |
+| Silver | Verdict-then-split quarantine: warn expectations, a rejected shelf with the reason, fail-loud guards | Bad rows are counted and kept for review, never silently dropped; the row accounting must reconcile exactly | Alerting on rejected-row spikes (Phase 6 here) |
+| Silver | Keep the first arrival, drop identical copies, reject conflicting ones; no upsert | Payments are immutable events: a changed copy is a data problem, not a newer version | The same, plus a watermark-bounded streaming dedup |
+| Silver | Warning signs on the receiving account, from earlier hours only | Measured: senders almost never repeat, receivers do (the "mule" pattern); same-hour data would leak the future | An online feature store with millisecond lookups |
+| Silver | Zero amounts allowed | All 4 zero-amount payments in the data are fraud; a "positive amount" rule would throw real fraud away | Rules reviewed with the fraud-operations team |
+| Testing | A pure-Python reference model checks the SQL's results row for row | CI can't run Spark; the workspace runs were compared with an independent calculation | Integration tests on a dev workspace in CI |
+
+---
+
+## 📈 Scaling Considerations
+
+This project runs about 6M payments on Databricks Free Edition (serverless
+only, one active pipeline, an unpublished daily quota). Each choice above is
+the right size for that. The table names the heavier pattern a team would
+reach for as volume or latency needs grow.
+
+| Concern | Pattern | When to adopt | In this repo now |
+|---|---|---|---|
+| Event delivery | Files plus Auto Loader | Batch-like arrival, minutes of latency are fine | ✅ |
+| Event delivery | Kafka plus Structured Streaming | Sub-second latency or many producers | — (blocked on Free Edition, G-01) |
+| Transformation | Materialized views in a triggered pipeline | Millions of rows, late data must correct results | ✅ (incremental refresh measured) |
+| Transformation | Streaming tables plus stateful dedup | Continuous, high-volume, append-only streams | — |
+| Features | Window features computed in Silver | Batch scoring on a schedule | ✅ |
+| Features | Online feature store and point-in-time training sets | Millisecond scoring at payment time | — (online tables unsupported on Free Edition) |
+| Environments | One `dev` bundle target with shared variables | Single developer | ✅ |
+| Environments | dev/test/prod targets with CI deploys | A team, with promotion gates | 🔜 Phase 3 add-on |
+
+---
+
 ## 🎓 Exam Alignment
 
 This repo doubles as verifiable skills coverage for the **Databricks
@@ -461,7 +503,7 @@ shown.
 - [x] Phase 2: ingest to Bronze (44 unit tests at ship; workspace V1–V6 verified 2026-09-24)
 - [x] Phase 3: Silver (quality rules with quarantine, dedup on `transaction_id`, strict-past velocity features; workspace S1–S6 verified 2026-10-06/07)
 - [ ] Phase 3 add-on: dev and prod bundle targets, and CI deploys from a protected GitHub environment (exam items 5.2, 5.4)
-- [ ] Phase 4: ML training and in-stream scoring
+- [ ] Phase 4: ML training and batch scoring (designed 2026-10-08)
 - [ ] Phase 5: Gold alerts and Unity Catalog governance
 - [ ] Phase 6: monitoring app and alerting
 - [ ] Phase 7: live demo window and teardown
