@@ -26,10 +26,13 @@ ingest is the Phase 2 path; its design is recorded as ADR 0007
 after simulated day 17, so the train/score split and replay window were
 set inside days 1–17 (G-10). Phase 3 (Silver) is done: a Lakeflow pipeline of four materialized
 views, verified in the workspace on 2026-10-06/07 (S1–S6, all exact) and
-recorded as ADR 0008. Phase 4 (training and scoring) is next. The original brief is captured in
+recorded as ADR 0008. Phase 4 (training and batch scoring) is built and
+pushed (115 tests, CI green); its workspace checks are in progress: M1 (model
+registry probe) and M2 (first training run, every count exact) passed on
+2026-10-08, M3–M7 are next. The original brief is captured in
 `docs/00-initial-brief.md` and is a **non-binding draft**; every stack and
 architecture decision is to be re-researched before it is adopted (see
-`docs/GAPS.md`). (as of 2026-10-08)
+`docs/GAPS.md`). (as of 2026-10-08, end of session)
 
 ## Phase status
 
@@ -41,7 +44,7 @@ Provisional — to be replaced by the real plan once Phase 0 research lands.
 | 1 — Scaffolding (git repo, CI, Makefile, per-directory READMEs) | ✅ Done | Makefile untested locally (no `make` installed); CI (hygiene + unit tests) green on GitHub since 2026-09-24 |
 | 2 — Ingest → Bronze | ✅ Done | Designed (ADR 0007); code + 44 unit tests at ship; workspace runs V1–V6 verified 2026-09-24 (5,987,427 Bronze rows, all scenario proofs exact) |
 | 3 — Silver + velocity features | ✅ Done | Lakeflow pipeline of 4 SQL materialized views (quality verdicts, clean table, rejected shelf, strict-past receiver features), ADR 0008; 79 local tests; workspace checks S1–S6 all passed 2026-10-06/07 (counts, quality, features three-way identical, late-file recalculation, incremental refresh measured). The Phase 3 add-on (dev/prod targets, CI deploy) is still open |
-| 4 — ML training + in-stream scoring | ⏳ Pending | |
+| 4 — ML training + batch scoring | 🔄 Built, verifying | scikit-learn model (gradient-boosted trees vs a logistic baseline), MLflow + Unity Catalog registry aliases, `score` job task with a decision log; 115 local tests; workspace M1–M2 passed 2026-10-08, M3–M7 pending; ADR 0009 and the README Model Summary land after verification |
 | 5 — Gold alerts + Unity Catalog governance | ⏳ Pending | |
 | 6 — Monitoring app + Workflows/alerting | ⏳ Pending | |
 | 7 — Live demo window + teardown | ⏳ Pending | |
@@ -58,7 +61,7 @@ See `git log` on `main`; CI runs on every push (GitHub Actions: hygiene + unit t
 Latest content commits (2026-10-06): `900b84c` Silver reference model + CLI,
 `19aefd5` Silver pipeline SQL, `81f2531` bundle/job wiring, `f6b5464` measured
 expected values, `11fbd03` shared catalog/schema, `14fa8b3` review follow-ups.
-Workspace checks S1–S6 passed against `14fa8b3`. 2026-10-08: Silver write-up (ADR 0008, GAPS, exam map, concept notes, cost model).
+Workspace checks S1–S6 passed against `14fa8b3`. 2026-10-08: Silver write-up (ADR 0008, GAPS, exam map, concept notes, cost model); Phase 4 model code `ae65716`, `8b7cf87`, `bb5bbff`, `f7be1eb`, `5b92c9d`, review fixes `d1039b5` (CI green).
 
 ## Releases
 | Version | Date | What |
