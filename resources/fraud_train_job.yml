@@ -1,0 +1,25 @@
+# ── Job: train the fraud model on demand and register it as @challenger (spec §5, Q3) ──
+resources:                                        # bundle resources
+  jobs:                                           # job resources
+    fraud_train:                                  # resource key (used in tests)
+      name: fraud-train                           # job name in the workspace
+      max_concurrent_runs: 1                      # one training run at a time
+      parameters:                                 # job parameters, pushed to the notebook's widgets
+        - name: catalog                           # Unity Catalog catalog
+          default: ${var.catalog}                 # shared bundle variable (databricks.yml)
+        - name: schema                            # project schema
+          default: ${var.schema}                  # shared bundle variable
+        - name: cut_step                          # last backfill step; training never looks past it
+          default: "336"                          # equals CUT_STEP_DEFAULT
+        - name: label_delay_days                  # Q4: recent days whose fraud answers aren't known yet
+          default: "3"                            # equals LABEL_DELAY_DAYS_DEFAULT
+        - name: comparison_days                   # held-out days for comparing models
+          default: "2"                            # equals COMPARISON_DAYS_DEFAULT
+        - name: negative_sample_rate              # share of non-fraud rows kept for fitting
+          default: "0.1"                          # equals NEGATIVE_SAMPLE_RATE_DEFAULT
+        - name: seed                              # sampling and model seed
+          default: "42"                           # equals SEED_DEFAULT
+      tasks:                                      # task graph
+        - task_key: train                         # the only task
+          notebook_task:                          # serverless notebook (no cluster block)
+            notebook_path: ../notebooks/04_train_model.py  # path relative to this file

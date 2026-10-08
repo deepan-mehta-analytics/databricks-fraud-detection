@@ -71,3 +71,19 @@ def test_schedule_is_defined_but_paused_and_runs_never_overlap():  # verify sche
 def test_job_exposes_every_release_parameter():  # verify job parameters cover catalog/schema plus every release option
     names = {p["name"] for p in load_job()["parameters"]}  # declared job parameters
     assert names == {"catalog", "schema", *PARAM_NAMES}  # location + every release option
+
+
+TRAIN_JOB_FILE = Path(__file__).resolve().parents[1] / "resources" / "fraud_train_job.yml"  # training job definition
+
+
+def test_train_job_is_on_demand_and_its_defaults_match_the_module():  # spec §5, Q3
+    from fraud_model import windows  # module constants
+    job = yaml.safe_load(TRAIN_JOB_FILE.read_text(encoding="utf-8"))["resources"]["jobs"]["fraud_train"]  # the job block
+    assert job["name"] == "fraud-train" and "schedule" not in job and job["max_concurrent_runs"] == 1  # by hand, one at a time
+    assert [t["task_key"] for t in job["tasks"]] == ["train"]  # one task
+    assert job["tasks"][0]["notebook_task"]["notebook_path"] == "../notebooks/04_train_model.py"  # the training notebook
+    defaults = {p["name"]: p["default"] for p in job["parameters"]}  # parameter defaults
+    assert defaults == {"catalog": "${var.catalog}", "schema": "${var.schema}",  # shared location
+                        "cut_step": str(windows.CUT_STEP_DEFAULT), "label_delay_days": str(windows.LABEL_DELAY_DAYS_DEFAULT),  # windows
+                        "comparison_days": str(windows.COMPARISON_DAYS_DEFAULT),  # comparison length
+                        "negative_sample_rate": str(windows.NEGATIVE_SAMPLE_RATE_DEFAULT), "seed": str(windows.SEED_DEFAULT)}  # sampling
