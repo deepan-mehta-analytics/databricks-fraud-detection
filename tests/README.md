@@ -1,6 +1,6 @@
 # tests/
 
-`python -m pytest -q` runs 115 tests, all local (no Databricks needed):
+`python -m pytest -q` runs 116 tests, all local (no Databricks needed):
 
 - `test_contract.py` — segment boundaries, file naming, transaction ID and
   timestamp derivation, schema hints, volume paths.
@@ -19,7 +19,10 @@
   parameter list (release and scoring options), the on-demand
   `fraud_train` job and its defaults, plus the `fraud_silver` pipeline resource (serverless,
   triggered, anchor, the four SQL files in order), and that the job and
-  the pipeline share one catalog/schema through the bundle variables.
+  the pipeline share one catalog/schema through the bundle variables, and
+  that the train and score tasks are pinned to the same serverless
+  environment version (so the model loads with the scikit-learn it was
+  trained with).
 - `test_silver_expected.py` — the verdict rules in precedence order, duplicate
   ranking, the Bronze scenario simulation, strict-past features and the
   empty-history nulls, and the one-pass command-line tool against the

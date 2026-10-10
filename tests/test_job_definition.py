@@ -93,3 +93,18 @@ def test_train_job_is_on_demand_and_its_defaults_match_the_module():  # spec §5
                         "cut_step": str(windows.CUT_STEP_DEFAULT), "label_delay_days": str(windows.LABEL_DELAY_DAYS_DEFAULT),  # windows
                         "comparison_days": str(windows.COMPARISON_DAYS_DEFAULT),  # comparison length
                         "negative_sample_rate": str(windows.NEGATIVE_SAMPLE_RATE_DEFAULT), "seed": str(windows.SEED_DEFAULT)}  # sampling
+
+
+MODEL_ENVIRONMENT_VERSION = "6"  # serverless environment 6: scikit-learn 1.7.2, mlflow 3.12.0 (measured in M1/M2)
+
+
+def task_environment_version(job: dict, task_key: str) -> str:  # the pinned serverless environment version of one task
+    task = next(t for t in job["tasks"] if t["task_key"] == task_key)  # the task block
+    environments = {e["environment_key"]: e["spec"] for e in job.get("environments", [])}  # job-level environments by key
+    return environments[task["environment_key"]]["environment_version"]  # KeyError if the task is not pinned
+
+
+def test_training_and_scoring_run_in_the_same_pinned_environment():  # a model pickled on one scikit-learn minor must load on the same one
+    train_job = yaml.safe_load(TRAIN_JOB_FILE.read_text(encoding="utf-8"))["resources"]["jobs"]["fraud_train"]  # the training job
+    assert task_environment_version(train_job, "train") == MODEL_ENVIRONMENT_VERSION  # training is pinned
+    assert task_environment_version(load_job(), "score") == MODEL_ENVIRONMENT_VERSION  # scoring is pinned to the same version

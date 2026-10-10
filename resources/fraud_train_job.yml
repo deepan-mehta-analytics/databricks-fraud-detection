@@ -19,7 +19,12 @@ resources:                                        # bundle resources
           default: "0.1"                          # equals NEGATIVE_SAMPLE_RATE_DEFAULT
         - name: seed                              # sampling and model seed
           default: "42"                           # equals SEED_DEFAULT
+      environments:                               # pinned serverless environment, shared with the score task
+        - environment_key: model                  # name the task refers to
+          spec:                                   # environment definition
+            environment_version: "6"              # scikit-learn 1.7.2, mlflow 3.12.0; must match fraud_ingest's score task
       tasks:                                      # task graph
         - task_key: train                         # the only task
+          environment_key: model                  # use the pinned environment, not the notebook default
           notebook_task:                          # serverless notebook (no cluster block)
             notebook_path: ../notebooks/04_train_model.py  # path relative to this file

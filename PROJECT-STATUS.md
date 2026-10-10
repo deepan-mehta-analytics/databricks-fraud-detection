@@ -27,7 +27,7 @@ after simulated day 17, so the train/score split and replay window were
 set inside days 1–17 (G-10). Phase 3 (Silver) is done: a Lakeflow pipeline of four materialized
 views, verified in the workspace on 2026-10-06/07 (S1–S6, all exact) and
 recorded as ADR 0008. Phase 4 (training and batch scoring) is built and
-pushed (115 tests, CI green); its workspace checks are in progress: M1 (model
+pushed (116 tests, CI green); its workspace checks are in progress: M1 (model
 registry probe), M2 and M3 (both training runs, every count exact), M3b
 (scoring with no champion succeeds) and M4a (version 1 promoted) passed on
 2026-10-08. The first scoring run (M4b) was refused by the Free Edition
@@ -47,7 +47,7 @@ Provisional — to be replaced by the real plan once Phase 0 research lands.
 | 1 — Scaffolding (git repo, CI, Makefile, per-directory READMEs) | ✅ Done | Makefile untested locally (no `make` installed); CI (hygiene + unit tests) green on GitHub since 2026-09-24 |
 | 2 — Ingest → Bronze | ✅ Done | Designed (ADR 0007); code + 44 unit tests at ship; workspace runs V1–V6 verified 2026-09-24 (5,987,427 Bronze rows, all scenario proofs exact) |
 | 3 — Silver + velocity features | ✅ Done | Lakeflow pipeline of 4 SQL materialized views (quality verdicts, clean table, rejected shelf, strict-past receiver features), ADR 0008; 79 local tests; workspace checks S1–S6 all passed 2026-10-06/07 (counts, quality, features three-way identical, late-file recalculation, incremental refresh measured). The Phase 3 add-on (dev/prod targets, CI deploy) is still open |
-| 4 — ML training + batch scoring | 🔄 Built, verifying | scikit-learn model (gradient-boosted trees vs a logistic baseline), MLflow + Unity Catalog registry aliases, `score` job task with a decision log; 115 local tests; workspace M1–M4a passed 2026-10-08, M4b (first scoring run) hit the serverless limit and is retried next, M4b–M8 pending; ADR 0009 and the README Model Summary land after verification |
+| 4 — ML training + batch scoring | 🔄 Built, verifying | scikit-learn model (gradient-boosted trees vs a logistic baseline), MLflow + Unity Catalog registry aliases, `score` job task with a decision log; 116 local tests; workspace M1–M4a passed 2026-10-08, M4b (first scoring run) hit the serverless limit and is retried next, M4b–M8 pending; ADR 0009 and the README Model Summary land after verification |
 | 5 — Gold alerts + Unity Catalog governance | ⏳ Pending | |
 | 6 — Monitoring app + Workflows/alerting | ⏳ Pending | |
 | 7 — Live demo window + teardown | ⏳ Pending | |
