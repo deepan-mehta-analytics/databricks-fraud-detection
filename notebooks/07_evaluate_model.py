@@ -1,4 +1,11 @@
 # Databricks notebook source
+# MAGIC %pip install --quiet scikit-learn==1.7.2
+
+# COMMAND ----------
+# ── Restart Python so the pinned scikit-learn (cell above, = fraud_model.runtime.SKLEARN_VERSION) is the one imported ──
+dbutils.library.restartPython()  # serverless environments ship different scikit-learn versions; a pickled model needs the same one
+
+# COMMAND ----------
 # ── Setup: make src/ importable from this Git folder ──────────
 import os   # path handling
 import sys  # module search path

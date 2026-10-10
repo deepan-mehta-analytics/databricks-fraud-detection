@@ -29,6 +29,13 @@ Run order:
 7. `07_evaluate_model.py` — owner-run, after the fact: scores steps 337–408
    with a given model, reads the labels, and logs precision and recall at 50
    alerts per hour, PR-AUC and two baselines to that model's MLflow run.
+
+Notebooks 04, 05 and 07 start with `%pip install scikit-learn==1.7.2` and a
+Python restart. Serverless job tasks can land on different environment
+versions (environment 5 ships scikit-learn 1.6.1, environment 6 ships 1.7.2),
+and a bundle deploy does not keep a job-level environment on a notebook task,
+so the pin lives in the notebooks. A guard still stops the run if the model's
+logged version and the running version differ.
 8. `99_reset.py` — **destructive**. Drops Bronze and the risk scores, empties
    the release log, and clears `landing`/`pipeline_state` (never `outbox` or
    `raw`). Requires

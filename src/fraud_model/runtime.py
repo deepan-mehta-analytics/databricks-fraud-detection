@@ -7,6 +7,7 @@ import re                           # leading digits of a version string
 
 # ── Constants ─────────────────────────────────────────────────
 MISSING_MODEL_ERROR_CODES = ("RESOURCE_DOES_NOT_EXIST", "NOT_FOUND")  # registry codes that mean "nothing registered or promoted yet"
+SKLEARN_VERSION = "1.7.2"  # installed by the first cell of notebooks 04, 05 and 07, so training and scoring always match
 
 
 # ── 'No model yet' versus a real failure ──────────────────────
@@ -29,5 +30,5 @@ def runtime_problems(mlflow_version: str, sklearn_version: str,  # running libra
         problems.append(f"MLflow 3 is required, found {mlflow_version}: pick serverless environment 4 or later")  # how to fix
     if model_sklearn_version and _major_minor(model_sklearn_version) != _major_minor(sklearn_version):  # pickles differ across minors
         problems.append(f"Model was trained with scikit-learn {model_sklearn_version} but this run has {sklearn_version}: "  # what...
-                        "run training and scoring in the same serverless environment version")  # ...and how to fix
+                        "keep the %pip scikit-learn pin identical in notebooks 04, 05 and 07")  # ...and how to fix
     return problems  # empty means safe

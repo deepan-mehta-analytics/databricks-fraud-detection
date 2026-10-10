@@ -95,16 +95,23 @@ def test_train_job_is_on_demand_and_its_defaults_match_the_module():  # spec §5
                         "negative_sample_rate": str(windows.NEGATIVE_SAMPLE_RATE_DEFAULT), "seed": str(windows.SEED_DEFAULT)}  # sampling
 
 
-MODEL_ENVIRONMENT_VERSION = "6"  # serverless environment 6: scikit-learn 1.7.2, mlflow 3.12.0 (measured in M1/M2)
+MODEL_NOTEBOOKS = ("04_train_model.py", "05_score_transactions.py", "07_evaluate_model.py")  # notebooks that train or load the model
 
 
-def task_environment_version(job: dict, task_key: str) -> str:  # the pinned serverless environment version of one task
-    task = next(t for t in job["tasks"] if t["task_key"] == task_key)  # the task block
-    environments = {e["environment_key"]: e["spec"] for e in job.get("environments", [])}  # job-level environments by key
-    return environments[task["environment_key"]]["environment_version"]  # KeyError if the task is not pinned
+def notebook_cells(name: str) -> list[str]:  # split a Databricks source notebook into its cells
+    text = (JOB_FILE.parents[1] / "notebooks" / name).read_text(encoding="utf-8")  # notebook source
+    return [cell.strip() for cell in text.split("# COMMAND ----------")]  # cells in order
 
 
-def test_training_and_scoring_run_in_the_same_pinned_environment():  # a model pickled on one scikit-learn minor must load on the same one
+def test_model_notebooks_install_the_same_scikit_learn_first():  # a model pickled on one scikit-learn minor must load on the same one
+    from fraud_model.runtime import SKLEARN_VERSION  # the one pinned version
+    for name in MODEL_NOTEBOOKS:  # train, score, evaluate
+        cells = notebook_cells(name)  # the notebook's cells
+        assert cells[0] == f"# Databricks notebook source\n# MAGIC %pip install --quiet scikit-learn=={SKLEARN_VERSION}", name  # install first
+        assert "dbutils.library.restartPython()" in cells[1], name  # load the installed version before any import
+
+
+def test_jobs_declare_no_environment_blocks():  # the deploy drops job environments on notebook tasks (M4b attempt 3), so the pin lives in the notebooks
     train_job = yaml.safe_load(TRAIN_JOB_FILE.read_text(encoding="utf-8"))["resources"]["jobs"]["fraud_train"]  # the training job
-    assert task_environment_version(train_job, "train") == MODEL_ENVIRONMENT_VERSION  # training is pinned
-    assert task_environment_version(load_job(), "score") == MODEL_ENVIRONMENT_VERSION  # scoring is pinned to the same version
+    for job in (train_job, load_job()):  # both jobs
+        assert "environments" not in job and all("environment_key" not in t for t in job["tasks"])  # no ignored settings

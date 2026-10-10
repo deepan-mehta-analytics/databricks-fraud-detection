@@ -34,7 +34,7 @@ again matched an independent calculation exactly.
 [![Asset Bundles](https://img.shields.io/badge/Asset_Bundles-Jobs_as_Code-1B3139?style=for-the-badge&logo=databricks&logoColor=white)](https://docs.databricks.com/aws/en/dev-tools/bundles/)
 
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
-[![pytest](https://img.shields.io/badge/pytest-116_passing-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white)](tests/README.md)
+[![pytest](https://img.shields.io/badge/pytest-117_passing-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white)](tests/README.md)
 [![CI](https://img.shields.io/github/actions/workflow/status/deepan-mehta-analytics/databricks-fraud-detection/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI)](https://github.com/deepan-mehta-analytics/databricks-fraud-detection/actions)
 [![Release](https://img.shields.io/github/v/release/deepan-mehta-analytics/databricks-fraud-detection?style=for-the-badge&logo=github)](https://github.com/deepan-mehta-analytics/databricks-fraud-detection/releases)
 [![Status](https://img.shields.io/badge/Status-Phase_4_Built_·_Verification_In_Progress-yellow?style=for-the-badge)](PROJECT-STATUS.md)
@@ -60,7 +60,7 @@ stream through **Auto Loader into a Unity Catalog medallion layout**.
 - **Staged failure scenarios**: duplicate delivery, late arrival, a new column mid-stream and malformed values, each switched on per run and each proven with a SQL check
 - **Jobs as code**: a three-task Databricks job (release → ingest → silver) and the Silver pipeline, declared in an Asset Bundle with shared catalog/schema variables and deployed from the workspace UI, with no token
 - **Guarded parameters**: scenario settings that can't take effect raise an error before any file is copied
-- **Tested and CI-gated**: 116 local unit tests, and a GitHub Actions job running hygiene checks plus tests on every push
+- **Tested and CI-gated**: 117 local unit tests, and a GitHub Actions job running hygiene checks plus tests on every push
 - **Exam-skills coverage map**: every Data Engineer Associate exam item mapped to repo evidence (15 of 33 shown), with short concept notes in [`docs/concepts/`](docs/concepts/)
 
 **✅ Implemented and verified (Phase 3: Silver)**
@@ -101,7 +101,7 @@ stream through **Auto Loader into a Unity Catalog medallion layout**.
 | 🧩 Orchestration | Databricks Jobs + Asset Bundle (`databricks.yml`) | Three-task job (two notebooks and a pipeline task) plus the pipeline, as code, deployed from the workspace UI (G-11) |
 | 🔗 Code delivery | Databricks Git folder | Workspace runs use this repo at a known commit (G-12) |
 | 🐍 Language | Python 3.11, SQL | Splitter, release logic, scenario transforms, a local Silver reference model (stdlib only); model code with scikit-learn and pandas; Silver in SQL |
-| 🧪 Testing | pytest (116 tests), PyYAML | Contract, split, scenarios, release, ingest options, job and pipeline definitions, Silver reference model and SQL guards, model windows, features, metrics, training and scoring |
+| 🧪 Testing | pytest (117 tests), PyYAML | Contract, split, scenarios, release, ingest options, job and pipeline definitions, Silver reference model and SQL guards, model windows, features, metrics, training and scoring |
 | ⚙️ CI | GitHub Actions | Hygiene check + unit tests on every push |
 | 📊 Data | PaySim (CC BY-SA 4.0) | Synthetic mobile-money transactions with fraud labels |
 
@@ -257,7 +257,7 @@ databricks-fraud-detection/
 │   └── fraud_silver_pipeline.yml  ← Silver Lakeflow pipeline (serverless, triggered)
 ├── databricks.yml                 ← Asset Bundle root (dev target, catalog/schema variables)
 │
-├── tests/                         ← 116 pytest tests (see tests/README.md)
+├── tests/                         ← 117 pytest tests (see tests/README.md)
 ├── docs/
 │   ├── adr/                       ← ADRs 0001–0008
 │   ├── GAPS.md                    ← brief-vs-reality register + accepted limitations
@@ -293,7 +293,7 @@ python -m pip install -r requirements-dev.txt
 
 #### 2. Run the checks
 ```bash
-python -m pytest -q      # 116 unit tests (or: make test)
+python -m pytest -q      # 117 unit tests (or: make test)
 make check-hygiene       # no local-only or secret file is tracked
 make help                # lint / deploy / teardown are stubs until their phase lands
 ```
@@ -338,7 +338,7 @@ pytest).
 ## 🧪 Tests
 
 ```bash
-python -m pytest -q      # → 116 passed
+python -m pytest -q      # → 117 passed
 ```
 
 | File | What it covers |
