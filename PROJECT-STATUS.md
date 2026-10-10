@@ -30,12 +30,16 @@ recorded as ADR 0008. Phase 4 (training and batch scoring) is built and
 pushed (117 tests, CI green); its workspace checks are in progress: M1 (model
 registry probe), M2 and M3 (both training runs, every count exact), M3b
 (scoring with no champion succeeds) and M4a (version 1 promoted) passed on
-2026-10-08. The first scoring run (M4b) was refused by the Free Edition
-serverless limit (`CLUSTER_CREATION_RESOURCE_EXHAUSTED`) and is retried
-after the reset; M4b–M8 are next. The original brief is captured in
+2026-10-08. The first scoring run (M4b) has not completed yet: the Free
+Edition serverless limit (`CLUSTER_CREATION_RESOURCE_EXHAUSTED`) stopped it
+on 2026-10-08 and again on 2026-10-10, and on 2026-10-10 the scoring task's
+library guard stopped it because the task ran scikit-learn 1.6.1 while the
+model was trained with 1.7.2. A job-level environment pin (`e7c6453`) did not
+reach the deployed job, so the model notebooks now install scikit-learn 1.7.2
+themselves (`806763a`). M4b is retried after the next reset; M4c–M8 follow. The original brief is captured in
 `docs/00-initial-brief.md` and is a **non-binding draft**; every stack and
 architecture decision is to be re-researched before it is adopted (see
-`docs/GAPS.md`). (as of 2026-10-08, end of session)
+`docs/GAPS.md`). (as of 2026-10-10, end of session)
 
 ## Phase status
 
@@ -47,7 +51,7 @@ Provisional — to be replaced by the real plan once Phase 0 research lands.
 | 1 — Scaffolding (git repo, CI, Makefile, per-directory READMEs) | ✅ Done | Makefile untested locally (no `make` installed); CI (hygiene + unit tests) green on GitHub since 2026-09-24 |
 | 2 — Ingest → Bronze | ✅ Done | Designed (ADR 0007); code + 44 unit tests at ship; workspace runs V1–V6 verified 2026-09-24 (5,987,427 Bronze rows, all scenario proofs exact) |
 | 3 — Silver + velocity features | ✅ Done | Lakeflow pipeline of 4 SQL materialized views (quality verdicts, clean table, rejected shelf, strict-past receiver features), ADR 0008; 79 local tests; workspace checks S1–S6 all passed 2026-10-06/07 (counts, quality, features three-way identical, late-file recalculation, incremental refresh measured). The Phase 3 add-on (dev/prod targets, CI deploy) is still open |
-| 4 — ML training + batch scoring | 🔄 Built, verifying | scikit-learn model (gradient-boosted trees vs a logistic baseline), MLflow + Unity Catalog registry aliases, `score` job task with a decision log; 117 local tests; workspace M1–M4a passed 2026-10-08, M4b (first scoring run) hit the serverless limit and is retried next, M4b–M8 pending; ADR 0009 and the README Model Summary land after verification |
+| 4 — ML training + batch scoring | 🔄 Built, verifying | scikit-learn model (gradient-boosted trees vs a logistic baseline), MLflow + Unity Catalog registry aliases, `score` job task with a decision log; 117 local tests; workspace M1–M4a passed 2026-10-08; M4b (first scoring run) not yet completed (daily limit twice, scikit-learn mismatch once, pinned in `806763a`), M4b–M8 pending; ADR 0009 and the README Model Summary land after verification |
 | 5 — Gold alerts + Unity Catalog governance | ⏳ Pending | |
 | 6 — Monitoring app + Workflows/alerting | ⏳ Pending | |
 | 7 — Live demo window + teardown | ⏳ Pending | |
@@ -64,7 +68,7 @@ See `git log` on `main`; CI runs on every push (GitHub Actions: hygiene + unit t
 Latest content commits (2026-10-06): `900b84c` Silver reference model + CLI,
 `19aefd5` Silver pipeline SQL, `81f2531` bundle/job wiring, `f6b5464` measured
 expected values, `11fbd03` shared catalog/schema, `14fa8b3` review follow-ups.
-Workspace checks S1–S6 passed against `14fa8b3`. 2026-10-08: Silver write-up (ADR 0008, GAPS, exam map, concept notes, cost model); Phase 4 model code `ae65716`, `8b7cf87`, `bb5bbff`, `f7be1eb`, `5b92c9d`, review fixes `d1039b5` (CI green); status docs `476b56c`.
+Workspace checks S1–S6 passed against `14fa8b3`. 2026-10-08: Silver write-up (ADR 0008, GAPS, exam map, concept notes, cost model); Phase 4 model code `ae65716`, `8b7cf87`, `bb5bbff`, `f7be1eb`, `5b92c9d`, review fixes `d1039b5` (CI green); status docs `476b56c`, `4532973`. 2026-10-10: environment pin `e7c6453` (did not reach the deployed job), scikit-learn pin in the model notebooks `806763a` (CI green).
 
 ## Releases
 | Version | Date | What |

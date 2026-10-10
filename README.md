@@ -58,7 +58,7 @@ stream through **Auto Loader into a Unity Catalog medallion layout**.
 - **Replayable event stream**: a splitter turns the CSV into 743 hourly JSON Lines files, and a release task drops them into a landing volume a few hours at a time
 - **Auto Loader ingest**: incremental file discovery, pinned schema hints, `addNewColumns` schema evolution, rescued data, and an exactly-once checkpoint on a UC Volume
 - **Staged failure scenarios**: duplicate delivery, late arrival, a new column mid-stream and malformed values, each switched on per run and each proven with a SQL check
-- **Jobs as code**: a three-task Databricks job (release → ingest → silver) and the Silver pipeline, declared in an Asset Bundle with shared catalog/schema variables and deployed from the workspace UI, with no token
+- **Jobs as code**: a Databricks job (release → ingest → silver, plus a `score` task from Phase 4) and the Silver pipeline, declared in an Asset Bundle with shared catalog/schema variables and deployed from the workspace UI, with no token
 - **Guarded parameters**: scenario settings that can't take effect raise an error before any file is copied
 - **Tested and CI-gated**: 117 local unit tests, and a GitHub Actions job running hygiene checks plus tests on every push
 - **Exam-skills coverage map**: every Data Engineer Associate exam item mapped to repo evidence (15 of 33 shown), with short concept notes in [`docs/concepts/`](docs/concepts/)
@@ -98,7 +98,7 @@ stream through **Auto Loader into a Unity Catalog medallion layout**.
 | 🥈 Transformation | Lakeflow declarative pipeline (SQL materialized views, expectations) | Silver: quality rules, quarantine, dedup and strict-past window features, refreshed incrementally on serverless |
 | 🏛️ Governance | Unity Catalog: schema, 4 Volumes, grants | Files, checkpoints and tables under one namespace; row filters and masks verified (G-06) |
 | 💾 Checkpoints | Unity Catalog Volume | DBFS root is deprecated (G-03) |
-| 🧩 Orchestration | Databricks Jobs + Asset Bundle (`databricks.yml`) | Three-task job (two notebooks and a pipeline task) plus the pipeline, as code, deployed from the workspace UI (G-11) |
+| 🧩 Orchestration | Databricks Jobs + Asset Bundle (`databricks.yml`) | Four-task ingest job (release, ingest, the Silver pipeline task, score), an on-demand training job and the pipeline, as code, deployed from the workspace UI (G-11) |
 | 🔗 Code delivery | Databricks Git folder | Workspace runs use this repo at a known commit (G-12) |
 | 🐍 Language | Python 3.11, SQL | Splitter, release logic, scenario transforms, a local Silver reference model (stdlib only); model code with scikit-learn and pandas; Silver in SQL |
 | 🧪 Testing | pytest (117 tests), PyYAML | Contract, split, scenarios, release, ingest options, job and pipeline definitions, Silver reference model and SQL guards, model windows, features, metrics, training and scoring |
@@ -198,7 +198,7 @@ flowchart LR
 | 1 | Scaffolding, CI | ✅ Done |
 | 2 | Ingest to Bronze | ✅ Verified 2026-09-24 |
 | 3 | Silver and features | ✅ Verified 2026-10-06/07 (S1–S6) |
-| 4 | Training and scoring | 🔄 Built 2026-10-08; workspace checks M1–M4a passed (both training runs exact, v1 promoted), first scoring run next |
+| 4 | Training and scoring | 🔄 Built 2026-10-08; workspace checks M1–M4a passed (both training runs exact, v1 promoted); first scoring run (M4b) not yet completed: twice stopped by the daily compute limit, once by a scikit-learn version mismatch (fixed) |
 | 5 | Gold alerts and governance | ⏳ |
 | 6 | Monitoring app and alerting | ⏳ |
 | 7 | Live demo window and teardown | ⏳ |
@@ -349,7 +349,7 @@ python -m pytest -q      # → 117 passed
 | `test_release_core.py` | Backfill-first, K-per-run pacing, crash/resume repair, parameter validation, batched logging |
 | `test_release_scenarios.py` | Duplicate, late, schema-change and malformed scenarios as applied by `run_release` |
 | `test_ingest.py` | Auto Loader option construction; module imports without PySpark |
-| `test_job_definition.py` | Bundle YAML: task graph, retry, schedule, parameter list, Silver pipeline, shared catalog/schema |
+| `test_job_definition.py` | Bundle YAML: task graph, retry, schedule, parameter list, Silver pipeline, shared catalog/schema; the model notebooks install the same pinned scikit-learn first |
 | `test_silver_expected.py` | Silver reference model: verdict rules, duplicate ranking, Bronze simulation, strict-past features, CLI |
 | `test_silver_sql.py` | Text guards on the pipeline SQL: private view, expectations, fixed columns, strict-past frames |
 | `test_model_windows.py` | Training and comparison windows for a 3-day and a 0-day label delay |
@@ -498,7 +498,8 @@ shown.
 
 ## ⚠️ Known Limitations
 
-- **Single verification day**: Phase 2 figures are single runs, not averages. The daily compute quota is unpublished. Phase 2's runs fit inside one day's allowance; on 2026-10-08, after a day of Phase 4 runs (deploy, two training runs, two job runs), a job's Silver step was refused with `CLUSTER_CREATION_RESOURCE_EXHAUSTED`, so heavy verification days are split across days (G-08)
+- **Single verification day**: Phase 2 figures are single runs, not averages. The daily compute quota is unpublished. Phase 2's runs fit inside one day's allowance; on 2026-10-08, after a day of Phase 4 runs (deploy, two training runs, two job runs), a job's Silver step was refused with `CLUSTER_CREATION_RESOURCE_EXHAUSTED`, and on 2026-10-10 the limit was reached after three full ingest-and-score job runs, so heavy verification days are split across days (G-08)
+- **scikit-learn installed at run time**: serverless job tasks can land on different environment versions (5 ships scikit-learn 1.6.1, 6 ships 1.7.2), and a bundle deploy did not keep a job-level environment on a notebook task (measured 2026-10-10). So the training, scoring and evaluation notebooks run `%pip install scikit-learn==1.7.2` first. The version is exact but not hash-locked, and a guard still stops scoring if the model's version differs
 - **Invalid JSON loses its text**: a line that is not valid JSON lands in Bronze as one all-null row (its text is lost, and the run succeeds). Silver rejects such a row as `missing_id` onto the rejected shelf, so it is visible there, but the original text cannot be recovered (GAPS §3, V5)
 - **Hourly features and warm-up**: PaySim time is in whole hours, so the features count earlier hours only, never the same hour. The first 24 hours have partial history (GAPS §3, S-HOURS)
 - **SQL logic is not unit-tested in CI**: CI checks the Silver SQL's structure (names, frames, column lists, guards). The logic is proven by the workspace runs against the reference model (GAPS §3, CI-SQL)
