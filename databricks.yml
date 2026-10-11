@@ -7,6 +7,10 @@ variables:               # one place for the project location, shared by the job
     default: workspace   # Free Edition default catalog
   schema:                # project schema (Bronze and Silver live here)
     default: fraud       # created by sql/10_fraud_ingest_setup.sql
+  warehouse_id:          # SQL warehouse for the Gold SQL tasks (no ID in this public repo)
+    description: Found by name when the bundle deploys; edit the name if your warehouse is called something else  # how to change it
+    lookup:              # resolve an ID from a name at deploy time
+      warehouse: "Serverless Starter Warehouse"  # G1d: the exact warehouse name (owner to confirm)
 
 include:                 # extra resource files to load
   - resources/*.yml      # job definitions live under resources/

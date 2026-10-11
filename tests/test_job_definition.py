@@ -1,6 +1,7 @@
 """The bundle job matches spec §6-7: release -> ingest, one retry, paused 10-minute schedule."""  # module docstring
 
 # ── Imports ───────────────────────────────────────────────────
+import re                 # warehouse-name check
 from pathlib import Path  # locate the YAML
 
 import yaml               # PyYAML parser
@@ -24,14 +25,16 @@ def load_pipeline() -> dict:  # load and return the fraud_silver pipeline block 
     return yaml.safe_load(PIPELINE_FILE.read_text(encoding="utf-8"))["resources"]["pipelines"]["fraud_silver"]  # the block
 
 
-def test_tasks_run_release_ingest_silver_then_score():  # verify task graph and retry policy
+def test_tasks_run_release_ingest_silver_score_gold_then_export():  # verify task graph and retry policy
     tasks = {t["task_key"]: t for t in load_job()["tasks"]}  # tasks by key
-    assert set(tasks) == {"release", "ingest", "silver", "score"}  # exactly four tasks
+    assert set(tasks) == {"release", "ingest", "silver", "score", "gold", "export"}  # exactly six tasks, run in sequence
     assert tasks["ingest"]["depends_on"] == [{"task_key": "release"}]  # ingest waits for release
     assert tasks["silver"]["depends_on"] == [{"task_key": "ingest"}]  # Silver waits for Bronze
     assert tasks["score"]["depends_on"] == [{"task_key": "silver"}]  # scoring waits for features
+    assert tasks["gold"]["depends_on"] == [{"task_key": "score"}]  # alerts wait for scores
+    assert tasks["export"]["depends_on"] == [{"task_key": "gold"}]  # export runs last (Review Focus 5)
     assert tasks["ingest"]["max_retries"] == 1  # absorbs the designed schema-evolution restart
-    assert "max_retries" not in tasks["score"]  # a scoring failure must be loud, not retried
+    assert all("max_retries" not in tasks[k] for k in ("score", "gold", "export"))  # failures must be loud, not retried
     assert tasks["release"]["notebook_task"]["notebook_path"] == "../notebooks/02_release.py"  # release notebook
     assert tasks["ingest"]["notebook_task"]["notebook_path"] == "../notebooks/03_ingest_bronze.py"  # ingest notebook
     assert tasks["score"]["notebook_task"]["notebook_path"] == "../notebooks/05_score_transactions.py"  # score notebook
@@ -51,7 +54,7 @@ def test_pipeline_is_serverless_triggered_and_targets_the_project_schema():  # s
 
 def test_job_and_pipeline_share_one_location():  # security review S-1: Bronze and Silver can never split
     variables = yaml.safe_load(BUNDLE_FILE.read_text(encoding="utf-8"))["variables"]  # bundle variables
-    assert {k: v["default"] for k, v in variables.items()} == {"catalog": "workspace", "schema": "fraud"}  # defaults
+    assert {k: v["default"] for k, v in variables.items() if "default" in v} == {"catalog": "workspace", "schema": "fraud"}  # defaults
     defaults = {p["name"]: p["default"] for p in load_job()["parameters"]}  # job parameter defaults
     assert (defaults["catalog"], defaults["schema"]) == ("${var.catalog}", "${var.schema}")  # same variables
     sql = (PIPELINE_FILE.parents[1] / "pipelines" / "silver" / "01_checked_transactions.sql").read_text(encoding="utf-8")  # verdict view
@@ -115,3 +118,12 @@ def test_jobs_declare_no_environment_blocks():  # the deploy drops job environme
     train_job = yaml.safe_load(TRAIN_JOB_FILE.read_text(encoding="utf-8"))["resources"]["jobs"]["fraud_train"]  # the training job
     for job in (train_job, load_job()):  # both jobs
         assert "environments" not in job and all("environment_key" not in t for t in job["tasks"])  # no ignored settings
+
+
+def test_gold_and_export_tasks_run_sql_files_on_the_looked_up_warehouse():  # spec §11: no warehouse ID in the repo
+    variables = yaml.safe_load(BUNDLE_FILE.read_text(encoding="utf-8"))["variables"]  # bundle variables
+    name = variables["warehouse_id"]["lookup"]["warehouse"]  # warehouse found by name at deploy time
+    assert name and not re.fullmatch(r"[0-9a-f]{16}", name)  # a name, never a raw ID
+    tasks = {t["task_key"]: t for t in load_job()["tasks"]}  # tasks by key
+    for key, path in (("gold", "../sql/gold/gold.sql"), ("export", "../sql/gold/export.sql")):  # both SQL tasks
+        assert tasks[key]["sql_task"] == {"warehouse_id": "${var.warehouse_id}", "file": {"path": path}}  # exact block

@@ -1,4 +1,4 @@
-# ── Job: release the next PaySim steps, ingest them with Auto Loader, refresh Silver, then score new payments (ADR 0007, ADR 0008, ADR 0009) ──
+# ── Job: release, ingest, refresh Silver, score, then raise Gold alerts and export closed cases (ADR 0007-0011) ──
 resources:                                        # bundle resources
   jobs:                                           # job resources
     fraud_ingest:                                 # resource key (used in tests)
@@ -55,3 +55,17 @@ resources:                                        # bundle resources
             - task_key: silver                    # after the features are refreshed
           notebook_task:                          # serverless notebook (no cluster block)
             notebook_path: ../notebooks/05_score_transactions.py  # path relative to this file
+        - task_key: gold                          # alerts, cases and verdicts (ADR 0010)
+          depends_on:                             # ordering
+            - task_key: score                     # after the new payments are scored
+          sql_task:                               # runs a SQL file on the SQL warehouse
+            warehouse_id: ${var.warehouse_id}     # looked up by name at deploy time
+            file:                                 # the SQL file to run
+              path: ../sql/gold/gold.sql          # path relative to this file
+        - task_key: export                        # closed cases to the R2 external table (ADR 0011)
+          depends_on:                             # ordering
+            - task_key: gold                      # last, so an R2 failure never blocks alerts
+          sql_task:                               # runs a SQL file on the SQL warehouse
+            warehouse_id: ${var.warehouse_id}     # same warehouse
+            file:                                 # the SQL file to run
+              path: ../sql/gold/export.sql        # path relative to this file
