@@ -73,8 +73,9 @@ Workspace checks S1–S6 passed against `14fa8b3`. 2026-10-08: Silver write-up (
 |---|---|---|
 | `v0.1.0` | 2026-09-24 | Verified Auto Loader ingest to Bronze (Phase 2) |
 | `v0.2.0` | 2026-10-08 | Verified Silver layer: quality rules, dedup, strict-past features (Phase 3) |
+| `v0.3.0` | 2026-10-11 | Verified fraud model training and batch scoring: champion catches 405 of 822 frauds at 50 alerts per hour (Phase 4) |
 
-Planned: `v0.3.0` ML scoring · `v0.4.0` Gold + governance · `v0.5.0` monitoring app · `v1.0.0` live demo and teardown.
+Planned: `v0.4.0` Gold + governance · `v0.5.0` monitoring app · `v1.0.0` live demo and teardown.
 
 ## Metrics
 Phase 2 ingest verification (2026-09-24): see the README Results section — Bronze counts, per-run durations, per-file pipeline lag. Phase 3 Silver verification (2026-10-06/07): row accounting 5,987,427 = 5,987,412 + 5 + 10, Silver fraud 4,589, pipeline updates 105 s (full) and 115 s / 107 s (incremental). Phase 4 model (2026-10-11, hours 337–408, 822 fraud, 50 alerts per hour): champion caught 405 (precision 0.139, recall 0.493, PR-AUC 0.346); no label delay 406 (0.379); logistic 367 (0.028); largest amount first 352 (0.024); old rules 1. Scoring: 1,205,673 payments once each; rerun 0; promotion then 6 drift payments on version 2.
