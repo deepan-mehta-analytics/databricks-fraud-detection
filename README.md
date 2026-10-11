@@ -492,6 +492,19 @@ fixed pipeline start-up and planning (about 1.5–2 minutes) dominates (G-15).
 
 Random ranking would score a PR-AUC of about 0.0007 (the fraud rate).
 
+⚠️ **18 of the 72 hours are quiet hours with fewer than 50 payments, and all
+216 payments in them are fraud** (measured from the CSV). Every approach
+flags every payment in those hours, so all of them get those 216 for free.
+That's also why there are 2,916 alerts, not 72 × 50 = 3,600. The fairer test
+is the 54 full hours, where the budget forces a real choice:
+
+| In the 54 full hours (606 fraud, 2,700 alerts) | Fraud caught | Precision | Recall |
+|---|---|---|---|
+| **Trees, 3-day label delay (champion)** | **189** | **0.070** | **0.312** |
+| Trees, no label delay | 190 | 0.070 | 0.314 |
+| Logistic regression | 151 | 0.056 | 0.249 |
+| Largest amount first | 136 | 0.050 | 0.224 |
+
 | Label delay | Training rows (fit window) | Fraud in fit set | Comparison window | Caught in test | PR-AUC in test |
 |---|---|---|---|---|---|
 | 3 days (hours 1–216 fit, 217–264 compare) | 2,797,736 → 282,290 sampled | 2,437 | 810,804 rows, 544 fraud | 405 | 0.346 |
@@ -519,9 +532,9 @@ Random ranking would score a PR-AUC of about 0.0007 (the fraud rate).
 | `fraud-ingest` with nothing new to score | 8m 13s |
 
 💡 **What the model results show.**
-- The trees catch 53 more frauds than flagging the largest payments, at the same workload, and rank fraud about 14× better by PR-AUC.
+- The trees catch 53 more frauds than flagging the largest payments, at the same workload, and rank fraud about 14× better by PR-AUC. In the full hours, where ranking actually matters, that's 189 vs 136 (39% more).
 - Hiding the last 3 days of labels, as a real bank must, cost 1 caught fraud at the budget and 0.033 PR-AUC. Version 1 stays champion because version 2's edge depends on labels a real team wouldn't have yet.
-- The model leans on amount, hour of day and payment type. None of Silver's receiver-history features made the top 5. In PaySim, fraud only appears in TRANSFER and CASH_OUT payments, so the type columns mostly rule fraud out.
+- The model leans on amount, hour of day and payment type. None of Silver's receiver-history features made the top 5. In PaySim, fraud only appears in TRANSFER and CASH_OUT payments, so the type columns mostly rule fraud out. Hour of day matters because of how PaySim simulates time: in hours 1–336, clock hours 0–7 carry 31% of the fraud but only 1.2% of normal payments.
 - Scores are rankings, not probabilities, because training used all fraud plus a 10% sample of the rest.
 
 ---
@@ -605,7 +618,8 @@ shown.
 - **Scores are rankings, not probabilities**: the model is trained on all fraud plus a 10% sample of the rest, so `risk_score` orders payments but isn't a calibrated chance of fraud (GAPS §3, M-RANK)
 - **No real-time scoring**: payments are scored when the job runs after their file lands, not at payment time (GAPS §3, M-BATCH)
 - **Manual promotion**: a person moves `@champion` with a notebook; there is no CI gate, no shadow scoring and no automatic retraining yet (GAPS §3, M-PROMOTE)
-- **Model leans on simple signals**: amount, hour of day and payment type carry most of the weight, and the receiver-history features aren't in the top 5. The hour-of-day effect is likely a PaySim artefact (unverified)
+- **Model leans on simple signals**: amount, hour of day and payment type carry most of the weight, and the receiver-history features aren't in the top 5. The hour-of-day effect is a PaySim artefact (measured: clock hours 0–7 hold 31% of training fraud but 1.2% of normal payments), so it wouldn't carry over to real traffic (GAPS §3, M-QUIET)
+- **Quiet hours inflate recall**: 18 of the 72 test hours have fewer than 50 payments, all fraud, so every approach catches those 216 for free. Recall in the 54 full hours is 0.312 for the champion, against 0.493 overall (GAPS §3, M-QUIET)
 - **Invalid JSON loses its text**: a line that is not valid JSON lands in Bronze as one all-null row (its text is lost, and the run succeeds). Silver rejects such a row as `missing_id` onto the rejected shelf, so it is visible there, but the original text cannot be recovered (GAPS §3, V5)
 - **Hourly features and warm-up**: PaySim time is in whole hours, so the features count earlier hours only, never the same hour. The first 24 hours have partial history (GAPS §3, S-HOURS)
 - **SQL logic is not unit-tested in CI**: CI checks the Silver SQL's structure (names, frames, column lists, guards). The logic is proven by the workspace runs against the reference model (GAPS §3, CI-SQL)

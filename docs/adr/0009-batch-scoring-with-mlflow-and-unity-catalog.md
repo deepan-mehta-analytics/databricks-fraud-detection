@@ -85,7 +85,12 @@ history (warm-up). This is a decision, not a measurement.
   notebooks and training got 3.12.0. Loading the 3.12-logged model under 3.8.1
   worked, and the guard only requires MLflow 3 or later.
 - The model leans on amount, hour of day and payment type. None of Silver's
-  receiver-history features is in the top 5 importances.
+  receiver-history features is in the top 5 importances. Hour of day is a
+  PaySim artefact: clock hours 0–7 hold 31% of training fraud but 1.2% of
+  normal payments (measured from the CSV).
+- 18 of the 72 test hours have fewer than 50 payments, all of them fraud, so
+  every approach catches those 216 for free. In the 54 full hours the
+  champion catches 189 of 606 fraud, against 136 for "largest amount first".
 
 **Checked in real runs (2026-10-08 to 2026-10-11, see `docs/GAPS.md` §5):**
 - M1: in a serverless notebook, register → alias → load by alias →
