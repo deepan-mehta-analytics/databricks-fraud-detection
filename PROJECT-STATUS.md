@@ -6,7 +6,7 @@ public-safe: no account IDs, workspace URLs, cluster IDs, or personal
 emails — placeholders only.
 
 ## Current phase
-Phase 0 in progress (16 of 17 gaps resolved: all but G-09, the cost
+Phase 0 in progress (17 of 18 gaps resolved: all but G-09, the cost
 recompute) and Phase 1 scaffolding done. Phase 2
 (Auto Loader ingest to Bronze) is done: 44 local unit tests at ship, CI, and a
 Databricks Asset Bundle job, verified end to end in the Free Edition
@@ -37,7 +37,15 @@ hour the champion caught 405 of 822 frauds in hours 337–408 (PR-AUC
 (`e7c6453`) did not survive the deploy. The original brief is captured in
 `docs/00-initial-brief.md` and is a **non-binding draft**; every stack and
 architecture decision is to be re-researched before it is adopted (see
-`docs/GAPS.md`). (as of 2026-10-11)
+`docs/GAPS.md`). Phase 5 (Gold alerts and governance) is built and pushed
+(145 tests, CI green): an append-only alert log, a case table with simulated
+verdicts, a managers' summary view, a `gold` SQL task, and group-based
+grants with an account-name mask and a closed-cases row filter. Workspace
+setup passed 2026-10-11 (custom groups and a second user work on Free
+Edition; the warehouse is found by name at deploy time). An external table
+on Cloudflare R2 was measured as blocked on Free Edition (G-18), so that
+export is not wired in. The first Gold run waits for the daily compute limit
+to reset. (as of 2026-10-11)
 
 ## Phase status
 
@@ -45,12 +53,12 @@ Provisional — to be replaced by the real plan once Phase 0 research lands.
 
 | Phase | Status | Notes |
 |---|---|---|
-| 0 — Research & decisions (verify open questions, write ADRs) | 🔄 In progress | G-01, G-02, G-03, G-04, G-06, G-07, G-08 resolved; ADRs 0001–0009 proposed in `docs/adr/` (0004 superseded by 0006; 0005 and the Bronze half of 0003 superseded by 0007, 2026-09-24); ADR 0001 checkpoint-write spike verified 2026-09-22; ADR 0002 grant/row-filter/mask spike verified 2026-09-22 (group creation still open); dataset switched to PaySim, canonical source verified, balance-column leakage risk excluded (ADR 0006, 2026-09-22); G-01 closed by a measured egress probe (2026-09-24), Auto Loader file ingest designed and recorded as ADR 0007 (2026-09-24); G-10 PaySim volume profile measured and train/replay cut set (2026-09-24); G-11 Asset Bundle deploy on Free Edition verified from the workspace UI with no token (2026-09-24); G-12 Git folder clone of a public GitHub repo verified on Free Edition with no token (2026-09-24), so workspace runs will use a Git folder; G-13 (private dataset syntax), G-14 (incremental refresh measured) and G-15 (refresh duration measured) resolved by the Silver runs (2026-10-06/07); G-05, G-16 and G-17 resolved by the Phase 4 runs (2026-10-11); G-09 open; drives `docs/GAPS.md` |
+| 0 — Research & decisions (verify open questions, write ADRs) | 🔄 In progress | G-01, G-02, G-03, G-04, G-06, G-07, G-08 resolved; ADRs 0001–0009 proposed in `docs/adr/` (0004 superseded by 0006; 0005 and the Bronze half of 0003 superseded by 0007, 2026-09-24); ADR 0001 checkpoint-write spike verified 2026-09-22; ADR 0002 grant/row-filter/mask spike verified 2026-09-22 (group creation verified 2026-10-11); dataset switched to PaySim, canonical source verified, balance-column leakage risk excluded (ADR 0006, 2026-09-22); G-01 closed by a measured egress probe (2026-09-24), Auto Loader file ingest designed and recorded as ADR 0007 (2026-09-24); G-10 PaySim volume profile measured and train/replay cut set (2026-09-24); G-11 Asset Bundle deploy on Free Edition verified from the workspace UI with no token (2026-09-24); G-12 Git folder clone of a public GitHub repo verified on Free Edition with no token (2026-09-24), so workspace runs will use a Git folder; G-13 (private dataset syntax), G-14 (incremental refresh measured) and G-15 (refresh duration measured) resolved by the Silver runs (2026-10-06/07); G-05, G-16 and G-17 resolved by the Phase 4 runs (2026-10-11); G-18 (external tables on R2) measured as blocked 2026-10-11; G-09 open; drives `docs/GAPS.md` |
 | 1 — Scaffolding (git repo, CI, Makefile, per-directory READMEs) | ✅ Done | Makefile untested locally (no `make` installed); CI (hygiene + unit tests) green on GitHub since 2026-09-24 |
 | 2 — Ingest → Bronze | ✅ Done | Designed (ADR 0007); code + 44 unit tests at ship; workspace runs V1–V6 verified 2026-09-24 (5,987,427 Bronze rows, all scenario proofs exact) |
 | 3 — Silver + velocity features | ✅ Done | Lakeflow pipeline of 4 SQL materialized views (quality verdicts, clean table, rejected shelf, strict-past receiver features), ADR 0008; 79 local tests; workspace checks S1–S6 all passed 2026-10-06/07 (counts, quality, features three-way identical, late-file recalculation, incremental refresh measured). The Phase 3 add-on (dev/prod targets, CI deploy) is still open |
 | 4 — ML training + batch scoring | ✅ Done | scikit-learn model (gradient-boosted trees vs a logistic baseline), MLflow + Unity Catalog registry aliases, `score` job task with a decision log, ADR 0009; 117 local tests; workspace M1–M8 passed 2026-10-08 to 2026-10-11 (1,205,673 payments scored once each; champion 405 of 822 frauds caught at 50 alerts per hour); README Model Summary |
-| 5 — Gold alerts + Unity Catalog governance | ⏳ Pending | |
+| 5 — Gold alerts + Unity Catalog governance | 🔄 Built, verifying | Gold SQL task (append-only alerts, cases, summary view), governance SQL (mask, row filter, per-table grants), ABAC probe, local Gold calculator; 145 local tests; final review fixed (run-as guard, view check); workspace G1 passed 2026-10-11 (groups, test user, warehouse lookup), R2 export dropped (blocked, G-18); G2–G11 pending (first run hit the daily limit) |
 | 6 — Monitoring app + Workflows/alerting | ⏳ Pending | |
 | 7 — Live demo window + teardown | ⏳ Pending | |
 
@@ -66,7 +74,7 @@ See `git log` on `main`; CI runs on every push (GitHub Actions: hygiene + unit t
 Latest content commits (2026-10-06): `900b84c` Silver reference model + CLI,
 `19aefd5` Silver pipeline SQL, `81f2531` bundle/job wiring, `f6b5464` measured
 expected values, `11fbd03` shared catalog/schema, `14fa8b3` review follow-ups.
-Workspace checks S1–S6 passed against `14fa8b3`. 2026-10-08: Silver write-up (ADR 0008, GAPS, exam map, concept notes, cost model); Phase 4 model code `ae65716`, `8b7cf87`, `bb5bbff`, `f7be1eb`, `5b92c9d`, review fixes `d1039b5` (CI green); status docs `476b56c`, `4532973`. 2026-10-10: environment pin `e7c6453` (did not reach the deployed job), scikit-learn pin in the model notebooks `806763a` (CI green), status docs `62ec064`. 2026-10-11: workspace checks M4b–M8 passed against `806763a`; Phase 4 write-up (ADR 0009, GAPS, cost model, README Model Summary) in the docs commit after `62ec064`.
+Workspace checks S1–S6 passed against `14fa8b3`. 2026-10-08: Silver write-up (ADR 0008, GAPS, exam map, concept notes, cost model); Phase 4 model code `ae65716`, `8b7cf87`, `bb5bbff`, `f7be1eb`, `5b92c9d`, review fixes `d1039b5` (CI green); status docs `476b56c`, `4532973`. 2026-10-10: environment pin `e7c6453` (did not reach the deployed job), scikit-learn pin in the model notebooks `806763a` (CI green), status docs `62ec064`. 2026-10-11: workspace checks M4b–M8 passed against `806763a`; Phase 4 write-up (ADR 0009, GAPS, cost model, README Model Summary) `cd75dc7`, quiet-hours note `ddb199a`, `v0.3.0`. Phase 5: Gold calculator `6ea4f5d`, Gold SQL `126f940`, job wiring `7751e31`, governance `f21743d` + `b6cdc45`, review fixes `ec54bac`, warehouse name `e5fdaf1`, R2 export dropped `4222ecc` (CI green).
 
 ## Releases
 | Version | Date | What |
