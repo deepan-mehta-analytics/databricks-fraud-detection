@@ -32,16 +32,33 @@ cost figure can be attached until the numeric quota is known (G-08).
 | Job task `silver`, first build | 7 m 6 s, including the wait before the pipeline update starts | job run history | 2026-10-06 |
 | Silver pipeline update, first build (all 4 views fully recomputed, ~6M rows) | 105 s | pipeline event log | 2026-10-06 |
 | Silver pipeline update, incremental (`WINDOW_FUNCTION` / `APPEND_ONLY`) | 115 s and 107 s | pipeline event log | 2026-10-06/07 |
+| `fraud-train` job, 3-day label delay (fit on 282,290 sampled rows, two models compared on 810,804 rows) | 2 m 9 s | job run history | 2026-10-08 |
+| `fraud-ingest` job, first scoring run (release + ingest + silver + score; 1,205,673 payments scored) | 5 m 3 s | job run history | 2026-10-11 |
+| `fraud-ingest` job, rerun with nothing new (0 payments scored) | 8 m 13 s | job run history | 2026-10-11 |
+| `fraud-ingest` job, one drift hour released (6 payments scored) | 5 m 27 s | job run history | 2026-10-11 |
 
 At this size, incremental refresh did not shorten an update: fixed pipeline
 start-up and planning (about 1.5–2 minutes) dominates (GAPS G-15). All of
 the above, plus the scenario runs, fitted within one day's quota.
 
+The whole job takes about 5–8 minutes whether it scores 1.2M payments or
+none, so run time doesn't track the number of payments scored. Fixed start-up
+time, the pipeline's above all (G-15), is the likely main cost (not timed per
+task).
+The second `fraud-train` run (no label delay) was not timed.
+
+**Daily limit, observed (G-08):** on 2026-10-10 the 4th full `fraud-ingest`
+run of the day was refused with `CLUSTER_CREATION_RESOURCE_EXHAUSTED` after 3
+runs had completed, and the limit also stopped a run on 2026-10-08. On
+2026-10-11, 3 job runs, 3 evaluation notebook runs and a few SQL checks fit.
+So this project plans for about 3 full ingest runs a day. Databricks
+publishes no number or reset time for this limit.
+
 ## Unverified inputs
 
 | Item | Status |
 |---|---|
-| Free Edition numeric quotas (daily compute quota, model-serving endpoint count) | unverified; feature-level limits are verified, see G-08 |
+| Free Edition numeric quotas (daily compute quota, model-serving endpoint count) | unverified as a number; about 3 full ingest runs a day observed, see G-08 |
 | Whether a Confluent Basic cluster can be paused, and trial reactivation terms | unverified, see G-07 |
 | Total monthly cost (the brief's ₹0–400 claim) | unverified, see G-09 |
 

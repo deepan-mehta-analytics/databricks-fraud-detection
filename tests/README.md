@@ -50,5 +50,5 @@
   between training and scoring is refused.
 
 Notebook behavior, the Delta tables, the Silver pipeline and the model
-registry are verified by workspace runs (V1–V6, S1–S6, M1–M7), not by this
+registry are verified by workspace runs (V1–V6, S1–S6, M1–M8), not by this
 local suite.

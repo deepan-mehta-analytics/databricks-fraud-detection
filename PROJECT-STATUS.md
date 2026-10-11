@@ -6,8 +6,8 @@ public-safe: no account IDs, workspace URLs, cluster IDs, or personal
 emails — placeholders only.
 
 ## Current phase
-Phase 0 in progress (13 of 17 gaps resolved: G-01, G-02, G-03, G-04, G-06,
-G-07, G-08, G-10, G-11, G-12, G-13, G-14, G-15) and Phase 1 scaffolding done. Phase 2
+Phase 0 in progress (16 of 17 gaps resolved: all but G-09, the cost
+recompute) and Phase 1 scaffolding done. Phase 2
 (Auto Loader ingest to Bronze) is done: 44 local unit tests at ship, CI, and a
 Databricks Asset Bundle job, verified end to end in the Free Edition
 workspace on 2026-09-24 (V1–V6; every Bronze count matched exactly — see the
@@ -26,20 +26,18 @@ ingest is the Phase 2 path; its design is recorded as ADR 0007
 after simulated day 17, so the train/score split and replay window were
 set inside days 1–17 (G-10). Phase 3 (Silver) is done: a Lakeflow pipeline of four materialized
 views, verified in the workspace on 2026-10-06/07 (S1–S6, all exact) and
-recorded as ADR 0008. Phase 4 (training and batch scoring) is built and
-pushed (117 tests, CI green); its workspace checks are in progress: M1 (model
-registry probe), M2 and M3 (both training runs, every count exact), M3b
-(scoring with no champion succeeds) and M4a (version 1 promoted) passed on
-2026-10-08. The first scoring run (M4b) has not completed yet: the Free
-Edition serverless limit (`CLUSTER_CREATION_RESOURCE_EXHAUSTED`) stopped it
-on 2026-10-08 and again on 2026-10-10, and on 2026-10-10 the scoring task's
-library guard stopped it because the task ran scikit-learn 1.6.1 while the
-model was trained with 1.7.2. A job-level environment pin (`e7c6453`) did not
-reach the deployed job, so the model notebooks now install scikit-learn 1.7.2
-themselves (`806763a`). M4b is retried after the next reset; M4c–M8 follow. The original brief is captured in
+recorded as ADR 0008. Phase 4 (training and batch scoring) is done: gradient-boosted trees
+trained on demand, registered in Unity Catalog with `@champion` /
+`@challenger` aliases, and a `score` task that logs every decision.
+Workspace checks M1–M8 passed 2026-10-08 to 2026-10-11. At 50 alerts per
+hour the champion caught 405 of 822 frauds in hours 337–408 (PR-AUC
+0.346), against 352 for "largest amount first"; the 3-day label delay cost
+1 caught fraud. Recorded as ADR 0009. The model notebooks pin scikit-learn
+1.7.2 themselves (`806763a`), because a job-level environment pin
+(`e7c6453`) did not survive the deploy. The original brief is captured in
 `docs/00-initial-brief.md` and is a **non-binding draft**; every stack and
 architecture decision is to be re-researched before it is adopted (see
-`docs/GAPS.md`). (as of 2026-10-10, end of session)
+`docs/GAPS.md`). (as of 2026-10-11)
 
 ## Phase status
 
@@ -47,11 +45,11 @@ Provisional — to be replaced by the real plan once Phase 0 research lands.
 
 | Phase | Status | Notes |
 |---|---|---|
-| 0 — Research & decisions (verify open questions, write ADRs) | 🔄 In progress | G-01, G-02, G-03, G-04, G-06, G-07, G-08 resolved; ADRs 0001–0008 proposed in `docs/adr/` (0004 superseded by 0006; 0005 and the Bronze half of 0003 superseded by 0007, 2026-09-24); ADR 0001 checkpoint-write spike verified 2026-09-22; ADR 0002 grant/row-filter/mask spike verified 2026-09-22 (group creation still open); dataset switched to PaySim, canonical source verified, balance-column leakage risk excluded (ADR 0006, 2026-09-22); G-01 closed by a measured egress probe (2026-09-24), Auto Loader file ingest designed and recorded as ADR 0007 (2026-09-24); G-10 PaySim volume profile measured and train/replay cut set (2026-09-24); G-11 Asset Bundle deploy on Free Edition verified from the workspace UI with no token (2026-09-24); G-12 Git folder clone of a public GitHub repo verified on Free Edition with no token (2026-09-24), so workspace runs will use a Git folder; G-13 (private dataset syntax), G-14 (incremental refresh measured) and G-15 (refresh duration measured) resolved by the Silver runs (2026-10-06/07); G-05, G-09, G-16 and G-17 open; drives `docs/GAPS.md` |
+| 0 — Research & decisions (verify open questions, write ADRs) | 🔄 In progress | G-01, G-02, G-03, G-04, G-06, G-07, G-08 resolved; ADRs 0001–0009 proposed in `docs/adr/` (0004 superseded by 0006; 0005 and the Bronze half of 0003 superseded by 0007, 2026-09-24); ADR 0001 checkpoint-write spike verified 2026-09-22; ADR 0002 grant/row-filter/mask spike verified 2026-09-22 (group creation still open); dataset switched to PaySim, canonical source verified, balance-column leakage risk excluded (ADR 0006, 2026-09-22); G-01 closed by a measured egress probe (2026-09-24), Auto Loader file ingest designed and recorded as ADR 0007 (2026-09-24); G-10 PaySim volume profile measured and train/replay cut set (2026-09-24); G-11 Asset Bundle deploy on Free Edition verified from the workspace UI with no token (2026-09-24); G-12 Git folder clone of a public GitHub repo verified on Free Edition with no token (2026-09-24), so workspace runs will use a Git folder; G-13 (private dataset syntax), G-14 (incremental refresh measured) and G-15 (refresh duration measured) resolved by the Silver runs (2026-10-06/07); G-05, G-16 and G-17 resolved by the Phase 4 runs (2026-10-11); G-09 open; drives `docs/GAPS.md` |
 | 1 — Scaffolding (git repo, CI, Makefile, per-directory READMEs) | ✅ Done | Makefile untested locally (no `make` installed); CI (hygiene + unit tests) green on GitHub since 2026-09-24 |
 | 2 — Ingest → Bronze | ✅ Done | Designed (ADR 0007); code + 44 unit tests at ship; workspace runs V1–V6 verified 2026-09-24 (5,987,427 Bronze rows, all scenario proofs exact) |
 | 3 — Silver + velocity features | ✅ Done | Lakeflow pipeline of 4 SQL materialized views (quality verdicts, clean table, rejected shelf, strict-past receiver features), ADR 0008; 79 local tests; workspace checks S1–S6 all passed 2026-10-06/07 (counts, quality, features three-way identical, late-file recalculation, incremental refresh measured). The Phase 3 add-on (dev/prod targets, CI deploy) is still open |
-| 4 — ML training + batch scoring | 🔄 Built, verifying | scikit-learn model (gradient-boosted trees vs a logistic baseline), MLflow + Unity Catalog registry aliases, `score` job task with a decision log; 117 local tests; workspace M1–M4a passed 2026-10-08; M4b (first scoring run) not yet completed (daily limit twice, scikit-learn mismatch once, pinned in `806763a`), M4b–M8 pending; ADR 0009 and the README Model Summary land after verification |
+| 4 — ML training + batch scoring | ✅ Done | scikit-learn model (gradient-boosted trees vs a logistic baseline), MLflow + Unity Catalog registry aliases, `score` job task with a decision log, ADR 0009; 117 local tests; workspace M1–M8 passed 2026-10-08 to 2026-10-11 (1,205,673 payments scored once each; champion 405 of 822 frauds caught at 50 alerts per hour); README Model Summary |
 | 5 — Gold alerts + Unity Catalog governance | ⏳ Pending | |
 | 6 — Monitoring app + Workflows/alerting | ⏳ Pending | |
 | 7 — Live demo window + teardown | ⏳ Pending | |
@@ -68,7 +66,7 @@ See `git log` on `main`; CI runs on every push (GitHub Actions: hygiene + unit t
 Latest content commits (2026-10-06): `900b84c` Silver reference model + CLI,
 `19aefd5` Silver pipeline SQL, `81f2531` bundle/job wiring, `f6b5464` measured
 expected values, `11fbd03` shared catalog/schema, `14fa8b3` review follow-ups.
-Workspace checks S1–S6 passed against `14fa8b3`. 2026-10-08: Silver write-up (ADR 0008, GAPS, exam map, concept notes, cost model); Phase 4 model code `ae65716`, `8b7cf87`, `bb5bbff`, `f7be1eb`, `5b92c9d`, review fixes `d1039b5` (CI green); status docs `476b56c`, `4532973`. 2026-10-10: environment pin `e7c6453` (did not reach the deployed job), scikit-learn pin in the model notebooks `806763a` (CI green).
+Workspace checks S1–S6 passed against `14fa8b3`. 2026-10-08: Silver write-up (ADR 0008, GAPS, exam map, concept notes, cost model); Phase 4 model code `ae65716`, `8b7cf87`, `bb5bbff`, `f7be1eb`, `5b92c9d`, review fixes `d1039b5` (CI green); status docs `476b56c`, `4532973`. 2026-10-10: environment pin `e7c6453` (did not reach the deployed job), scikit-learn pin in the model notebooks `806763a` (CI green), status docs `62ec064`. 2026-10-11: workspace checks M4b–M8 passed against `806763a`; Phase 4 write-up (ADR 0009, GAPS, cost model, README Model Summary) in the docs commit after `62ec064`.
 
 ## Releases
 | Version | Date | What |
@@ -79,7 +77,7 @@ Workspace checks S1–S6 passed against `14fa8b3`. 2026-10-08: Silver write-up (
 Planned: `v0.3.0` ML scoring · `v0.4.0` Gold + governance · `v0.5.0` monitoring app · `v1.0.0` live demo and teardown.
 
 ## Metrics
-Phase 2 ingest verification (2026-09-24): see the README Results section — Bronze counts, per-run durations, per-file pipeline lag. Phase 3 Silver verification (2026-10-06/07): row accounting 5,987,427 = 5,987,412 + 5 + 10, Silver fraud 4,589, pipeline updates 105 s (full) and 115 s / 107 s (incremental). No model metrics yet (Phase 4).
+Phase 2 ingest verification (2026-09-24): see the README Results section — Bronze counts, per-run durations, per-file pipeline lag. Phase 3 Silver verification (2026-10-06/07): row accounting 5,987,427 = 5,987,412 + 5 + 10, Silver fraud 4,589, pipeline updates 105 s (full) and 115 s / 107 s (incremental). Phase 4 model (2026-10-11, hours 337–408, 822 fraud, 50 alerts per hour): champion caught 405 (precision 0.139, recall 0.493, PR-AUC 0.346); no label delay 406 (0.379); logistic 367 (0.028); largest amount first 352 (0.024); old rules 1. Scoring: 1,205,673 payments once each; rerun 0; promotion then 6 drift payments on version 2.
 
 ## Known gaps
 See `docs/GAPS.md` — the brief-versus-reality register and the exam-coverage

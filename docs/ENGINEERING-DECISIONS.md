@@ -190,6 +190,39 @@ fixed overhead kept each update at about 2 minutes.
 
 ---
 
+## ADR 0009 — Batch scoring with MLflow and Unity Catalog
+
+**Brief assumed:** a RandomForest classifier with fixed headline metrics, a
+Spark UDF scoring the stream in flight, alerts above a 0.85 probability
+cut-off, and a daily retrain at 2 AM IST.
+**We found:** Free Edition can't host online feature lookups, and on
+serverless, Spark ML runs through Spark Connect with a 100 MB model cap. Fraud
+is about 0.1% of payments, and it only ever appears in TRANSFER and CASH_OUT
+payments. A replay delivers no new labels, so a nightly retrain would have
+nothing new to learn. Sampled scores aren't calibrated probabilities, so a
+fixed cut-off doesn't size the review workload.
+**We decided:** gradient-boosted trees in scikit-learn, trained on demand on a
+sample and picked over a logistic baseline on a time-based comparison window.
+They're registered in Unity Catalog with `@challenger` / `@champion` aliases
+and an explicit promotion step. A `score` task after Silver scores each new
+payment in pandas chunks through the same feature builder as training. It
+appends to a decision log that keeps the features as the model saw them.
+Alerts are the top 50 per simulated hour. A label-delay setting measures what
+late fraud labels cost.
+**Trade-off, stated plainly:** no real-time scoring, a manual promotion
+instead of a CI gate, and scores that rank payments rather than give
+probabilities. MLflow isn't pinned (job tasks got 3.8.1, training 3.12.0);
+scikit-learn is.
+**Verified 2026-10-08 to 2026-10-11:** on hours 337–408 (822 fraud), the
+champion caught 405 at 50 alerts per hour (recall 0.493, PR-AUC 0.346),
+against 367 for logistic and 352 for "largest amount first". Training with no
+label delay caught 406 (PR-AUC 0.379). The first scoring run logged 1,205,673
+payments once each, a rerun added none, and after a promotion the next hour's
+6 payments carried the new version.
+→ [ADR 0009](adr/0009-batch-scoring-with-mlflow-and-unity-catalog.md)
+
+---
+
 ## Reading this alongside the code
 
 Every decision above is `Proposed`, not yet `Accepted` — that flip happens

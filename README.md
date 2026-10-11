@@ -18,7 +18,11 @@ mid-stream, and corrupted values. **Phase 3 is done:** those transactions
 are now checked against quality rules, copies are removed, bad rows are set
 aside with the reason, and each payment gets warning signs, such as how many
 payments its receiving account got in the previous 24 hours. Every count
-again matched an independent calculation exactly.
+again matched an independent calculation exactly. **Phase 4 is done:** a
+fraud model is trained on those warning signs and scores every new payment
+after each load. With the same 50 alerts per hour a review team could handle,
+it catches 405 of the 822 frauds in the test period, more than any simpler
+rule, and every score is logged with the model version that made it.
 
 ### Streaming fraud detection on a Databricks lakehouse, built in verified steps, measured rather than claimed
 
@@ -32,12 +36,14 @@ again matched an independent calculation exactly.
 [![Delta Lake](https://img.shields.io/badge/Delta_Lake-Bronze_Table-00ADD4?style=for-the-badge)](https://delta.io/)
 [![Unity Catalog](https://img.shields.io/badge/Unity_Catalog-Volumes_%2B_Governance-1B3139?style=for-the-badge&logo=databricks&logoColor=white)](https://docs.databricks.com/aws/en/data-governance/unity-catalog/)
 [![Asset Bundles](https://img.shields.io/badge/Asset_Bundles-Jobs_as_Code-1B3139?style=for-the-badge&logo=databricks&logoColor=white)](https://docs.databricks.com/aws/en/dev-tools/bundles/)
+[![MLflow](https://img.shields.io/badge/MLflow-UC_Model_Registry-0194E2?style=for-the-badge&logo=mlflow&logoColor=white)](https://mlflow.org/)
+[![scikit-learn](https://img.shields.io/badge/scikit--learn-1.7.2-F7931E?style=for-the-badge&logo=scikitlearn&logoColor=white)](https://scikit-learn.org/)
 
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![pytest](https://img.shields.io/badge/pytest-117_passing-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white)](tests/README.md)
 [![CI](https://img.shields.io/github/actions/workflow/status/deepan-mehta-analytics/databricks-fraud-detection/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI)](https://github.com/deepan-mehta-analytics/databricks-fraud-detection/actions)
 [![Release](https://img.shields.io/github/v/release/deepan-mehta-analytics/databricks-fraud-detection?style=for-the-badge&logo=github)](https://github.com/deepan-mehta-analytics/databricks-fraud-detection/releases)
-[![Status](https://img.shields.io/badge/Status-Phase_4_Built_·_Verification_In_Progress-yellow?style=for-the-badge)](PROJECT-STATUS.md)
+[![Status](https://img.shields.io/badge/Status-Phase_4_Verified_·_Phase_5_Next-green?style=for-the-badge)](PROJECT-STATUS.md)
 [![Exam coverage](https://img.shields.io/badge/DE_Associate-15%2F33_shown-blue?style=for-the-badge)](docs/exam-guide-map.md)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
@@ -72,9 +78,17 @@ stream through **Auto Loader into a Unity Catalog medallion layout**.
 - **Late data corrected**: a file released late updates the affected features on the next refresh, which was proven in a staged run
 - **Measured refresh**: the full build and the later incremental refreshes were read from the pipeline event log, not assumed
 
+**✅ Implemented and verified (Phase 4: model training and batch scoring)**
+
+- **Model training job**: an on-demand `fraud-train` job fits gradient-boosted trees and a logistic baseline in scikit-learn, picks the winner on a later time window, and logs both to MLflow
+- **Unity Catalog model registry**: each winner becomes a new version of `fraud_model` marked `@challenger`; a promotion step moves `@champion`, and scoring picks it up with no redeploy
+- **Batch scoring after every load**: a `score` task after Silver scores only payments not scored before, so reruns never score twice
+- **Decision log**: every score is stored with the model version and the exact inputs the model saw
+- **Measured against baselines**: precision and recall at 50 alerts per hour, plus PR-AUC, against "largest amount first", PaySim's old rules and a logistic regression
+- **Label delay measured**: a model trained without the latest 3 days of labels (as a real bank must) is compared with one that saw them
+
 **🔜 Planned**
 
-- **ML** (built, workspace verification in progress): fraud model training with MLflow and the Unity Catalog model registry, and batch scoring after each data load
 - **Gold and governance**: alert tables, group grants, row filters and column masks
 - **Monitoring app**: alert dashboard and job alerting
 
@@ -82,7 +96,7 @@ stream through **Auto Loader into a Unity Catalog medallion layout**.
 
 - **Research first**: every claim in the original brief is re-verified and logged in [`docs/GAPS.md`](docs/GAPS.md) before adoption
 - **Measured results only**: no number is reported unless it came from a real run
-- **Decisions on record**: eight ADRs in [`docs/adr/`](docs/adr/) capture each choice and what it cost, summarised in [Key Design Choices](#-key-design-choices)
+- **Decisions on record**: nine ADRs in [`docs/adr/`](docs/adr/) capture each choice and what it cost, summarised in [Key Design Choices](#-key-design-choices)
 - **Cost-disciplined and public-safe**: free tier only, placeholders for every workspace identifier
 
 ---
@@ -98,6 +112,7 @@ stream through **Auto Loader into a Unity Catalog medallion layout**.
 | 🥈 Transformation | Lakeflow declarative pipeline (SQL materialized views, expectations) | Silver: quality rules, quarantine, dedup and strict-past window features, refreshed incrementally on serverless |
 | 🏛️ Governance | Unity Catalog: schema, 4 Volumes, grants | Files, checkpoints and tables under one namespace; row filters and masks verified (G-06) |
 | 💾 Checkpoints | Unity Catalog Volume | DBFS root is deprecated (G-03) |
+| 🤖 ML | scikit-learn 1.7.2, MLflow, Unity Catalog model registry | Gradient-boosted trees vs a logistic baseline, experiment tracking, versioned models with `@champion` / `@challenger` aliases |
 | 🧩 Orchestration | Databricks Jobs + Asset Bundle (`databricks.yml`) | Four-task ingest job (release, ingest, the Silver pipeline task, score), an on-demand training job and the pipeline, as code, deployed from the workspace UI (G-11) |
 | 🔗 Code delivery | Databricks Git folder | Workspace runs use this repo at a known commit (G-12) |
 | 🐍 Language | Python 3.11, SQL | Splitter, release logic, scenario transforms, a local Silver reference model (stdlib only); model code with scikit-learn and pandas; Silver in SQL |
@@ -167,14 +182,27 @@ flowchart LR
     ING -->|then| CHK
     BRONZE --> CHK
 
-    FEAT -.-> ML["🤖 ML scoring"]
-    ML -.-> GOLD["🥇 Gold alerts"]
+    subgraph MODEL["🤖 Model · MLflow + Unity Catalog"]
+        direction TB
+        TRAIN["04_train_model<br/>fraud-train job · on demand"]
+        REG[("fraud_model<br/>@champion · @challenger")]
+        SCORE["05_score_transactions<br/>job task 4"]
+        SCORES[["transaction_risk_scores<br/>decision log"]]
+        TRAIN -->|register| REG
+        REG -->|load @champion| SCORE
+        SCORE -->|append new only| SCORES
+    end
+
+    FEAT --> TRAIN
+    FEAT --> SCORE
+
+    SCORES -.-> GOLD["🥇 Gold alerts"]
     GOLD -.-> APP["📊 Monitoring app"]
 
     classDef planned fill:#f5f5f5,stroke:#999,stroke-dasharray:4 3,color:#666
     classDef done fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20
-    class ML,GOLD,APP planned
-    class REL,ING,SPLIT,BRONZE,CHK,CLEAN,REJ,FEAT done
+    class GOLD,APP planned
+    class REL,ING,SPLIT,BRONZE,CHK,CLEAN,REJ,FEAT,TRAIN,REG,SCORE,SCORES done
 ```
 
 *Solid lines are built and verified; dashed nodes are planned phases.*
@@ -191,14 +219,19 @@ flowchart LR
 | `silver_transactions` | Materialized view | Clean payments: first copy only, fixed columns, three fail-loud guards |
 | `silver_rejected_transactions` | Materialized view | Rows that broke a rule or conflicted, with `rejection_reason` and the raw evidence |
 | `silver_transaction_features` | Materialized view | 6 receiver features + 1 sender feature, earlier hours only |
+| `04_train_model` | `fraud-train` job (on demand) | Fits trees and a logistic baseline, compares them on a later window, registers the winner as `@challenger` |
+| `fraud_model` | Unity Catalog model | Versioned models; `@champion` is the one scoring uses |
+| `05_score_transactions` | Job task 4 | Scores new Silver payments from hour 337 with `@champion` |
+| `transaction_risk_scores` | Delta table | Append-only decision log: score, model version, time and the inputs as seen |
+| `06_promote_model` / `07_evaluate_model` | Notebooks (owner-run) | Move `@champion`; evaluate any version against the baselines |
 
 | Phase | Layer | Status |
 |---|---|---|
-| 0 | Research, gaps register, ADRs | 🔄 13 of 17 gaps resolved |
+| 0 | Research, gaps register, ADRs | 🔄 16 of 17 gaps resolved |
 | 1 | Scaffolding, CI | ✅ Done |
 | 2 | Ingest to Bronze | ✅ Verified 2026-09-24 |
 | 3 | Silver and features | ✅ Verified 2026-10-06/07 (S1–S6) |
-| 4 | Training and scoring | 🔄 Built 2026-10-08; workspace checks M1–M4a passed (both training runs exact, v1 promoted); first scoring run (M4b) not yet completed: twice stopped by the daily compute limit, once by a scikit-learn version mismatch (fixed) |
+| 4 | Training and scoring | ✅ Verified 2026-10-08 to 2026-10-11 (M1–M8) |
 | 5 | Gold alerts and governance | ⏳ |
 | 6 | Monitoring app and alerting | ⏳ |
 | 7 | Live demo window and teardown | ⏳ |
@@ -259,7 +292,7 @@ databricks-fraud-detection/
 │
 ├── tests/                         ← 117 pytest tests (see tests/README.md)
 ├── docs/
-│   ├── adr/                       ← ADRs 0001–0008
+│   ├── adr/                       ← ADRs 0001–0009
 │   ├── GAPS.md                    ← brief-vs-reality register + accepted limitations
 │   ├── ENGINEERING-DECISIONS.md   ← decision log
 │   ├── cost-model.md              ← free-tier cost tracking
@@ -326,6 +359,12 @@ verifications. Every step is done by hand in the workspace UI.
 8. **Silver setup**: run `sql/30_silver_setup.sql` once Bronze exists. It turns on the table features that incremental refresh needs (deletion vectors, row tracking, change data feed)
 9. **Verify Silver**: run the S2–S6 queries in `sql/31_verify_silver.sql`. The expected values are written inline. The S6 queries need the pipeline ID from the `fraud-silver` page, typed in the editor only
 10. **Reset**: `notebooks/99_reset` drops the state and prints the rebuild order: re-ingest, run `30_silver_setup.sql`, then **Full refresh all** on the pipeline
+11. **Train** (after the replay above): Jobs & Pipelines → `fraud-train` → Run now. It registers a new `fraud_model` version as `@challenger`. Run it again with `label_delay_days=0` to measure the label-delay cost
+12. **Promote**: run `notebooks/06_promote_model` with `version` set to the version to score with. If the widget bar doesn't show, call it from a scratch notebook outside the Git folder: `dbutils.notebook.run("<path>/06_promote_model", 600, {"version": "1"})`
+13. **Score**: run `fraud-ingest` again. The `score` task scores every unscored Silver payment from hour 337 and prints `Scored N new payments …`. Check it with `sql/40_verify_model.sql`
+14. **Evaluate**: run `notebooks/07_evaluate_model` the same way, with `model_uri` = `models:/workspace.fraud.fraud_model/<version>`. It prints the model's and the baselines' metrics and logs them to the model's MLflow run
+
+The daily compute limit fits about 3 full job runs (G-08), so spread steps 11–14 over two days if needed.
 
 ### ⚙️ Option 3: CI (GitHub Actions)
 
@@ -360,7 +399,7 @@ python -m pytest -q      # → 117 passed
 | `test_model_runtime.py` | Only "not found" skips scoring; MLflow 3 and matching scikit-learn versions required |
 
 Notebook behaviour, the Delta tables and Auto Loader itself are verified by
-workspace runs (V1–V6, S1–S6 for Silver, M1–M7 for the model), not by this local suite. File-by-file detail is in
+workspace runs (V1–V6, S1–S6 for Silver, M1–M8 for the model), not by this local suite. File-by-file detail is in
 [`tests/README.md`](tests/README.md).
 
 ---
@@ -436,7 +475,54 @@ stream start-up.
 expectations in place, but at about 6M rows that did not make updates faster:
 fixed pipeline start-up and planning (about 1.5–2 minutes) dominates (G-15).
 
-No model metrics yet: training starts in Phase 4.
+### 🤖 Model Summary (Phase 4, verified 2026-10-08 to 2026-10-11)
+
+> Same workspace, code at commits `d1039b5` (training) and `806763a`
+> (scoring and evaluation). The test period is hours 337–408: 1,202,642
+> payments, 822 of them fraud, never seen in training. A review team gets **50
+> alerts per simulated hour**, so each approach flags its top 50 per hour.
+
+| Approach | Fraud caught (of 822) | Precision | Recall | PR-AUC |
+|---|---|---|---|---|
+| **Gradient-boosted trees, 3-day label delay (champion)** | **405** | **0.139** | **0.493** | **0.346** |
+| Gradient-boosted trees, no label delay | 406 | 0.139 | 0.494 | 0.379 |
+| Logistic regression, 3-day label delay | 367 | 0.126 | 0.446 | 0.028 |
+| Largest amount first | 352 | 0.121 | 0.428 | 0.024 |
+| PaySim's old fraud rules (flags only 1 payment) | 1 | 1.000 | 0.001 | — |
+
+Random ranking would score a PR-AUC of about 0.0007 (the fraud rate).
+
+| Label delay | Training rows (fit window) | Fraud in fit set | Comparison window | Caught in test | PR-AUC in test |
+|---|---|---|---|---|---|
+| 3 days (hours 1–216 fit, 217–264 compare) | 2,797,736 → 282,290 sampled | 2,437 | 810,804 rows, 544 fraud | 405 | 0.346 |
+| None (hours 1–288 fit, 289–336 compare) | 3,958,316 → 398,765 sampled | 3,279 | 826,459 rows, 488 fraud | 406 | 0.379 |
+
+| Top inputs (champion, permutation importance) | Importance |
+|---|---|
+| Payment amount | 0.283 |
+| Hour of day | 0.198 |
+| Type: CASH_OUT | 0.159 |
+| Type: PAYMENT | 0.109 |
+| Type: CASH_IN | 0.089 |
+
+| Scoring check | Expected | Measured |
+|---|---|---|
+| M3b: ingest job before any champion exists | succeeds, scores nothing | ✅ "No champion model yet" |
+| M4: first scoring run, hours 337–417 | 1,205,673 rows, each ID once, 1 model version, no label columns, inputs equal Silver's | ✅ exact |
+| M5: rerun with nothing new | 0 new scores | ✅ 0 |
+| M7: promote version 2, release hour 418 | 6 new rows from version 2, version 1's rows unchanged | ✅ exact |
+
+| Run | Duration |
+|---|---|
+| `fraud-train` (3-day delay, both models) | 2m 9s |
+| `fraud-ingest` with the first scoring run (1.2M payments) | 5m 3s |
+| `fraud-ingest` with nothing new to score | 8m 13s |
+
+💡 **What the model results show.**
+- The trees catch 53 more frauds than flagging the largest payments, at the same workload, and rank fraud about 14× better by PR-AUC.
+- Hiding the last 3 days of labels, as a real bank must, cost 1 caught fraud at the budget and 0.033 PR-AUC. Version 1 stays champion because version 2's edge depends on labels a real team wouldn't have yet.
+- The model leans on amount, hour of day and payment type. None of Silver's receiver-history features made the top 5. In PaySim, fraud only appears in TRANSFER and CASH_OUT payments, so the type columns mostly rule fraud out.
+- Scores are rankings, not probabilities, because training used all fraud plus a 10% sample of the rest.
 
 ---
 
@@ -458,6 +544,16 @@ the evidence and the alternatives rejected. Full narrative:
 | Silver | Keep the first arrival, drop identical copies, reject conflicting ones; no upsert | Payments are immutable events: a changed copy is a data problem, not a newer version | The same, plus a watermark-bounded streaming dedup |
 | Silver | Warning signs on the receiving account, from earlier hours only | Measured: senders almost never repeat, receivers do (the "mule" pattern); same-hour data would leak the future | An online feature store with millisecond lookups |
 | Silver | Zero amounts allowed | All 4 zero-amount payments in the data are fraud; a "positive amount" rule would throw real fraud away | Rules reviewed with the fraud-operations team |
+| ML | Batch scoring as a job task after Silver, not a serving endpoint ([ADR 0009](docs/adr/0009-batch-scoring-with-mlflow-and-unity-catalog.md)) | Online feature lookups are unsupported on Free Edition, and data arrives hourly; each load is scored in the same run | A low-latency endpoint fed by an online feature store |
+| ML | Alerts are the top 50 per simulated hour, not a probability cut-off | A review team's capacity is fixed; a cut-off lets the alert count swing with traffic | Budgets tuned with the fraud-operations team, per channel |
+| ML | `@champion` / `@challenger` aliases in the Unity Catalog registry, moved by an explicit promotion | Scoring loads the alias, so a promotion needs no redeploy; every score names its version | A CI gate with automated checks before promotion |
+| ML | A label-delay setting: train without the last 3 days of labels | Real fraud labels arrive late; measured cost here: 1 caught fraud and 0.033 PR-AUC | Delays matched to real chargeback timing (weeks) |
+| ML | Gradient-boosted trees against a logistic baseline, chosen on a later time window | Never a random split; the trees won both training runs and beat every baseline in the test period | Hyperparameter search and more model families |
+| ML | All fraud plus a 10% sample of the rest, with class weights | Fraud is ~0.1% of payments; sampling keeps training fast and in memory, and scores are read as rankings | Calibrated probabilities on an unsampled holdout |
+| ML | One tested feature builder for training, scoring and evaluation | Training and scoring can't drift apart, and the logic is unit-tested without Spark | A feature store serving both paths |
+| ML | A decision log that keeps each score's inputs as the model saw them | A later correction to Silver never rewrites a past decision; audits can replay exactly | Retention rules and model-monitoring tables on the log |
+| ML | The fraud label never enters scoring, enforced by a CI text guard | The score must not depend on the answer; checked in the workspace too (0 label columns) | The same, plus schema contracts on the scoring table |
+| ML | No Feature Engineering client and no Spark ML | Silver's features are already point-in-time; Spark ML on serverless has a 100 MB model cap, for no gain at 6M rows | Both, once online lookups or distributed training are needed |
 | Testing | A pure-Python reference model checks the SQL's results row for row | CI can't run Spark; the workspace runs were compared with an independent calculation | Integration tests on a dev workspace in CI |
 
 ---
@@ -477,6 +573,12 @@ reach for as volume or latency needs grow.
 | Transformation | Streaming tables plus stateful dedup | Continuous, high-volume, append-only streams | — |
 | Features | Window features computed in Silver | Batch scoring on a schedule | ✅ |
 | Features | Online feature store and point-in-time training sets | Millisecond scoring at payment time | — (online tables unsupported on Free Edition) |
+| Training | Single-node scikit-learn on a sampled fit set | Millions of rows fit in one machine's memory | ✅ |
+| Training | Distributed training (Spark ML or distributed boosting) | Training data outgrows one machine | — |
+| Scoring | Batch scoring after each load | Minutes of latency are acceptable | ✅ |
+| Scoring | Millisecond serving endpoint with an online feature store | Scoring at payment time | — (online tables unsupported on Free Edition) |
+| Model lifecycle | Manual promotion between aliases | A person reviews each new version | ✅ |
+| Model lifecycle | Shadow-scored challenger with automated, drift-triggered retraining | Frequent retrains, many models | 🔜 Phase 6 |
 | Environments | One `dev` bundle target with shared variables | Single developer | ✅ |
 | Environments | dev/test/prod targets with CI deploys | A team, with promotion gates | 🔜 Phase 3 add-on |
 
@@ -498,8 +600,12 @@ shown.
 
 ## ⚠️ Known Limitations
 
-- **Single verification day**: Phase 2 figures are single runs, not averages. The daily compute quota is unpublished. Phase 2's runs fit inside one day's allowance; on 2026-10-08, after a day of Phase 4 runs (deploy, two training runs, two job runs), a job's Silver step was refused with `CLUSTER_CREATION_RESOURCE_EXHAUSTED`, and on 2026-10-10 the limit was reached after three full ingest-and-score job runs, so heavy verification days are split across days (G-08)
-- **scikit-learn installed at run time**: serverless job tasks can land on different environment versions (5 ships scikit-learn 1.6.1, 6 ships 1.7.2), and a bundle deploy did not keep a job-level environment on a notebook task (measured 2026-10-10). So the training, scoring and evaluation notebooks run `%pip install scikit-learn==1.7.2` first. The version is exact but not hash-locked, and a guard still stops scoring if the model's version differs
+- **Single verification day**: Phase 2 figures are single runs, not averages. The daily compute quota is unpublished. Phase 2's runs fit inside one day's allowance; on 2026-10-08, after a day of Phase 4 runs (deploy, two training runs, two job runs), a job's Silver step was refused with `CLUSTER_CREATION_RESOURCE_EXHAUSTED`, and on 2026-10-10 the limit was reached after three full ingest-and-score job runs. On 2026-10-11, three job runs and three evaluation runs fit. So heavy verification days are split across days (G-08)
+- **scikit-learn installed at run time**: serverless job tasks can land on different environment versions (5 ships scikit-learn 1.6.1, 6 ships 1.7.2), and a bundle deploy did not keep a job-level environment on a notebook task (measured 2026-10-10). So the training, scoring and evaluation notebooks run `%pip install scikit-learn==1.7.2` first. The version is exact but not hash-locked, and a guard still stops scoring if the model's version differs. MLflow is not pinned: job tasks got 3.8.1 and training 3.12.0, and loading worked across them (GAPS §3, M-MLFLOW)
+- **Scores are rankings, not probabilities**: the model is trained on all fraud plus a 10% sample of the rest, so `risk_score` orders payments but isn't a calibrated chance of fraud (GAPS §3, M-RANK)
+- **No real-time scoring**: payments are scored when the job runs after their file lands, not at payment time (GAPS §3, M-BATCH)
+- **Manual promotion**: a person moves `@champion` with a notebook; there is no CI gate, no shadow scoring and no automatic retraining yet (GAPS §3, M-PROMOTE)
+- **Model leans on simple signals**: amount, hour of day and payment type carry most of the weight, and the receiver-history features aren't in the top 5. The hour-of-day effect is likely a PaySim artefact (unverified)
 - **Invalid JSON loses its text**: a line that is not valid JSON lands in Bronze as one all-null row (its text is lost, and the run succeeds). Silver rejects such a row as `missing_id` onto the rejected shelf, so it is visible there, but the original text cannot be recovered (GAPS §3, V5)
 - **Hourly features and warm-up**: PaySim time is in whole hours, so the features count earlier hours only, never the same hour. The first 24 hours have partial history (GAPS §3, S-HOURS)
 - **SQL logic is not unit-tested in CI**: CI checks the Silver SQL's structure (names, frames, column lists, guards). The logic is proven by the workspace runs against the reference model (GAPS §3, CI-SQL)
@@ -510,7 +616,7 @@ shown.
 - **Synthetic, uneven data**: PaySim is a simulation. Legitimate volume collapses after simulated day 17 while fraud stays constant, so days 1–17 are used for training and scoring, and days 18–31 are held back as a drift scenario (G-10)
 - **Storage duplication**: landing files are kept after ingest, so the data sits in the workspace about three times (CSV, outbox, landing) plus Bronze. There is no stated storage quota; `cleanSource` archiving is not yet implemented
 - **Retry with changed flags**: if a failed release is retried with different scenario flags, a step can land twice; recovery is `99_reset`
-- **Open gaps**: G-05 (model metrics, which need training), G-09 (cost recompute), G-16 (Feature Engineering on Free Edition) and G-17 (Phase 4 carry-overs: a scoring decision log, label delay, warm-up hours) in [`docs/GAPS.md`](docs/GAPS.md)
+- **Open gaps**: G-09 (cost recompute) in [`docs/GAPS.md`](docs/GAPS.md)
 - **Exam items out of scope for this project**: 2.2 (COPY INTO), 2.4 (Lakeflow Connect) and 2.5 (JDBC/ODBC/REST landing) are not planned — see [`docs/exam-guide-map.md`](docs/exam-guide-map.md) for why
 - **Keyless CI/CD unavailable**: Keyless OIDC deploys from GitHub Actions need a Databricks account console, which Free Edition does not have, so CI deploys will use a stored credential in a protected GitHub environment instead ([docs](https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation-policy), checked 2026-09-27)
 
@@ -518,12 +624,12 @@ shown.
 
 ## 🔜 Roadmap
 
-- [ ] Phase 0: research and ADRs (13 of 17 gaps resolved)
+- [ ] Phase 0: research and ADRs (16 of 17 gaps resolved)
 - [x] Phase 1: scaffolding and CI
 - [x] Phase 2: ingest to Bronze (44 unit tests at ship; workspace V1–V6 verified 2026-09-24)
 - [x] Phase 3: Silver (quality rules with quarantine, dedup on `transaction_id`, strict-past velocity features; workspace S1–S6 verified 2026-10-06/07)
 - [ ] Phase 3 add-on: dev and prod bundle targets, and CI deploys from a protected GitHub environment (exam items 5.2, 5.4)
-- [ ] Phase 4: ML training and batch scoring (built 2026-10-08; workspace checks in progress)
+- [x] Phase 4: ML training and batch scoring (champion catches 405 of 822 frauds at 50 alerts per hour; workspace M1–M8 verified 2026-10-08 to 2026-10-11)
 - [ ] Phase 5: Gold alerts and Unity Catalog governance
 - [ ] Phase 6: monitoring app and alerting
 - [ ] Phase 7: live demo window and teardown
