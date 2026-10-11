@@ -1,4 +1,6 @@
--- ── Gold SQL task `export` (fraud-ingest, after `gold`). Spec §10, ADR 0011. ──
+-- ── Gold SQL task `export` (designed to run after `gold`). Spec §10, ADR 0011. ──
+-- NOT WIRED INTO THE JOB: Free Edition serverless can't resolve *.r2.cloudflarestorage.com (DNS probe, 2026-10-11),
+-- so this stays as documented-but-blocked. It runs as written on a workspace whose compute can reach R2.
 -- Copies newly closed cases to the external table on Cloudflare R2, created once by sql/51_export_setup.sql.
 -- No account names: files outside Unity Catalog can't be masked, so only what an auditor needs leaves (data minimisation).
 -- ── Refuse to run as anyone outside fraud_engineers: masked or filtered reads would corrupt the tables (final review I1) ──

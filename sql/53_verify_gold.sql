@@ -48,7 +48,7 @@ SELECT SUM(visible_cases) AS visible_cases,                                    -
        SUM(closed_cases) AS closed_cases                                       -- expect 262
 FROM workspace.fraud.alert_summary_hourly;                                     -- the managers' summary view
 
--- ── G9: the external export ──
+-- ── G9: the external export (dropped on Free Edition: R2 unreachable, measured 2026-10-11; kept for workspaces that can reach R2) ──
 SELECT (SELECT COUNT(*) FROM workspace.fraud.closed_alerts_export) AS exported,  -- expect 262 (equals closed cases)
        (SELECT COUNT(*) FROM workspace.fraud.alert_cases WHERE status = 'closed') AS closed;  -- expect 262
 DESCRIBE DETAIL workspace.fraud.closed_alerts_export;                          -- location must start with r2://

@@ -15,7 +15,7 @@
 - `test_ingest.py` — Auto Loader option construction and that the module
   imports without PySpark installed.
 - `test_job_definition.py` — parses `resources/fraud_ingest_job.yml` and
-  checks the six tasks (release, ingest, silver, score, gold, export), the Gold SQL tasks on the warehouse found by name, retry, schedule and
+  checks the five tasks (release, ingest, silver, score, gold), the Gold SQL tasks on the warehouse found by name, retry, schedule and
   parameter list (release and scoring options), the on-demand
   `fraud_train` job and its defaults, plus the `fraud_silver` pipeline resource (serverless,
   triggered, anchor, the four SQL files in order), and that the job and

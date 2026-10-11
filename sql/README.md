@@ -33,14 +33,17 @@ roles (G-06).
   for every hour not yet alerted (plus late payments that earn a place) to
   the append-only `fraud_alerts` log, opens one case per alert in
   `alert_cases`, and closes cases 72 simulated hours later with the verdict.
-- `gold/export.sql` — the `export` SQL task, last in the job: copies newly
-  closed cases, without account names, to the external table on Cloudflare R2.
+- `gold/export.sql` — designed as an `export` SQL task after `gold`: copies
+  newly closed cases, without account names, to an external table on
+  Cloudflare R2. Not wired into the job: Free Edition's serverless compute
+  can't resolve the R2 storage domain (measured 2026-10-11).
 - `50_governance.sql` — run once by the owner after the first Gold run: the
   account-name mask and the closed-cases-only row filter (both exempt
   engineers and reviewers), and the group grants (engineers schema-wide,
   reviewers and managers table by table).
-- `51_export_setup.sql` — run once by the owner: checks that serverless can
-  reach the R2 bucket, then creates the external export table. The bucket
+- `51_export_setup.sql` — for a workspace that can reach R2 (not Free
+  Edition): checks the bucket is reachable, then creates the external
+  export table. The bucket
   and account ID are typed in the editor only; the repo keeps placeholders.
 - `52_abac_probe.sql` — the tag-based policy (ABAC) probe on a 5-row scratch
   table, with its clean-up.

@@ -1,4 +1,4 @@
-# ── Job: release, ingest, refresh Silver, score, then raise Gold alerts and export closed cases (ADR 0007-0011) ──
+# ── Job: release, ingest, refresh Silver, score, then raise Gold alerts (ADR 0007-0011); no export task: R2 is unreachable from Free Edition ──
 resources:                                        # bundle resources
   jobs:                                           # job resources
     fraud_ingest:                                 # resource key (used in tests)
@@ -62,10 +62,3 @@ resources:                                        # bundle resources
             warehouse_id: ${var.warehouse_id}     # looked up by name at deploy time
             file:                                 # the SQL file to run
               path: ../sql/gold/gold.sql          # path relative to this file
-        - task_key: export                        # closed cases to the R2 external table (ADR 0011)
-          depends_on:                             # ordering
-            - task_key: gold                      # last, so an R2 failure never blocks alerts
-          sql_task:                               # runs a SQL file on the SQL warehouse
-            warehouse_id: ${var.warehouse_id}     # same warehouse
-            file:                                 # the SQL file to run
-              path: ../sql/gold/export.sql        # path relative to this file

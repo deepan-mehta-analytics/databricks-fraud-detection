@@ -1,4 +1,6 @@
 -- ── Run once in the SQL editor by the owner, after the R2 credential and external location exist (sheet G1g-G1h). Spec §10. ──
+-- NOT WIRED INTO THE JOB: Free Edition serverless can't resolve *.r2.cloudflarestorage.com (DNS probe, 2026-10-11),
+-- so this stays as documented-but-blocked. It runs as written on a workspace whose compute can reach R2.
 -- Replace <bucket> and <account-id> IN THE EDITOR ONLY. Never commit real values (CI checks every tracked file).
 
 -- ── 1. Can serverless reach R2? (G1i) An error naming the host or DNS means Free Edition's network limit blocks it. ──
