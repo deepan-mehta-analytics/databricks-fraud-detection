@@ -122,7 +122,7 @@ def test_no_real_storage_path_or_account_id_in_tracked_text():  # public repo: p
         if path == Path(__file__).resolve():  # this guard's own pattern text contains "r2://"
             continue  # not a storage path
         text = path.read_text(encoding="utf-8", errors="ignore")  # file text
-        for match in re.finditer(r"r2://[^\s'\"`)]*", text):  # every R2 URL
+        for match in re.finditer(r"r2://[^\s'\"`)]+", text):  # every R2 URL that names a bucket (bare "r2://" in prose is fine)
             assert match.group(0).startswith("r2://<bucket>@<account-id>."), f"{rel}: {match.group(0)}"  # placeholder only
         assert not re.search(r"[0-9a-f]{32}\.r2\.cloudflarestorage\.com", text), rel  # no real account ID host
     assert "LOCATION 'r2://<bucket>@<account-id>.r2.cloudflarestorage.com/closed_alerts_export'" in code(EXPORT_SETUP)  # the template
