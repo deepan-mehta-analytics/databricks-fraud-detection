@@ -1,6 +1,6 @@
 # tests/
 
-`python -m pytest -q` runs 139 tests, all local (no Databricks needed):
+`python -m pytest -q` runs 145 tests, all local (no Databricks needed):
 
 - `test_contract.py` — segment boundaries, file naming, transaction ID and
   timestamp derivation, schema hints, volume paths.
@@ -50,14 +50,14 @@
   between training and scoring is refused.
 - `test_gold_expected.py` — the local Gold calculator: alerts per hour
   capped at the budget, the closing cutoff 72 simulated hours back, closed
-  cases, the late-alert rule (short hours always have room), and Silver
+  cases, the late-alert rule for one payment and for a batch (the room left is filled first), and Silver
   payments per hour from the CSV simulation.
 - `test_gold_sql.py` — text guards on the Gold and governance SQL: alerts
   are insert-only, the top-50 budget and tie-break, the late-alert rule,
   the label read only when closing cases, an export without account names,
   masks and the row filter exempting engineers and reviewers, a row filter
   that reads only its own row, per-table grants for reviewers and managers,
-  and no real R2 path or account ID in any tracked file.
+  both Gold tasks refusing to run outside the engineers group, case names taken from Silver, no MODIFY grant, the view's visible-cases column, the view checked through the row filter, and no real R2 path or account ID in any tracked text file.
 
 Notebook behavior, the Delta tables, the Silver pipeline and the model
 registry are verified by workspace runs (V1–V6, S1–S6, M1–M8, G1–G11), not by this

@@ -26,7 +26,7 @@ GRANT SELECT ON TABLE workspace.fraud.abac_probe TO `fraud_managers`;          -
 -- ── 4. Check: test user (in fraud_managers) runs this and should see REDACTED; you should see real names ──
 SELECT * FROM workspace.fraud.abac_probe;                                       -- 5 rows
 
--- ── 5. Clean up after recording the result ──
+-- ── 5. Clean up after recording the result (skip any line whose object was never created, e.g. DROP POLICY if CREATE POLICY failed) ──
 DROP POLICY redact_account_names ON SCHEMA workspace.fraud;                    -- remove the probe policy
 DROP TABLE workspace.fraud.abac_probe;                                          -- remove the scratch table
 DROP FUNCTION workspace.fraud.redact;                                           -- remove the probe mask

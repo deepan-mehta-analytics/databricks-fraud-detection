@@ -42,7 +42,7 @@ def test_hourly_budget_and_tie_break():  # spec §5; Review Focus 2
 
 
 def test_late_alerts_fill_short_hours_or_beat_the_lowest_alert():  # spec §5 late rule; Review Focus 1
-    assert re.search(r"WHERE i\.alerts_issued < 50 OR s\.risk_score > i\.lowest_alert_score", code(GOLD))  # same rule as is_late_alert
+    assert re.search(r"late_rank <= 50 - i\.alerts_issued OR (\w+\.)?risk_score > i\.lowest_alert_score", code(GOLD))  # same rule as late_alerts_earned
 
 
 def test_label_is_read_only_when_closing_cases():  # the label never reaches alerts or the export
@@ -114,15 +114,44 @@ def test_reviewers_and_managers_get_per_table_grants_only():  # least privilege:
 
 def test_no_real_storage_path_or_account_id_in_tracked_text():  # public repo: placeholders only (spec §10-11)
     import subprocess  # list tracked files
-    tracked = subprocess.run(["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=True).stdout.split()  # tracked paths
+    listing = subprocess.run(["git", "ls-files", "-z"], cwd=ROOT, capture_output=True, check=True).stdout  # NUL-separated tracked paths
+    tracked = [p for p in listing.decode("utf-8").split("\0") if p]  # safe for paths with spaces (final review M4)
     for rel in tracked:  # every tracked file
         path = ROOT / rel  # absolute path
-        if path.suffix not in {".sql", ".yml", ".yaml", ".md", ".py", ".txt"}:  # text files only
-            continue  # skip binaries and others
-        if path == Path(__file__).resolve():  # this guard's own pattern text contains "r2://"
-            continue  # not a storage path
-        text = path.read_text(encoding="utf-8", errors="ignore")  # file text
+        if path == Path(__file__).resolve() or not path.is_file():  # this guard's own patterns, or a deleted file
+            continue  # nothing to check
+        try:  # every file that is text, whatever its extension
+            text = path.read_text(encoding="utf-8")  # file text
+        except UnicodeDecodeError:  # binary files can't hold a typed URL
+            continue  # skip
         for match in re.finditer(r"r2://[^\s'\"`)]+", text):  # every R2 URL that names a bucket (bare "r2://" in prose is fine)
             assert match.group(0).startswith("r2://<bucket>@<account-id>."), f"{rel}: {match.group(0)}"  # placeholder only
         assert not re.search(r"[0-9a-f]{32}\.r2\.cloudflarestorage\.com", text), rel  # no real account ID host
     assert "LOCATION 'r2://<bucket>@<account-id>.r2.cloudflarestorage.com/closed_alerts_export'" in code(EXPORT_SETUP)  # the template
+
+
+# ── Final-review fixes (I1, I2, M1-M4) ───────────────────────
+GUARD = "SELECT assert_true(is_account_group_member('fraud_engineers')"  # first statement of every Gold task
+
+
+def test_gold_tasks_refuse_to_run_outside_the_engineers_group():  # I1: a filtered or masked run identity must fail loudly, never write REDACTED
+    for path in (GOLD, EXPORT):  # both job tasks
+        assert statements(code(path))[0].startswith(GUARD), path.name  # checked before anything is read or written
+
+
+def test_new_cases_take_account_names_from_silver():  # I1: never copy names through the masked alert log
+    opening = next(s for s in statements(code(GOLD)) if s.startswith("MERGE INTO workspace.fraud.alert_cases") and "'open'" in s)  # the open-case MERGE
+    assert "JOIN workspace.fraud.silver_transactions AS t" in opening and "t.sender_account" in opening  # names straight from Silver
+
+
+def test_reviewers_read_cases_but_never_modify_them():  # M2: verdicts are simulated; a manual close without a verdict would break the export
+    assert "MODIFY" not in code(GOVERNANCE)  # read-only for every group
+
+
+def test_summary_view_counts_visible_cases():  # M3: the count follows the reader's row filter, so name it that way
+    assert "COUNT(*) AS visible_cases" in code(GOLD) and "AS alerts," not in code(GOLD).split("alert_summary_hourly")[1].split("FROM")[0]  # renamed
+
+
+def test_verification_reads_the_view_as_owner_and_as_manager():  # I2: spec §7, the filter must apply through the view
+    blocks = code(ROOT / "sql" / "53_verify_gold.sql").split("FROM workspace.fraud.alert_summary_hourly")  # view reads
+    assert len(blocks) - 1 >= 2  # once in the owner block, once in the manager block

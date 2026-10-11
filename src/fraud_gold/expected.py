@@ -47,3 +47,14 @@ def is_late_alert(issued_scores: Sequence[float], late_score: float,  # an alert
     if not issued_scores:  # the hour was never alerted
         raise ValueError("this hour has no alerts yet: rank it as a new hour, not as late")  # wrong rule
     return len(issued_scores) < budget or late_score > min(issued_scores)  # room left, or strictly better
+
+
+def late_alerts_earned(issued_scores: Sequence[float], late_scores: Sequence[float],  # an alerted hour, and payments that arrived later together
+                       budget: int = ALERT_BUDGET_DEFAULT) -> int:  # the hourly budget
+    """How many of a batch of late payments earn an alert: the best fill the room left, the rest only if they beat the lowest alert."""  # docstring
+    if not issued_scores:  # the hour was never alerted
+        raise ValueError("this hour has no alerts yet: rank it as a new hour, not as late")  # wrong rule
+    room = max(budget - len(issued_scores), 0)  # places still free in the hour
+    bar = min(issued_scores)  # the lowest alert already issued
+    ranked = sorted(late_scores, reverse=True)  # best late payment first, like late_rank in gold.sql
+    return sum(1 for rank, score in enumerate(ranked, start=1) if rank <= room or score > bar)  # room first, then the bar

@@ -51,3 +51,12 @@ def test_silver_payments_per_step_counts_ok_rows_from_the_first_step(sample_csv)
                               malformed_step=None, malformed_rows=0)  # ...with no scenarios
     counts = silver_payments_per_step(judge(iter_bronze_records(sample_csv, scenario)))  # from 337 by default
     assert counts == Counter({337: 5, 338: 5, 408: 5, 409: 5, 410: 5})  # hours 1, 2 and 336 are training data
+
+
+def test_a_batch_of_late_payments_fills_only_the_room_left():  # final review M1: room first, then the bar
+    from fraud_gold.expected import late_alerts_earned  # batch version of the late rule
+    issued = [0.9] * 45 + [0.4]  # 46 alerts, lowest 0.4, room for 4
+    late = [0.3, 0.2, 0.1, 0.05, 0.02, 0.01]  # 6 late payments, none beat 0.4
+    assert late_alerts_earned(issued, late) == 4  # only the room is filled
+    assert late_alerts_earned(issued, late + [0.5]) == 4  # 0.5 ranks first and takes one of the 4 places; it is not counted twice
+    assert late_alerts_earned([0.9] * 50, [0.95, 0.91, 0.1]) == 2  # full hour: only those beating the lowest

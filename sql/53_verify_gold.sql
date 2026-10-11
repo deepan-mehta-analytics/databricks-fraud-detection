@@ -35,12 +35,18 @@ JOIN workspace.fraud.silver_transactions AS t USING (transaction_id);          -
 SELECT COUNT(*) AS cases,                                                      -- expect 3154
        COUNT_IF(sender_account = 'REDACTED' OR receiver_account = 'REDACTED') AS redacted  -- expect 0 (the job writes real names)
 FROM workspace.fraud.alert_cases;                                              -- the case table
+SELECT SUM(visible_cases) AS visible_cases,                                    -- expect 3154: the view shows you every case
+       SUM(closed_cases) AS closed_cases                                       -- expect 262
+FROM workspace.fraud.alert_summary_hourly;                                     -- the managers' summary view
 
 -- ── G6-manager: run as the test user once it is in fraud_managers ──
 SELECT COUNT(*) AS cases,                                                      -- expect 262 (closed only)
        COUNT_IF(status <> 'closed') AS open_visible,                           -- expect 0
        COUNT_IF(sender_account <> 'REDACTED' OR receiver_account <> 'REDACTED') AS unmasked  -- expect 0
 FROM workspace.fraud.alert_cases;                                              -- the case table
+SELECT SUM(visible_cases) AS visible_cases,                                    -- expect 262: the row filter applies through the view too
+       SUM(closed_cases) AS closed_cases                                       -- expect 262
+FROM workspace.fraud.alert_summary_hourly;                                     -- the managers' summary view
 
 -- ── G9: the external export ──
 SELECT (SELECT COUNT(*) FROM workspace.fraud.closed_alerts_export) AS exported,  -- expect 262 (equals closed cases)

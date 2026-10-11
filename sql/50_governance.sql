@@ -32,7 +32,7 @@ GRANT USE SCHEMA, SELECT, EXECUTE ON SCHEMA workspace.fraud TO `fraud_engineers`
 GRANT USE SCHEMA ON SCHEMA workspace.fraud TO `fraud_reviewers`;               -- enter the schema only
 GRANT USE SCHEMA ON SCHEMA workspace.fraud TO `fraud_managers`;                -- enter the schema only
 GRANT SELECT ON TABLE workspace.fraud.fraud_alerts TO `fraud_reviewers`;       -- the alert log
-GRANT SELECT, MODIFY ON TABLE workspace.fraud.alert_cases TO `fraud_reviewers`;  -- read cases and record verdicts
+GRANT SELECT ON TABLE workspace.fraud.alert_cases TO `fraud_reviewers`;      -- read cases (verdicts are recorded by the job, final review M2)
 GRANT SELECT ON TABLE workspace.fraud.alert_summary_hourly TO `fraud_reviewers`;  -- the summary view
 GRANT SELECT ON TABLE workspace.fraud.alert_cases TO `fraud_managers`;         -- closed cases, names masked
 GRANT SELECT ON TABLE workspace.fraud.alert_summary_hourly TO `fraud_managers`;  -- the summary view
