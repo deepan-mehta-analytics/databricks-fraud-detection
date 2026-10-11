@@ -29,3 +29,10 @@ tests without a Spark install.
   simulation from the CSV and scenarios, verdict rules 1–9, strict-past
   features for one receiver). It gives exact expected values for the workspace
   checks S2–S5. Stdlib only.
+
+`fraud_gold/`:
+
+- `expected.py` — the local reference for Gold: Silver payments per scored
+  hour, alerts per hour (at most 50), the closing cutoff and closed cases,
+  and the late-alert rule the Gold SQL mirrors. Gives the expected values
+  for the workspace checks G3–G10. Stdlib only.

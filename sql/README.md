@@ -1,8 +1,8 @@
 # sql/
 
-Unity Catalog DDL for the Phase 2 ingest pipeline. Grants, row filters and
-column masks (Phase 5) land later — grants will target groups or principals,
-not roles (see G-06).
+Unity Catalog DDL and verification queries. Every file is written for the
+default bundle variables (`workspace.fraud`). Grants target groups, never
+roles (G-06).
 
 - `10_fraud_ingest_setup.sql` — run once, user-run, in the SQL editor.
   Idempotent (`CREATE ... IF NOT EXISTS`). Creates the `workspace.fraud`
@@ -28,3 +28,21 @@ not roles (see G-06).
   and M7: scored rows against Silver, no label column in the decision log,
   stored features equal to Silver's, and rows per model version after a
   promotion. The expected values were measured from `data/paysim.csv`.
+- `gold/gold.sql` — the `gold` SQL task in `fraud-ingest` (after `score`).
+  Creates the Gold tables and view on its first run, adds the top 50 alerts
+  for every hour not yet alerted (plus late payments that earn a place) to
+  the append-only `fraud_alerts` log, opens one case per alert in
+  `alert_cases`, and closes cases 72 simulated hours later with the verdict.
+- `gold/export.sql` — the `export` SQL task, last in the job: copies newly
+  closed cases, without account names, to the external table on Cloudflare R2.
+- `50_governance.sql` — run once by the owner after the first Gold run: the
+  account-name mask and the closed-cases-only row filter (both exempt
+  engineers and reviewers), and the group grants (engineers schema-wide,
+  reviewers and managers table by table).
+- `51_export_setup.sql` — run once by the owner: checks that serverless can
+  reach the R2 bucket, then creates the external export table. The bucket
+  and account ID are typed in the editor only; the repo keeps placeholders.
+- `52_abac_probe.sql` — the tag-based policy (ABAC) probe on a 5-row scratch
+  table, with its clean-up.
+- `53_verify_gold.sql` — verification queries for the Gold checks G3–G10,
+  expected values from `scripts/expected_gold.py` over `data/paysim.csv`.

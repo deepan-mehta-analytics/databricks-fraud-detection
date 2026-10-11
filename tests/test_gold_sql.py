@@ -70,3 +70,59 @@ def test_gold_sql_uses_the_bundle_location():  # Global Constraints: hard-coded 
     for path in (GOLD, EXPORT):  # both task files
         names = re.findall(r"\b(\w+\.\w+)\.\w+\b", code(path))  # catalog.schema prefixes of table names
         assert names and all(f"{n}." == location for n in names), path.name  # every table is in workspace.fraud
+
+
+GOVERNANCE = ROOT / "sql" / "50_governance.sql"  # owner-run governance file
+EXPORT_SETUP = ROOT / "sql" / "51_export_setup.sql"  # owner-run R2 table setup
+TRUSTED = ("is_account_group_member('fraud_engineers')", "is_account_group_member('fraud_reviewers')")  # exempt groups
+
+
+def function_body(sql: str, name: str) -> str:  # the statement that creates one function
+    return next(s for s in statements(sql) if f"FUNCTION workspace.fraud.{name}(" in s)  # first match
+
+
+def test_governance_functions_exempt_engineers_and_reviewers():  # premortem: the job (an engineer) must never see masked data; Review Focus 4
+    sql = code(GOVERNANCE)  # code only
+    for name in ("mask_account", "cases_visible"):  # both functions
+        body = function_body(sql, name)  # its CREATE statement
+        assert all(group in body for group in TRUSTED), name  # both trusted groups exempt
+    assert "'REDACTED'" in function_body(sql, "mask_account")  # what everyone else sees
+
+
+def test_row_filter_reads_only_its_own_row():  # premortem: MERGE fails on tables whose filter nests, aggregates or uses the clock
+    body = function_body(code(GOVERNANCE), "cases_visible")  # the filter function
+    assert not re.search(r"\bSELECT\b|\bFROM\b|current_|now\(|rand\(", body, re.I)  # own column + group checks only
+    assert "status = 'closed'" in body  # managers see closed cases
+
+
+def test_masks_cover_both_account_columns_on_both_tables():  # spec §8
+    sql = code(GOVERNANCE)  # code only
+    for table in ("fraud_alerts", "alert_cases"):  # both tables hold account names
+        for column in ("sender_account", "receiver_account"):  # both account columns
+            assert f"ALTER TABLE workspace.fraud.{table} ALTER COLUMN {column} SET MASK workspace.fraud.mask_account" in sql  # attached
+    assert "ALTER TABLE workspace.fraud.alert_cases SET ROW FILTER workspace.fraud.cases_visible ON (status)" in sql  # filter attached
+
+
+def test_reviewers_and_managers_get_per_table_grants_only():  # least privilege: new tables stay invisible to them
+    sql = code(GOVERNANCE)  # code only
+    assert "GRANT USE SCHEMA, SELECT, EXECUTE ON SCHEMA workspace.fraud TO `fraud_engineers`" in sql  # engineers: schema-wide
+    for group in ("fraud_reviewers", "fraud_managers"):  # the other two groups
+        schema_grants = re.findall(rf"GRANT ([A-Z ,]+) ON SCHEMA workspace\.fraud TO `{group}`", sql)  # their schema grants
+        assert schema_grants == ["USE SCHEMA"], group  # only the right to enter the schema
+    assert "TO `fraud_managers`" in sql and "fraud_alerts TO `fraud_managers`" not in sql  # managers never see the raw alert log
+
+
+def test_no_real_storage_path_or_account_id_in_tracked_text():  # public repo: placeholders only (spec §10-11)
+    import subprocess  # list tracked files
+    tracked = subprocess.run(["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=True).stdout.split()  # tracked paths
+    for rel in tracked:  # every tracked file
+        path = ROOT / rel  # absolute path
+        if path.suffix not in {".sql", ".yml", ".yaml", ".md", ".py", ".txt"}:  # text files only
+            continue  # skip binaries and others
+        if path == Path(__file__).resolve():  # this guard's own pattern text contains "r2://"
+            continue  # not a storage path
+        text = path.read_text(encoding="utf-8", errors="ignore")  # file text
+        for match in re.finditer(r"r2://[^\s'\"`)]*", text):  # every R2 URL
+            assert match.group(0).startswith("r2://<bucket>@<account-id>."), f"{rel}: {match.group(0)}"  # placeholder only
+        assert not re.search(r"[0-9a-f]{32}\.r2\.cloudflarestorage\.com", text), rel  # no real account ID host
+    assert "LOCATION 'r2://<bucket>@<account-id>.r2.cloudflarestorage.com/closed_alerts_export'" in code(EXPORT_SETUP)  # the template
