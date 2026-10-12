@@ -232,7 +232,7 @@ flowchart LR
 | 2 | Ingest to Bronze | ✅ Verified 2026-09-24 |
 | 3 | Silver and features | ✅ Verified 2026-10-06/07 (S1–S6) |
 | 4 | Training and scoring | ✅ Verified 2026-10-08 to 2026-10-11 (M1–M8) |
-| 5 | Gold alerts and governance | 🔄 Built 2026-10-11 (145 tests, CI green); workspace setup done (groups, test user, warehouse); first Gold run waiting for the daily compute limit to reset |
+| 5 | Gold alerts and governance | 🔄 Built 2026-10-11 (145 tests, CI green); workspace checks G2–G8 and G11 passed 2026-10-12; late-hour check G10 next |
 | 6 | Monitoring app and alerting | ⏳ |
 | 7 | Live demo window and teardown | ⏳ |
 
@@ -625,7 +625,7 @@ shown.
 
 ## ⚠️ Known Limitations
 
-- **Single verification day**: Phase 2 figures are single runs, not averages. The daily compute quota is unpublished. Phase 2's runs fit inside one day's allowance; on 2026-10-08, after a day of Phase 4 runs (deploy, two training runs, two job runs), a job's Silver step was refused with `CLUSTER_CREATION_RESOURCE_EXHAUSTED`, and on 2026-10-10 the limit was reached after three full ingest-and-score job runs. On 2026-10-11, four job runs, three evaluation runs and several SQL checks fit, and the fifth job run was refused. So heavy verification days are split across days (G-08)
+- **Single verification day**: Phase 2 figures are single runs, not averages. The daily compute quota is unpublished. Phase 2's runs fit inside one day's allowance; on 2026-10-08, after a day of Phase 4 runs (deploy, two training runs, two job runs), a job's Silver step was refused with `CLUSTER_CREATION_RESOURCE_EXHAUSTED`, and on 2026-10-10 the limit was reached after three full ingest-and-score job runs. On 2026-10-11, four job runs, three evaluation runs and several SQL checks fit, and the fifth job run was refused. A job run with nothing new still costs time: on 2026-10-12 the Silver pipeline step alone took 11m 45s with no new data. So heavy verification days are split across days (G-08)
 - **scikit-learn installed at run time**: serverless job tasks can land on different environment versions (5 ships scikit-learn 1.6.1, 6 ships 1.7.2), and a bundle deploy did not keep a job-level environment on a notebook task (measured 2026-10-10). So the training, scoring and evaluation notebooks run `%pip install scikit-learn==1.7.2` first. The version is exact but not hash-locked, and a guard still stops scoring if the model's version differs. MLflow is not pinned: job tasks got 3.8.1 and training 3.12.0, and loading worked across them (GAPS §3, M-MLFLOW)
 - **Scores are rankings, not probabilities**: the model is trained on all fraud plus a 10% sample of the rest, so `risk_score` orders payments but isn't a calibrated chance of fraud (GAPS §3, M-RANK)
 - **No real-time scoring**: payments are scored when the job runs after their file lands, not at payment time (GAPS §3, M-BATCH)
@@ -657,7 +657,7 @@ shown.
 - [x] Phase 3: Silver (quality rules with quarantine, dedup on `transaction_id`, strict-past velocity features; workspace S1–S6 verified 2026-10-06/07)
 - [ ] Phase 3 add-on: dev and prod bundle targets, and CI deploys from a protected GitHub environment (exam items 5.2, 5.4)
 - [x] Phase 4: ML training and batch scoring (champion catches 405 of 822 frauds at 50 alerts per hour; workspace M1–M8 verified 2026-10-08 to 2026-10-11)
-- [ ] Phase 5: Gold alerts and Unity Catalog governance (built 2026-10-11; workspace checks G2–G11 in progress)
+- [ ] Phase 5: Gold alerts and Unity Catalog governance (built 2026-10-11; workspace checks G2–G8 and G11 passed 2026-10-12, G10 next)
 - [ ] Phase 6: monitoring app and alerting
 - [ ] Phase 7: live demo window and teardown
 - [x] Databricks Data Engineer Associate coverage map
