@@ -43,7 +43,7 @@ rule, and every score is logged with the model version that made it.
 [![pytest](https://img.shields.io/badge/pytest-145_passing-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white)](tests/README.md)
 [![CI](https://img.shields.io/github/actions/workflow/status/deepan-mehta-analytics/databricks-fraud-detection/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI)](https://github.com/deepan-mehta-analytics/databricks-fraud-detection/actions)
 [![Release](https://img.shields.io/github/v/release/deepan-mehta-analytics/databricks-fraud-detection?style=for-the-badge&logo=github)](https://github.com/deepan-mehta-analytics/databricks-fraud-detection/releases)
-[![Status](https://img.shields.io/badge/Status-Phase_5_Built_·_Verification_In_Progress-yellow?style=for-the-badge)](PROJECT-STATUS.md)
+[![Status](https://img.shields.io/badge/Status-Phase_5_Verified_·_Write--up_Next-yellow?style=for-the-badge)](PROJECT-STATUS.md)
 [![Exam coverage](https://img.shields.io/badge/DE_Associate-15%2F33_shown-blue?style=for-the-badge)](docs/exam-guide-map.md)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
@@ -89,7 +89,7 @@ stream through **Auto Loader into a Unity Catalog medallion layout**.
 
 **🔜 Planned**
 
-- **Gold and governance** (built 2026-10-11, workspace verification in progress): an append-only alert log (top 50 per hour), a case table with simulated verdicts, a managers' summary view, three groups with per-table grants, an account-name mask and a closed-cases-only row filter
+- **Gold and governance** (built 2026-10-11, workspace checks all passed 2026-10-12/13, write-up next): an append-only alert log (top 50 per hour), a case table with simulated verdicts, a managers' summary view, three groups with per-table grants, an account-name mask and a closed-cases-only row filter
 - **Monitoring app**: alert dashboard and job alerting
 
 **🧭 Engineering principles**
@@ -232,7 +232,7 @@ flowchart LR
 | 2 | Ingest to Bronze | ✅ Verified 2026-09-24 |
 | 3 | Silver and features | ✅ Verified 2026-10-06/07 (S1–S6) |
 | 4 | Training and scoring | ✅ Verified 2026-10-08 to 2026-10-11 (M1–M8) |
-| 5 | Gold alerts and governance | 🔄 Built 2026-10-11 (145 tests, CI green); workspace checks G2–G8 and G11 passed 2026-10-12; late-hour check G10 next |
+| 5 | Gold alerts and governance | 🔄 Built 2026-10-11 (145 tests, CI green); workspace checks G2–G8 and G11 passed 2026-10-12, late-hour check G10 passed 2026-10-13; write-up next |
 | 6 | Monitoring app and alerting | ⏳ |
 | 7 | Live demo window and teardown | ⏳ |
 
@@ -372,7 +372,7 @@ verifications. Every step is done by hand in the workspace UI.
 13. **Score**: run `fraud-ingest` again. The `score` task scores every unscored Silver payment from hour 337 and prints `Scored N new payments …`. Check it with `sql/40_verify_model.sql`
 14. **Evaluate**: run `notebooks/07_evaluate_model` the same way, with `model_uri` = `models:/workspace.fraud.fraud_model/<version>`. It prints the model's and the baselines' metrics and logs them to the model's MLflow run
 
-15. **Gold and governance** (Phase 5, verification in progress): create the groups `fraud_engineers`, `fraud_reviewers` and `fraud_managers` (Settings → Identity and access → Groups) and add yourself to the first two. Run `fraud-ingest`, whose `gold` task builds the alert log and cases, then run `sql/50_governance.sql` once and check with `sql/53_verify_gold.sql`
+15. **Gold and governance** (Phase 5, verified 2026-10-12/13): create the groups `fraud_engineers`, `fraud_reviewers` and `fraud_managers` (Settings → Identity and access → Groups) and add yourself to the first two. Run `fraud-ingest`, whose `gold` task builds the alert log and cases, then run `sql/50_governance.sql` once and check with `sql/53_verify_gold.sql`
 
 The daily compute limit fits about 3–4 full job runs (G-08), so spread steps 11–15 over several days if needed.
 
@@ -657,7 +657,7 @@ shown.
 - [x] Phase 3: Silver (quality rules with quarantine, dedup on `transaction_id`, strict-past velocity features; workspace S1–S6 verified 2026-10-06/07)
 - [ ] Phase 3 add-on: dev and prod bundle targets, and CI deploys from a protected GitHub environment (exam items 5.2, 5.4)
 - [x] Phase 4: ML training and batch scoring (champion catches 405 of 822 frauds at 50 alerts per hour; workspace M1–M8 verified 2026-10-08 to 2026-10-11)
-- [ ] Phase 5: Gold alerts and Unity Catalog governance (built 2026-10-11; workspace checks G2–G8 and G11 passed 2026-10-12, G10 next)
+- [ ] Phase 5: Gold alerts and Unity Catalog governance (built 2026-10-11; workspace checks G2–G8 and G11 passed 2026-10-12, G10 passed 2026-10-13; write-up and `v0.4.0` next)
 - [ ] Phase 6: monitoring app and alerting
 - [ ] Phase 7: live demo window and teardown
 - [x] Databricks Data Engineer Associate coverage map
