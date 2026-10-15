@@ -1,4 +1,4 @@
-# ── Job: release, ingest, refresh Silver, score, then raise Gold alerts (ADR 0007-0011); no export task: R2 is unreachable from Free Edition ──
+# ── Job: release, ingest, refresh Silver, score, raise Gold alerts, then rebuild the monitoring views and refresh both dashboards (ADR 0007-0012); no export task: R2 is unreachable from Free Edition ──
 resources:                                        # bundle resources
   jobs:                                           # job resources
     fraud_ingest:                                 # resource key (used in tests)
@@ -62,3 +62,22 @@ resources:                                        # bundle resources
             warehouse_id: ${var.warehouse_id}     # looked up by name at deploy time
             file:                                 # the SQL file to run
               path: ../sql/gold/gold.sql          # path relative to this file
+        - task_key: monitor                       # rebuild the five monitoring views (ADR 0012)
+          depends_on:                             # ordering
+            - task_key: gold                      # after alerts and cases are current; can never hurt Gold
+          sql_task:                               # runs a SQL file on the SQL warehouse
+            warehouse_id: ${var.warehouse_id}     # looked up by name at deploy time
+            file:                                 # the SQL file to run
+              path: ../sql/monitoring/monitoring.sql  # path relative to this file
+        - task_key: refresh_operations            # refresh the Fraud operations dashboard (exam 4.2 dashboard task)
+          depends_on:                             # ordering
+            - task_key: monitor                   # after the views are rebuilt
+          dashboard_task:                         # refreshes as the job's run-as identity (ruling R1)
+            dashboard_id: ${resources.dashboards.fraud_operations.id}  # resolved at deploy time; no ID in the repo
+            warehouse_id: ${var.warehouse_id}     # looked up by name at deploy time
+        - task_key: refresh_platform              # refresh the Platform health dashboard
+          depends_on:                             # ordering
+            - task_key: monitor                   # after the views are rebuilt
+          dashboard_task:                         # refreshes as the job's run-as identity (ruling R1)
+            dashboard_id: ${resources.dashboards.platform_health.id}  # resolved at deploy time; no ID in the repo
+            warehouse_id: ${var.warehouse_id}     # looked up by name at deploy time

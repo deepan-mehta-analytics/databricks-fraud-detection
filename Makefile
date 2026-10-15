@@ -19,8 +19,8 @@ test: # run the local unit tests (no Databricks needed)
 lint: # Python source exists (src/fraud_ingest); no lint tool is wired up yet
 	@echo "lint: not implemented (Phase 2)"; exit 1
 
-deploy: # resources/fraud_ingest_job.yml exists; bundle deploy on Free Edition is unverified (G-11) and user-run only
-	@echo "deploy: not implemented (Phase 6)"; exit 1
+deploy: # bundles deploy from the workspace UI today; a CI deploy with dev/prod targets is the Phase 3 add-on (user-run only)
+	@echo "deploy: not implemented (Phase 3 add-on: dev/prod targets and CI deploy)"; exit 1
 
 teardown: # nothing cost-bearing exists since ADR 0007 (Free Edition only); kept as a stub
 	@echo "teardown: nothing to tear down (ADR 0007, Free Edition only). Log any future cost-bearing teardown in docs/cost-model.md"; exit 1

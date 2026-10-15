@@ -25,9 +25,10 @@ def load_pipeline() -> dict:  # load and return the fraud_silver pipeline block 
     return yaml.safe_load(PIPELINE_FILE.read_text(encoding="utf-8"))["resources"]["pipelines"]["fraud_silver"]  # the block
 
 
-def test_tasks_run_release_ingest_silver_score_then_gold():  # verify task graph and retry policy
+def test_tasks_run_release_ingest_silver_score_gold_then_monitor():  # verify task graph and retry policy
     tasks = {t["task_key"]: t for t in load_job()["tasks"]}  # tasks by key
-    assert set(tasks) == {"release", "ingest", "silver", "score", "gold"}  # exactly five tasks; no export: R2 is unreachable from Free Edition (measured)
+    assert set(tasks) == {"release", "ingest", "silver", "score", "gold",  # load and alert...
+                          "monitor", "refresh_operations", "refresh_platform"}  # ...then monitor (no export: R2 unreachable, measured)
     assert tasks["ingest"]["depends_on"] == [{"task_key": "release"}]  # ingest waits for release
     assert tasks["silver"]["depends_on"] == [{"task_key": "ingest"}]  # Silver waits for Bronze
     assert tasks["score"]["depends_on"] == [{"task_key": "silver"}]  # scoring waits for features
@@ -125,3 +126,20 @@ def test_gold_task_runs_its_sql_file_on_the_looked_up_warehouse():  # spec §11:
     assert name and not re.fullmatch(r"[0-9a-f]{16}", name)  # a name, never a raw ID
     tasks = {t["task_key"]: t for t in load_job()["tasks"]}  # tasks by key
     assert tasks["gold"]["sql_task"] == {"warehouse_id": "${var.warehouse_id}", "file": {"path": "../sql/gold/gold.sql"}}  # exact block
+
+
+def test_monitor_and_refresh_tasks_follow_gold_on_the_looked_up_warehouse():  # Phase 6a spec §5.1, §5.3
+    tasks = {t["task_key"]: t for t in load_job()["tasks"]}  # tasks by key
+    assert tasks["monitor"]["depends_on"] == [{"task_key": "gold"}]  # views are rebuilt after Gold, so Gold can never be hurt
+    assert tasks["monitor"]["sql_task"] == {  # the monitoring SQL file...
+        "warehouse_id": "${var.warehouse_id}", "file": {"path": "../sql/monitoring/monitoring.sql"}}  # ...on the named warehouse
+    for key, dashboard in (("refresh_operations", "fraud_operations"), ("refresh_platform", "platform_health")):  # both refreshes
+        assert tasks[key]["depends_on"] == [{"task_key": "monitor"}], key  # after the views are current
+        assert tasks[key]["dashboard_task"] == {  # the bundle's own dashboard...
+            "dashboard_id": f"${{resources.dashboards.{dashboard}.id}}", "warehouse_id": "${var.warehouse_id}"}, key  # ...no ID in the repo
+    assert all("max_retries" not in tasks[k] for k in ("monitor", "refresh_operations", "refresh_platform"))  # failures stay loud
+
+
+def test_bundle_does_not_sync_dashboard_files():  # ruling R9: the bundle docs' advice against duplicate dashboards
+    bundle = yaml.safe_load(BUNDLE_FILE.read_text(encoding="utf-8"))  # bundle root
+    assert bundle["sync"] == {"exclude": ["dashboards/*.lvdash.json"]}  # deployed as resources, not as files

@@ -15,6 +15,10 @@ variables:               # one place for the project location, shared by the job
 include:                 # extra resource files to load
   - resources/*.yml      # job definitions live under resources/
 
+sync:                    # files uploaded with the bundle
+  exclude:               # left out of the upload
+    - dashboards/*.lvdash.json  # deployed as dashboard resources; uploading them too would make duplicates (ruling R9)
+
 targets:                 # deployment targets
   dev:                   # the only target: Databricks Free Edition
     default: true        # used when no -t flag is given

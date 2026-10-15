@@ -5,6 +5,7 @@ import re                 # pattern checks
 from pathlib import Path  # locate the files
 
 import pytest             # parametrize
+import yaml               # the bundle resource file
 
 from fraud_monitoring import dashboards as d  # the dashboard builder
 
@@ -110,3 +111,25 @@ def test_every_rejection_reason_has_plain_words():  # the rejected-rows table ne
     sql = (ROOT / "pipelines" / "silver" / "01_checked_transactions.sql").read_text(encoding="utf-8")  # Silver verdicts
     codes = set(re.findall(r"(?:THEN|ELSE) '([a-z_]+)'", sql)) - {"ok", "duplicate_copy"}  # shelved reasons
     assert set(d.REASON_WORDS) == codes  # one plain phrase per reason, no more, no less
+
+
+DASHBOARD_FILE = ROOT / "resources" / "fraud_dashboards.yml"  # bundle resources for the dashboards
+
+
+def test_dashboards_use_viewer_credentials_and_group_permissions():  # Review Focus 1; spec §5.2 sharing
+    resources = yaml.safe_load(DASHBOARD_FILE.read_text(encoding="utf-8"))["resources"]["dashboards"]  # both resources
+    assert set(resources) == set(d.DASHBOARDS)  # one resource per built dashboard
+    for key, resource in resources.items():  # each
+        assert resource["file_path"] == f"../dashboards/{key}.lvdash.json", key  # the generated file
+        assert resource["warehouse_id"] == "${var.warehouse_id}", key  # warehouse found by name
+        assert resource["embed_credentials"] is False, key  # viewers' own grants, filter and masks
+    assert resources["fraud_operations"]["display_name"] == "Fraud operations"  # plain name
+    assert resources["platform_health"]["display_name"] == "Platform health"  # plain name
+    levels = {key: {(p["group_name"], p["level"]) for p in r["permissions"]} for key, r in resources.items()}  # who may open
+    assert levels["fraud_operations"] == {(g, "CAN_READ") for g in ("fraud_engineers", "fraud_reviewers", "fraud_managers")}  # all three
+    assert levels["platform_health"] == {("fraud_engineers", "CAN_READ")}  # engineers only
+
+
+def test_dashboard_resources_hold_no_identifiers():  # public repo
+    text = DASHBOARD_FILE.read_text(encoding="utf-8")  # the YAML
+    assert not re.search(r"[0-9a-f]{16}|[0-9a-f]{8}-[0-9a-f]{4}|@", text)  # no IDs, no emails
