@@ -1,0 +1,625 @@
+{
+  "datasets": [
+    {
+      "name": "job_runs",
+      "displayName": "Job runs",
+      "query": "SELECT DISTINCT job_name, run_started_at, minutes_taken, coalesce(initcap(replace(outcome, '_', ' ')), 'Still running') AS outcome\nFROM workspace.fraud.job_run_times\nORDER BY run_started_at DESC"
+    },
+    {
+      "name": "task_times",
+      "displayName": "Task minutes",
+      "query": "SELECT run_started_at, task_name, task_minutes, coalesce(initcap(replace(task_outcome, '_', ' ')), 'Still running') AS task_outcome\nFROM workspace.fraud.job_run_times\nWHERE job_name = 'fraud-ingest' AND task_name IS NOT NULL"
+    },
+    {
+      "name": "pipeline_updates",
+      "displayName": "Pipeline updates",
+      "query": "SELECT update_started_at, minutes_taken, coalesce(initcap(replace(outcome, '_', ' ')), 'Still running') AS outcome,\n       CASE WHEN full_rebuild THEN 'Full rebuild' ELSE 'New rows only' END AS update_kind\nFROM workspace.fraud.pipeline_update_times\nORDER BY update_started_at DESC"
+    },
+    {
+      "name": "freshness",
+      "displayName": "Newest hour at each stage",
+      "query": "SELECT '1. Copied to the landing folder' AS stage, newest_hour_released AS newest_simulated_hour FROM workspace.fraud.data_freshness\nUNION ALL SELECT '2. Loaded', newest_hour_ingested FROM workspace.fraud.data_freshness\nUNION ALL SELECT '3. Scored by the model', newest_hour_scored FROM workspace.fraud.data_freshness\nUNION ALL SELECT '4. Flagged for review', newest_hour_flagged FROM workspace.fraud.data_freshness"
+    },
+    {
+      "name": "wait",
+      "displayName": "Wait from landing to scored",
+      "query": "SELECT median_minutes_landing_to_scored AS typical_minutes,\n       slowest_minutes_landing_to_scored AS longest_minutes\nFROM workspace.fraud.data_freshness"
+    },
+    {
+      "name": "rejections",
+      "displayName": "Rows set aside",
+      "query": "SELECT CASE reason WHEN 'missing_id' THEN 'Payment ID missing' WHEN 'missing_time' THEN 'Payment time missing' WHEN 'time_step_mismatch' THEN 'Payment time does not match its simulated hour' WHEN 'bad_amount' THEN 'Amount missing or below zero' WHEN 'unknown_type' THEN 'Unknown payment type' WHEN 'missing_account' THEN 'Account name missing' WHEN 'bad_label' THEN 'Fraud answer is not 0 or 1' WHEN 'unparsed_value' THEN 'A value could not be read' WHEN 'conflicting_duplicate' THEN 'Two different records with the same payment ID'\n            ELSE reason END AS reason,\n       rows_rejected, first_hour, last_hour\nFROM workspace.fraud.rejected_rows_by_reason\nORDER BY rows_rejected DESC"
+    }
+  ],
+  "pages": [
+    {
+      "name": "jobs",
+      "displayName": "Are the jobs healthy?",
+      "layout": [
+        {
+          "widget": {
+            "name": "run_minutes",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "job_runs",
+                  "fields": [
+                    {
+                      "name": "run_started_at",
+                      "expression": "`run_started_at`"
+                    },
+                    {
+                      "name": "sum(minutes_taken)",
+                      "expression": "SUM(`minutes_taken`)"
+                    },
+                    {
+                      "name": "job_name",
+                      "expression": "`job_name`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "frame": {
+                "showTitle": true,
+                "title": "Minutes per job run"
+              },
+              "encodings": {
+                "x": {
+                  "fieldName": "run_started_at",
+                  "displayName": "Run started",
+                  "axis": {
+                    "title": "Run started"
+                  },
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "sum(minutes_taken)",
+                  "displayName": "Minutes",
+                  "axis": {
+                    "title": "Minutes"
+                  },
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "job_name",
+                  "displayName": "Job",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 5
+          }
+        },
+        {
+          "widget": {
+            "name": "run_minutes_how",
+            "textbox_spec": "**How to read it:** Each bar is one run, placed at the time it started. Taller means slower. A run shows up here up to an hour after it finishes."
+          },
+          "position": {
+            "x": 0,
+            "y": 5,
+            "width": 6,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "run_table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "job_runs",
+                  "fields": [
+                    {
+                      "name": "job_name",
+                      "expression": "`job_name`"
+                    },
+                    {
+                      "name": "run_started_at",
+                      "expression": "`run_started_at`"
+                    },
+                    {
+                      "name": "minutes_taken",
+                      "expression": "`minutes_taken`"
+                    },
+                    {
+                      "name": "outcome",
+                      "expression": "`outcome`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "frame": {
+                "showTitle": true,
+                "title": "Every job run and how it ended"
+              },
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "job_name",
+                    "displayName": "Job"
+                  },
+                  {
+                    "fieldName": "run_started_at",
+                    "displayName": "Started"
+                  },
+                  {
+                    "fieldName": "minutes_taken",
+                    "displayName": "Minutes"
+                  },
+                  {
+                    "fieldName": "outcome",
+                    "displayName": "How it ended"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 6,
+            "width": 6,
+            "height": 5
+          }
+        },
+        {
+          "widget": {
+            "name": "run_table_how",
+            "textbox_spec": "**How to read it:** Anything other than Succeeded is a run that needs a look."
+          },
+          "position": {
+            "x": 0,
+            "y": 11,
+            "width": 6,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "task_minutes",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "task_times",
+                  "fields": [
+                    {
+                      "name": "run_started_at",
+                      "expression": "`run_started_at`"
+                    },
+                    {
+                      "name": "sum(task_minutes)",
+                      "expression": "SUM(`task_minutes`)"
+                    },
+                    {
+                      "name": "task_name",
+                      "expression": "`task_name`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "frame": {
+                "showTitle": true,
+                "title": "Minutes per task in each run of fraud-ingest"
+              },
+              "encodings": {
+                "x": {
+                  "fieldName": "run_started_at",
+                  "displayName": "Run started",
+                  "axis": {
+                    "title": "Run started"
+                  },
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "sum(task_minutes)",
+                  "displayName": "Minutes",
+                  "axis": {
+                    "title": "Minutes"
+                  },
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "task_name",
+                  "displayName": "Task",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 12,
+            "width": 6,
+            "height": 5
+          }
+        },
+        {
+          "widget": {
+            "name": "task_minutes_how",
+            "textbox_spec": "**How to read it:** Each bar is one run, split into its tasks. The tallest part is where the time goes."
+          },
+          "position": {
+            "x": 0,
+            "y": 17,
+            "width": 6,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "pipeline_minutes",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "pipeline_updates",
+                  "fields": [
+                    {
+                      "name": "update_started_at",
+                      "expression": "`update_started_at`"
+                    },
+                    {
+                      "name": "sum(minutes_taken)",
+                      "expression": "SUM(`minutes_taken`)"
+                    },
+                    {
+                      "name": "update_kind",
+                      "expression": "`update_kind`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "frame": {
+                "showTitle": true,
+                "title": "Minutes the cleaning pipeline itself spent per update"
+              },
+              "encodings": {
+                "x": {
+                  "fieldName": "update_started_at",
+                  "displayName": "Update started",
+                  "axis": {
+                    "title": "Update started"
+                  },
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "sum(minutes_taken)",
+                  "displayName": "Minutes",
+                  "axis": {
+                    "title": "Minutes"
+                  },
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "update_kind",
+                  "displayName": "Kind of update",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 18,
+            "width": 6,
+            "height": 5
+          }
+        },
+        {
+          "widget": {
+            "name": "pipeline_minutes_how",
+            "textbox_spec": "**How to read it:** Compare with the silver task above: the difference is the time spent starting up and waiting, not cleaning."
+          },
+          "position": {
+            "x": 0,
+            "y": 23,
+            "width": 6,
+            "height": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "data",
+      "displayName": "Is the data fresh and clean?",
+      "layout": [
+        {
+          "widget": {
+            "name": "freshness_table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "freshness",
+                  "fields": [
+                    {
+                      "name": "stage",
+                      "expression": "`stage`"
+                    },
+                    {
+                      "name": "newest_simulated_hour",
+                      "expression": "`newest_simulated_hour`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "frame": {
+                "showTitle": true,
+                "title": "Newest simulated hour at each stage"
+              },
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "stage",
+                    "displayName": "Stage"
+                  },
+                  {
+                    "fieldName": "newest_simulated_hour",
+                    "displayName": "Newest simulated hour"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "freshness_how",
+            "textbox_spec": "**How to read it:** After a run all four numbers should be equal. A lower number shows where payments are stuck."
+          },
+          "position": {
+            "x": 0,
+            "y": 3,
+            "width": 6,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "typical_wait",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "wait",
+                  "fields": [
+                    {
+                      "name": "typical_minutes",
+                      "expression": "`typical_minutes`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "frame": {
+                "showTitle": true,
+                "title": "Typical minutes from landing to scored"
+              },
+              "encodings": {
+                "value": {
+                  "fieldName": "typical_minutes",
+                  "displayName": "Minutes"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 4,
+            "width": 3,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "longest_wait",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "wait",
+                  "fields": [
+                    {
+                      "name": "longest_minutes",
+                      "expression": "`longest_minutes`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "frame": {
+                "showTitle": true,
+                "title": "Longest minutes from landing to scored"
+              },
+              "encodings": {
+                "value": {
+                  "fieldName": "longest_minutes",
+                  "displayName": "Minutes"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 4,
+            "width": 3,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "wait_how",
+            "textbox_spec": "**How to read it:** Both numbers cover the latest scoring run only. Half of its payments waited less than the typical number."
+          },
+          "position": {
+            "x": 0,
+            "y": 6,
+            "width": 6,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "rejections_table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "rejections",
+                  "fields": [
+                    {
+                      "name": "reason",
+                      "expression": "`reason`"
+                    },
+                    {
+                      "name": "rows_rejected",
+                      "expression": "`rows_rejected`"
+                    },
+                    {
+                      "name": "first_hour",
+                      "expression": "`first_hour`"
+                    },
+                    {
+                      "name": "last_hour",
+                      "expression": "`last_hour`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "frame": {
+                "showTitle": true,
+                "title": "Rows set aside, by reason"
+              },
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "reason",
+                    "displayName": "Why it was set aside"
+                  },
+                  {
+                    "fieldName": "rows_rejected",
+                    "displayName": "Rows"
+                  },
+                  {
+                    "fieldName": "first_hour",
+                    "displayName": "First simulated hour"
+                  },
+                  {
+                    "fieldName": "last_hour",
+                    "displayName": "Last simulated hour"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 7,
+            "width": 6,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "rejections_how",
+            "textbox_spec": "**How to read it:** Each row is one reason a payment record failed a basic check. Set-aside rows are kept for checking, never scored."
+          },
+          "position": {
+            "x": 0,
+            "y": 10,
+            "width": 6,
+            "height": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "words",
+      "displayName": "What these words mean",
+      "layout": [
+        {
+          "widget": {
+            "name": "word_list",
+            "textbox_spec": "# What these words mean\n\n- **Flagged payment** — A payment the model ranked among the 50 most suspicious of its hour, so a person should look at it.\n- **Case** — The review of one flagged payment. It stays open until its verdict is recorded.\n- **Verdict** — The answer to a case: confirmed fraud or false alarm. It arrives 3 simulated days after the payment.\n- **Confirmed fraud** — A flagged payment that really was fraud.\n- **False alarm** — A flagged payment that turned out to be honest.\n- **Simulated hour** — One hour of the replayed month of payments, numbered from 1 to 743.\n- **Model version** — Which saved copy of the fraud model made the decision. Each new copy gets the next number.\n- **Champion model** — The model version currently trusted to score new payments.\n- **Risk score** — How suspicious the model found a payment. Higher is more suspicious. It ranks payments, it is not a chance.\n- **Rejected row** — A payment record that failed a basic check, such as an amount below zero, and was set aside.\n- **Job run** — One run of the scheduled work that releases, loads, cleans, scores and flags payments.\n- **Task** — One step inside a job run, such as loading or scoring.\n- **REDACTED** — Shown instead of an account name to people who may not see who paid whom.\n- **Landing folder** — Where each simulated hour's file of payments arrives before it is loaded.\n- **Pipeline update** — One run of the cleaning step that turns loaded payments into clean ones.\n- **Full rebuild** — A pipeline update that redoes everything from the start instead of only the new rows."
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 10
+          }
+        }
+      ]
+    }
+  ]
+}

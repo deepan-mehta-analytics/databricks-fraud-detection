@@ -1,0 +1,652 @@
+{
+  "datasets": [
+    {
+      "name": "open_cases",
+      "displayName": "Open cases",
+      "query": "SELECT step AS simulated_hour,\n       risk_score,\n       transaction_id AS payment,\n       sender_account AS paying_account,\n       receiver_account AS receiving_account,\n       opened_at AS case_opened_at\nFROM workspace.fraud.alert_cases\nWHERE status = 'open'\nORDER BY step DESC, risk_score DESC"
+    },
+    {
+      "name": "open_case_count",
+      "displayName": "Open case count",
+      "query": "SELECT COUNT(*) AS open_cases\nFROM workspace.fraud.alert_cases\nWHERE status = 'open'"
+    },
+    {
+      "name": "review_outcomes",
+      "displayName": "Review outcomes per hour",
+      "query": "SELECT step AS simulated_hour, 'Confirmed fraud' AS outcome, confirmed_fraud AS cases\nFROM workspace.fraud.alert_summary_hourly WHERE closed_cases > 0\nUNION ALL\nSELECT step, 'False alarm', false_alarms\nFROM workspace.fraud.alert_summary_hourly WHERE closed_cases > 0"
+    },
+    {
+      "name": "model_by_hour",
+      "displayName": "Model results per hour",
+      "query": "SELECT step AS simulated_hour, model_version,\n       share_flagged_that_were_fraud, share_of_fraud_caught\nFROM workspace.fraud.model_accuracy_by_hour\nWHERE verdicts_ready"
+    },
+    {
+      "name": "model_totals",
+      "displayName": "Model results so far",
+      "query": "WITH ready AS (SELECT * FROM workspace.fraud.model_accuracy_by_hour WHERE verdicts_ready),\n     hours AS (SELECT DISTINCT step, fraud_in_hour FROM ready),\n     totals AS (SELECT (SELECT SUM(confirmed_fraud) FROM ready) AS confirmed_fraud,\n                       (SELECT SUM(closed_cases) FROM ready) AS checked_cases,\n                       (SELECT SUM(fraud_in_hour) FROM hours) AS all_fraud,\n                       (SELECT COUNT(DISTINCT step) FROM workspace.fraud.model_accuracy_by_hour\n                        WHERE NOT verdicts_ready) AS hours_waiting)\nSELECT confirmed_fraud, checked_cases, all_fraud, hours_waiting,\n       ROUND(try_divide(confirmed_fraud, checked_cases), 3) AS share_flagged_that_were_fraud,\n       ROUND(try_divide(confirmed_fraud, all_fraud), 3) AS share_of_fraud_caught\nFROM totals"
+    }
+  ],
+  "pages": [
+    {
+      "name": "queue",
+      "displayName": "What is waiting for review?",
+      "layout": [
+        {
+          "widget": {
+            "name": "open_count",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "open_case_count",
+                  "fields": [
+                    {
+                      "name": "open_cases",
+                      "expression": "`open_cases`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "frame": {
+                "showTitle": true,
+                "title": "Open cases waiting for a verdict"
+              },
+              "encodings": {
+                "value": {
+                  "fieldName": "open_cases",
+                  "displayName": "Open cases"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "open_table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "open_cases",
+                  "fields": [
+                    {
+                      "name": "simulated_hour",
+                      "expression": "`simulated_hour`"
+                    },
+                    {
+                      "name": "risk_score",
+                      "expression": "`risk_score`"
+                    },
+                    {
+                      "name": "payment",
+                      "expression": "`payment`"
+                    },
+                    {
+                      "name": "paying_account",
+                      "expression": "`paying_account`"
+                    },
+                    {
+                      "name": "receiving_account",
+                      "expression": "`receiving_account`"
+                    },
+                    {
+                      "name": "case_opened_at",
+                      "expression": "`case_opened_at`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "frame": {
+                "showTitle": true,
+                "title": "Open cases, newest hour first, most suspicious first"
+              },
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "simulated_hour",
+                    "displayName": "Simulated hour"
+                  },
+                  {
+                    "fieldName": "risk_score",
+                    "displayName": "Risk score"
+                  },
+                  {
+                    "fieldName": "payment",
+                    "displayName": "Payment"
+                  },
+                  {
+                    "fieldName": "paying_account",
+                    "displayName": "Paying account"
+                  },
+                  {
+                    "fieldName": "receiving_account",
+                    "displayName": "Receiving account"
+                  },
+                  {
+                    "fieldName": "case_opened_at",
+                    "displayName": "Case opened at"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 6,
+            "height": 8
+          }
+        },
+        {
+          "widget": {
+            "name": "open_how",
+            "textbox_spec": "**How to read it:** Each row is one flagged payment still waiting for its verdict. If you may not see open cases, the table is empty. If you may not see account names, they show as REDACTED."
+          },
+          "position": {
+            "x": 0,
+            "y": 10,
+            "width": 6,
+            "height": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "outcomes",
+      "displayName": "How did the reviews turn out?",
+      "layout": [
+        {
+          "widget": {
+            "name": "outcomes_bar",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "review_outcomes",
+                  "fields": [
+                    {
+                      "name": "simulated_hour",
+                      "expression": "`simulated_hour`"
+                    },
+                    {
+                      "name": "sum(cases)",
+                      "expression": "SUM(`cases`)"
+                    },
+                    {
+                      "name": "outcome",
+                      "expression": "`outcome`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "frame": {
+                "showTitle": true,
+                "title": "Confirmed fraud and false alarms per simulated hour"
+              },
+              "encodings": {
+                "x": {
+                  "fieldName": "simulated_hour",
+                  "displayName": "Simulated hour",
+                  "axis": {
+                    "title": "Simulated hour"
+                  },
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "fieldName": "sum(cases)",
+                  "displayName": "Cases",
+                  "axis": {
+                    "title": "Cases"
+                  },
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "outcome",
+                  "displayName": "Verdict",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "outcomes_how",
+            "textbox_spec": "**How to read it:** Each bar is one simulated hour, split into confirmed fraud and false alarms. Only hours whose verdicts are in have a bar; newer hours are waiting for verdicts (3 days)."
+          },
+          "position": {
+            "x": 0,
+            "y": 6,
+            "width": 6,
+            "height": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "model",
+      "displayName": "Is the model still good?",
+      "layout": [
+        {
+          "widget": {
+            "name": "flagged_share",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "model_totals",
+                  "fields": [
+                    {
+                      "name": "share_flagged_that_were_fraud",
+                      "expression": "`share_flagged_that_were_fraud`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "frame": {
+                "showTitle": true,
+                "title": "Of the payments we flagged, how many were really fraud"
+              },
+              "encodings": {
+                "value": {
+                  "fieldName": "share_flagged_that_were_fraud",
+                  "displayName": "Share that were fraud"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "caught_share",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "model_totals",
+                  "fields": [
+                    {
+                      "name": "share_of_fraud_caught",
+                      "expression": "`share_of_fraud_caught`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "frame": {
+                "showTitle": true,
+                "title": "Of all the fraud, how much we caught"
+              },
+              "encodings": {
+                "value": {
+                  "fieldName": "share_of_fraud_caught",
+                  "displayName": "Share of fraud caught"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 0,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "hours_waiting",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "model_totals",
+                  "fields": [
+                    {
+                      "name": "hours_waiting",
+                      "expression": "`hours_waiting`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "frame": {
+                "showTitle": true,
+                "title": "Hours still waiting for verdicts (3 days)"
+              },
+              "encodings": {
+                "value": {
+                  "fieldName": "hours_waiting",
+                  "displayName": "Hours"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 0,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "totals_how",
+            "textbox_spec": "**How to read it:** The first two numbers cover every hour whose verdicts are in. 0.14 means 14 out of every 100."
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 6,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "totals_table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "model_totals",
+                  "fields": [
+                    {
+                      "name": "confirmed_fraud",
+                      "expression": "`confirmed_fraud`"
+                    },
+                    {
+                      "name": "checked_cases",
+                      "expression": "`checked_cases`"
+                    },
+                    {
+                      "name": "all_fraud",
+                      "expression": "`all_fraud`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "frame": {
+                "showTitle": true,
+                "title": "The counts behind those shares"
+              },
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "confirmed_fraud",
+                    "displayName": "Confirmed fraud"
+                  },
+                  {
+                    "fieldName": "checked_cases",
+                    "displayName": "Flagged payments with a verdict"
+                  },
+                  {
+                    "fieldName": "all_fraud",
+                    "displayName": "All fraud in those hours"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 3,
+            "width": 6,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "counts_how",
+            "textbox_spec": "**How to read it:** Confirmed fraud divided by flagged payments with a verdict gives the first share; divided by all fraud, the second."
+          },
+          "position": {
+            "x": 0,
+            "y": 5,
+            "width": 6,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "flagged_bar",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "model_by_hour",
+                  "fields": [
+                    {
+                      "name": "simulated_hour",
+                      "expression": "`simulated_hour`"
+                    },
+                    {
+                      "name": "avg(share_flagged_that_were_fraud)",
+                      "expression": "AVG(`share_flagged_that_were_fraud`)"
+                    },
+                    {
+                      "name": "model_version",
+                      "expression": "`model_version`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "frame": {
+                "showTitle": true,
+                "title": "Of the payments we flagged, how many were really fraud, per simulated hour"
+              },
+              "encodings": {
+                "x": {
+                  "fieldName": "simulated_hour",
+                  "displayName": "Simulated hour",
+                  "axis": {
+                    "title": "Simulated hour"
+                  },
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "fieldName": "avg(share_flagged_that_were_fraud)",
+                  "displayName": "Share that were fraud",
+                  "axis": {
+                    "title": "Share that were fraud"
+                  },
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "model_version",
+                  "displayName": "Model version",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 6,
+            "width": 6,
+            "height": 5
+          }
+        },
+        {
+          "widget": {
+            "name": "flagged_how",
+            "textbox_spec": "**How to read it:** Each bar is one simulated hour, coloured by model version. Taller is better. Hours with no bar are waiting for verdicts (3 days)."
+          },
+          "position": {
+            "x": 0,
+            "y": 11,
+            "width": 6,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "caught_bar",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "model_by_hour",
+                  "fields": [
+                    {
+                      "name": "simulated_hour",
+                      "expression": "`simulated_hour`"
+                    },
+                    {
+                      "name": "avg(share_of_fraud_caught)",
+                      "expression": "AVG(`share_of_fraud_caught`)"
+                    },
+                    {
+                      "name": "model_version",
+                      "expression": "`model_version`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "frame": {
+                "showTitle": true,
+                "title": "Of all the fraud, how much we caught, per simulated hour"
+              },
+              "encodings": {
+                "x": {
+                  "fieldName": "simulated_hour",
+                  "displayName": "Simulated hour",
+                  "axis": {
+                    "title": "Simulated hour"
+                  },
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "fieldName": "avg(share_of_fraud_caught)",
+                  "displayName": "Share of fraud caught",
+                  "axis": {
+                    "title": "Share of fraud caught"
+                  },
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "model_version",
+                  "displayName": "Model version",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 12,
+            "width": 6,
+            "height": 5
+          }
+        },
+        {
+          "widget": {
+            "name": "caught_how",
+            "textbox_spec": "**How to read it:** Each bar is one simulated hour. Taller is better. Hours with no bar are waiting for verdicts (3 days), or had no fraud at all."
+          },
+          "position": {
+            "x": 0,
+            "y": 17,
+            "width": 6,
+            "height": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "words",
+      "displayName": "What these words mean",
+      "layout": [
+        {
+          "widget": {
+            "name": "word_list",
+            "textbox_spec": "# What these words mean\n\n- **Flagged payment** — A payment the model ranked among the 50 most suspicious of its hour, so a person should look at it.\n- **Case** — The review of one flagged payment. It stays open until its verdict is recorded.\n- **Verdict** — The answer to a case: confirmed fraud or false alarm. It arrives 3 simulated days after the payment.\n- **Confirmed fraud** — A flagged payment that really was fraud.\n- **False alarm** — A flagged payment that turned out to be honest.\n- **Simulated hour** — One hour of the replayed month of payments, numbered from 1 to 743.\n- **Model version** — Which saved copy of the fraud model made the decision. Each new copy gets the next number.\n- **Champion model** — The model version currently trusted to score new payments.\n- **Risk score** — How suspicious the model found a payment. Higher is more suspicious. It ranks payments, it is not a chance.\n- **Rejected row** — A payment record that failed a basic check, such as an amount below zero, and was set aside.\n- **Job run** — One run of the scheduled work that releases, loads, cleans, scores and flags payments.\n- **Task** — One step inside a job run, such as loading or scoring.\n- **REDACTED** — Shown instead of an account name to people who may not see who paid whom."
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 10
+          }
+        }
+      ]
+    }
+  ]
+}
