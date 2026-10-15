@@ -98,7 +98,7 @@ def bar(name: str, title: str, dataset_name: str, x: tuple[str, str], y: tuple[s
 COLUMN_FORMATS: dict[str, dict[str, str]] = {  # column type -> how it shows (keys as in Databricks' exports)
     "string": {"displayAs": "string", "alignContent": "left"},  # text
     "integer": {"displayAs": "number", "alignContent": "right", "numberFormat": "0"},  # whole numbers
-    "float": {"displayAs": "number", "alignContent": "right", "numberFormat": "0.0##"},  # decimals, up to 3 places
+    "float": {"displayAs": "number", "alignContent": "right", "numberFormat": "0.0"},  # one decimal place (D3: 4.600)
     "datetime": {"displayAs": "datetime", "alignContent": "right", "dateTimeFormat": "YYYY-MM-DD HH:mm"},  # times
 }  # end COLUMN_FORMATS
 
@@ -207,7 +207,7 @@ def operations_dashboard() -> dict[str, Any]:  # "Fraud operations": reviewers, 
         (table("open_table", "Open cases, newest hour first, most suspicious first", "open_cases", [  # the queue
             ("simulated_hour", "Simulated hour", "integer"), ("risk_score", "Risk score", "float"), ("payment", "Payment", "string"),  # what
             ("paying_account", "Paying account", "string"), ("receiving_account", "Receiving account", "string"),  # who
-            ("case_opened_at", "Case opened at", "datetime")]), GRID_WIDTH, 8),  # when
+            ("case_opened_at", "Case opened at (UTC)", "datetime")]), GRID_WIDTH, 8),  # when
         (how_to_read("open_how", "Each row is one flagged payment still waiting for its verdict. If you may not see "  # the line
                      "open cases, the table is empty. If you may not see account names, they show as REDACTED."), GRID_WIDTH, 1),  # masks
     )  # end queue
@@ -289,28 +289,28 @@ REJECTIONS = dataset("rejections", "Rows set aside", sql(  # one row per reason,
 # ── Platform health: pages ────────────────────────────────────
 def platform_dashboard() -> dict[str, Any]:  # "Platform health": engineers only
     jobs = page("jobs", "Are the jobs healthy?",  # page 1
-        (bar("run_minutes", "Minutes per job run", "job_runs", ("run_started_at", "Run started"),  # per run
+        (bar("run_minutes", "Minutes per job run", "job_runs", ("run_started_at", "Run started (UTC)"),  # per run
              ("minutes_taken", "Minutes"), color=("job_name", "Job"), x_scale="temporal"), GRID_WIDTH, 5),  # by job
         (how_to_read("run_minutes_how", "Each bar is one run, placed at the time it started. Taller means slower. "  # the line
                      "A run shows up here up to an hour after it finishes."), GRID_WIDTH, 1),  # system table lag (ruling R3)
         (table("run_table", "Every job run and how it ended", "job_runs", [  # the run list
-            ("job_name", "Job", "string"), ("run_started_at", "Started", "datetime"), ("minutes_taken", "Minutes", "float"),  # what and how long
+            ("job_name", "Job", "string"), ("run_started_at", "Started (UTC)", "datetime"), ("minutes_taken", "Minutes", "float"),  # what and how long
             ("outcome", "How it ended", "string")]), GRID_WIDTH, 5),  # result
         (how_to_read("run_table_how", "Anything other than Succeeded is a run that needs a look."), GRID_WIDTH, 1),  # failures
-        (bar("task_minutes", "Minutes per task in each run of fraud-ingest", "task_times", ("run_started_at", "Run started"),  # per task
+        (bar("task_minutes", "Minutes per task in each run of fraud-ingest", "task_times", ("run_started_at", "Run started (UTC)"),  # per task
              ("task_minutes", "Minutes"), color=("task_name", "Task"), x_scale="temporal"), GRID_WIDTH, 5),  # stacked by task
         (how_to_read("task_minutes_how", "Each bar is one run, split into its tasks. The tallest part is "  # the line
                      "where the time goes. The two dashboard refreshes run side by side, so a bar can be "  # review M4
                      "taller than the run itself."), GRID_WIDTH, 1),  # reading a stacked bar
         (bar("pipeline_minutes", "Minutes the cleaning pipeline itself spent per update", "pipeline_updates",  # per update
-             ("update_started_at", "Update started"), ("minutes_taken", "Minutes"),  # axes
+             ("update_started_at", "Update started (UTC)"), ("minutes_taken", "Minutes"),  # axes
              color=("update_kind", "Kind of update"), x_scale="temporal"), GRID_WIDTH, 5),  # by kind
         (how_to_read("pipeline_minutes_how", "Compare with the silver task above: the difference is the time spent "  # the line
                      "starting up and waiting, not cleaning."), GRID_WIDTH, 1),  # G-15 story
     )  # end jobs
     data = page("data", "Is the data fresh and clean?",  # page 2
         (table("freshness_table", "Newest simulated hour at each stage", "freshness", [  # four stages
-            ("stage", "Stage", "string"), ("newest_simulated_hour", "Newest simulated hour", "integer")]), GRID_WIDTH, 3),  # stage and hour
+            ("stage", "Stage", "string"), ("newest_simulated_hour", "Newest simulated hour", "integer")]), GRID_WIDTH, 4),  # stage and hour (D3: height 3 clipped row 4)
         (how_to_read("freshness_how", "After a run all four numbers should be equal. A lower number shows "  # the line
                      "where payments are stuck."), GRID_WIDTH, 1),  # reading it
         (counter("typical_wait", "Typical minutes from landing to scored", "wait",  # half waited less

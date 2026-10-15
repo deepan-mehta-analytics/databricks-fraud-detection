@@ -72,9 +72,9 @@
               "encodings": {
                 "x": {
                   "fieldName": "run_started_at",
-                  "displayName": "Run started",
+                  "displayName": "Run started (UTC)",
                   "axis": {
-                    "title": "Run started"
+                    "title": "Run started (UTC)"
                   },
                   "scale": {
                     "type": "temporal"
@@ -193,8 +193,8 @@
                   },
                   {
                     "fieldName": "run_started_at",
-                    "displayName": "Started",
-                    "title": "Started",
+                    "displayName": "Started (UTC)",
+                    "title": "Started (UTC)",
                     "type": "datetime",
                     "displayAs": "datetime",
                     "alignContent": "right",
@@ -226,7 +226,7 @@
                     "type": "float",
                     "displayAs": "number",
                     "alignContent": "right",
-                    "numberFormat": "0.0##",
+                    "numberFormat": "0.0",
                     "visible": true,
                     "order": 100002,
                     "allowHTML": false,
@@ -333,9 +333,9 @@
               "encodings": {
                 "x": {
                   "fieldName": "run_started_at",
-                  "displayName": "Run started",
+                  "displayName": "Run started (UTC)",
                   "axis": {
-                    "title": "Run started"
+                    "title": "Run started (UTC)"
                   },
                   "scale": {
                     "type": "temporal"
@@ -416,9 +416,9 @@
               "encodings": {
                 "x": {
                   "fieldName": "update_started_at",
-                  "displayName": "Update started",
+                  "displayName": "Update started (UTC)",
                   "axis": {
-                    "title": "Update started"
+                    "title": "Update started (UTC)"
                   },
                   "scale": {
                     "type": "temporal"
@@ -569,7 +569,7 @@
             "x": 0,
             "y": 0,
             "width": 6,
-            "height": 3
+            "height": 4
           }
         },
         {
@@ -579,7 +579,7 @@
           },
           "position": {
             "x": 0,
-            "y": 3,
+            "y": 4,
             "width": 6,
             "height": 1
           }
@@ -619,7 +619,7 @@
           },
           "position": {
             "x": 0,
-            "y": 4,
+            "y": 5,
             "width": 3,
             "height": 2
           }
@@ -659,7 +659,7 @@
           },
           "position": {
             "x": 3,
-            "y": 4,
+            "y": 5,
             "width": 3,
             "height": 2
           }
@@ -671,7 +671,7 @@
           },
           "position": {
             "x": 0,
-            "y": 6,
+            "y": 7,
             "width": 6,
             "height": 1
           }
@@ -838,7 +838,7 @@
           },
           "position": {
             "x": 0,
-            "y": 7,
+            "y": 8,
             "width": 6,
             "height": 3
           }
@@ -850,7 +850,7 @@
           },
           "position": {
             "x": 0,
-            "y": 10,
+            "y": 11,
             "width": 6,
             "height": 1
           }

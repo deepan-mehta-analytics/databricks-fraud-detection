@@ -159,9 +159,24 @@ def test_tables_carry_the_full_exported_column_settings(key):  # D3: minimal col
             assert TABLE_COLUMN_KEYS <= set(column), (widget["name"], column["fieldName"])  # full settings
             assert column["displayAs"] == DISPLAY_AS[column["type"]], column["fieldName"]  # matching display
             if column["type"] in ("integer", "float"):  # numbers need a format
-                assert "numberFormat" in column, column["fieldName"]  # e.g. "0"
+                assert column["numberFormat"] == {"integer": "0", "float": "0.0"}[column["type"]], column["fieldName"]  # D3: 4.600
             if column["type"] == "datetime":  # times need a format
                 assert "dateTimeFormat" in column, column["fieldName"]  # e.g. "YYYY-MM-DD HH:mm"
+                assert column["displayName"].endswith("(UTC)"), column["fieldName"]  # D3: 04:53 read as local time
+
+
+def test_every_time_axis_says_utc():  # D3: the system tables and Delta store UTC; the owner's clock is IST
+    for key, dashboard in BUILT.items():  # both dashboards
+        for widget in widgets(dashboard):  # each widget
+            x = widget.get("spec", {}).get("encodings", {}).get("x", {})  # the across axis, if any
+            if x.get("scale", {}).get("type") == "temporal":  # a time axis
+                assert x["displayName"].endswith("(UTC)"), (key, widget["name"])  # labelled
+                assert x["axis"]["title"].endswith("(UTC)"), (key, widget["name"])  # on screen too
+
+
+def test_freshness_table_is_tall_enough_for_all_four_stages():  # D3: height 3 clipped "4. Flagged for review"
+    item = next(i for p in BUILT["platform_health"]["pages"] for i in p["layout"] if i["widget"]["name"] == "freshness_table")
+    assert item["position"]["height"] >= 4  # title, header and four rows
 
 
 def test_model_page_counts_waiting_hours_from_the_waiting_view():  # review I1: managers' rows hide waiting hours
