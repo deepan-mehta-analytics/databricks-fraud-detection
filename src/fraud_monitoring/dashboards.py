@@ -95,10 +95,31 @@ def bar(name: str, title: str, dataset_name: str, x: tuple[str, str], y: tuple[s
     return {"name": name, "queries": _queries(dataset_name, fields, False), "spec": spec}  # the widget
 
 
-def table(name: str, title: str, dataset_name: str, columns: list[tuple[str, str]]) -> dict[str, Any]:  # a table
+COLUMN_FORMATS: dict[str, dict[str, str]] = {  # column type -> how it shows (keys as in Databricks' exports)
+    "string": {"displayAs": "string", "alignContent": "left"},  # text
+    "integer": {"displayAs": "number", "alignContent": "right", "numberFormat": "0"},  # whole numbers
+    "float": {"displayAs": "number", "alignContent": "right", "numberFormat": "0.0##"},  # decimals, up to 3 places
+    "datetime": {"displayAs": "datetime", "alignContent": "right", "dateTimeFormat": "YYYY-MM-DD HH:mm"},  # times
+}  # end COLUMN_FORMATS
+
+
+def _column(field: str, label: str, kind: str, order: int) -> dict[str, Any]:  # one table column, fully specified
+    return {"fieldName": field, "displayName": label, "title": label, "type": kind,  # what and its label
+            **COLUMN_FORMATS[kind], "visible": True, "order": order,  # how it shows, in which place
+            "allowHTML": False, "allowSearch": False, "booleanValues": ["false", "true"],  # export defaults...
+            "highlightLinks": False, "useMonospaceFont": False, "preserveWhitespace": False,  # ...display
+            "imageUrlTemplate": "{{ @ }}", "imageTitleTemplate": "{{ @ }}", "imageWidth": "", "imageHeight": "",  # ...images
+            "linkUrlTemplate": "{{ @ }}", "linkTextTemplate": "{{ @ }}", "linkTitleTemplate": "{{ @ }}",  # ...links
+            "linkOpenInNewTab": True}  # D3: two-key columns showed "Invalid widget definition is imported"
+
+
+def table(name: str, title: str, dataset_name: str, columns: list[tuple[str, str, str]]) -> dict[str, Any]:  # a table
     spec = {"version": 1, "widgetType": "table", "frame": _frame(title),  # the table...
-            "encodings": {"columns": [{"fieldName": c, "displayName": label} for c, label in columns]}}  # ...and its columns
-    return {"name": name, "queries": _queries(dataset_name, [_field(c) for c, _ in columns], True), "spec": spec}  # raw rows
+            "invisibleColumns": [], "allowHTMLByDefault": False, "itemsPerPage": 25,  # ...table-level export...
+            "paginationSize": "default", "condensed": True, "withRowNumber": False,  # ...defaults
+            "encodings": {"columns": [_column(c, label, kind, 100000 + i)  # every column, in order
+                                      for i, (c, label, kind) in enumerate(columns)]}}  # (field, label, type)
+    return {"name": name, "queries": _queries(dataset_name, [_field(c) for c, _, _ in columns], True), "spec": spec}  # raw rows
 
 
 def counter(name: str, title: str, dataset_name: str, value: tuple[str, str]) -> dict[str, Any]:  # one big number
@@ -184,9 +205,9 @@ def operations_dashboard() -> dict[str, Any]:  # "Fraud operations": reviewers, 
     queue = page("queue", "What is waiting for review?",  # page 1
         (counter("open_count", "Open cases waiting for a verdict", "open_case_count", ("open_cases", "Open cases")), GRID_WIDTH, 2),  # total
         (table("open_table", "Open cases, newest hour first, most suspicious first", "open_cases", [  # the queue
-            ("simulated_hour", "Simulated hour"), ("risk_score", "Risk score"), ("payment", "Payment"),  # what
-            ("paying_account", "Paying account"), ("receiving_account", "Receiving account"),  # who
-            ("case_opened_at", "Case opened at")]), GRID_WIDTH, 8),  # when
+            ("simulated_hour", "Simulated hour", "integer"), ("risk_score", "Risk score", "float"), ("payment", "Payment", "string"),  # what
+            ("paying_account", "Paying account", "string"), ("receiving_account", "Receiving account", "string"),  # who
+            ("case_opened_at", "Case opened at", "datetime")]), GRID_WIDTH, 8),  # when
         (how_to_read("open_how", "Each row is one flagged payment still waiting for its verdict. If you may not see "  # the line
                      "open cases, the table is empty. If you may not see account names, they show as REDACTED."), GRID_WIDTH, 1),  # masks
     )  # end queue
@@ -205,8 +226,8 @@ def operations_dashboard() -> dict[str, Any]:  # "Fraud operations": reviewers, 
         (how_to_read("totals_how", "The first two numbers cover every hour whose verdicts are in. "  # the line
                      "0.14 means 14 out of every 100."), GRID_WIDTH, 1),  # reading a share
         (table("totals_table", "The counts behind those shares", "model_totals", [  # the counts
-            ("confirmed_fraud", "Confirmed fraud"), ("checked_cases", "Flagged payments with a verdict"),  # flagged
-            ("all_fraud", "All fraud in those hours")]), GRID_WIDTH, 2),  # every fraud
+            ("confirmed_fraud", "Confirmed fraud", "integer"), ("checked_cases", "Flagged payments with a verdict", "integer"),  # flagged
+            ("all_fraud", "All fraud in those hours", "integer")]), GRID_WIDTH, 2),  # every fraud
         (how_to_read("counts_how", "Confirmed fraud divided by flagged payments with a verdict gives the first share; "  # the line
                      "divided by all fraud, the second."), GRID_WIDTH, 1),  # how the shares are made
         (bar("flagged_bar", "Of the payments we flagged, how many were really fraud, per simulated hour", "model_by_hour",  # per hour
@@ -273,8 +294,8 @@ def platform_dashboard() -> dict[str, Any]:  # "Platform health": engineers only
         (how_to_read("run_minutes_how", "Each bar is one run, placed at the time it started. Taller means slower. "  # the line
                      "A run shows up here up to an hour after it finishes."), GRID_WIDTH, 1),  # system table lag (ruling R3)
         (table("run_table", "Every job run and how it ended", "job_runs", [  # the run list
-            ("job_name", "Job"), ("run_started_at", "Started"), ("minutes_taken", "Minutes"),  # what and how long
-            ("outcome", "How it ended")]), GRID_WIDTH, 5),  # result
+            ("job_name", "Job", "string"), ("run_started_at", "Started", "datetime"), ("minutes_taken", "Minutes", "float"),  # what and how long
+            ("outcome", "How it ended", "string")]), GRID_WIDTH, 5),  # result
         (how_to_read("run_table_how", "Anything other than Succeeded is a run that needs a look."), GRID_WIDTH, 1),  # failures
         (bar("task_minutes", "Minutes per task in each run of fraud-ingest", "task_times", ("run_started_at", "Run started"),  # per task
              ("task_minutes", "Minutes"), color=("task_name", "Task"), x_scale="temporal"), GRID_WIDTH, 5),  # stacked by task
@@ -289,7 +310,7 @@ def platform_dashboard() -> dict[str, Any]:  # "Platform health": engineers only
     )  # end jobs
     data = page("data", "Is the data fresh and clean?",  # page 2
         (table("freshness_table", "Newest simulated hour at each stage", "freshness", [  # four stages
-            ("stage", "Stage"), ("newest_simulated_hour", "Newest simulated hour")]), GRID_WIDTH, 3),  # stage and hour
+            ("stage", "Stage", "string"), ("newest_simulated_hour", "Newest simulated hour", "integer")]), GRID_WIDTH, 3),  # stage and hour
         (how_to_read("freshness_how", "After a run all four numbers should be equal. A lower number shows "  # the line
                      "where payments are stuck."), GRID_WIDTH, 1),  # reading it
         (counter("typical_wait", "Typical minutes from landing to scored", "wait",  # half waited less
@@ -299,8 +320,8 @@ def platform_dashboard() -> dict[str, Any]:  # "Platform health": engineers only
         (how_to_read("wait_how", "Both numbers cover the latest scoring run only. Half of its payments waited "  # the line
                      "less than the typical number."), GRID_WIDTH, 1),  # plain words for the middle value
         (table("rejections_table", "Rows set aside, by reason", "rejections", [  # the shelf
-            ("reason", "Why it was set aside"), ("rows_rejected", "Rows"),  # reason and count
-            ("first_hour", "First simulated hour"), ("last_hour", "Last simulated hour")]), GRID_WIDTH, 3),  # range
+            ("reason", "Why it was set aside", "string"), ("rows_rejected", "Rows", "integer"),  # reason and count
+            ("first_hour", "First simulated hour", "integer"), ("last_hour", "Last simulated hour", "integer")]), GRID_WIDTH, 3),  # range
         (how_to_read("rejections_how", "Each row is one reason a payment record failed a basic check. "  # the line
                      "Set-aside rows are kept for checking, never scored."), GRID_WIDTH, 1),  # what happens to them
     )  # end data

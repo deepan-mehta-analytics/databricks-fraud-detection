@@ -135,6 +135,35 @@ def test_dashboard_resources_hold_no_identifiers():  # public repo
     assert not re.search(r"[0-9a-f]{16}|[0-9a-f]{8}-[0-9a-f]{4}|@", text)  # no IDs, no emails
 
 
+TABLE_COLUMN_KEYS = {  # every key Databricks' own table exports carry per column (bundle-examples, 2026-10-15)
+    "fieldName", "displayName", "title", "type", "displayAs", "visible", "order", "alignContent", "allowHTML",  # basics
+    "allowSearch", "booleanValues", "highlightLinks", "useMonospaceFont", "preserveWhitespace", "imageUrlTemplate",  # display
+    "imageTitleTemplate", "imageWidth", "imageHeight", "linkUrlTemplate", "linkTextTemplate", "linkTitleTemplate",  # links
+    "linkOpenInNewTab"}  # end TABLE_COLUMN_KEYS
+DISPLAY_AS = {"string": "string", "integer": "number", "float": "number", "datetime": "datetime"}  # type -> displayAs
+
+
+@pytest.mark.parametrize("key", list(d.DASHBOARDS))  # both dashboards
+def test_tables_carry_the_full_exported_column_settings(key):  # D3: minimal columns showed "Invalid widget definition"
+    tables = [w for w in widgets(BUILT[key]) if w.get("spec", {}).get("widgetType") == "table"]  # every table
+    assert tables  # each dashboard has tables
+    for widget in tables:  # each
+        spec = widget["spec"]  # its settings
+        assert spec["version"] == 1  # as Databricks exports tables
+        assert {"invisibleColumns", "allowHTMLByDefault", "itemsPerPage", "paginationSize", "condensed",  # table-level...
+                "withRowNumber"} <= set(spec), widget["name"]  # ...settings present
+        fields = [f["name"] for f in widget["queries"][0]["query"]["fields"]]  # queried columns
+        columns = spec["encodings"]["columns"]  # shown columns
+        assert [c["fieldName"] for c in columns] == fields, widget["name"]  # one per field, in order
+        for column in columns:  # each column
+            assert TABLE_COLUMN_KEYS <= set(column), (widget["name"], column["fieldName"])  # full settings
+            assert column["displayAs"] == DISPLAY_AS[column["type"]], column["fieldName"]  # matching display
+            if column["type"] in ("integer", "float"):  # numbers need a format
+                assert "numberFormat" in column, column["fieldName"]  # e.g. "0"
+            if column["type"] == "datetime":  # times need a format
+                assert "dateTimeFormat" in column, column["fieldName"]  # e.g. "YYYY-MM-DD HH:mm"
+
+
 def test_model_page_counts_waiting_hours_from_the_waiting_view():  # review I1: managers' rows hide waiting hours
     totals = next(ds for ds in BUILT["fraud_operations"]["datasets"] if ds["name"] == "model_totals")  # the counters
     assert "FROM workspace.fraud.hours_waiting_for_verdicts" in query_text(totals)  # counted from scored hours

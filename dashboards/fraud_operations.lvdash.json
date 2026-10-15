@@ -116,31 +116,178 @@
                 "showTitle": true,
                 "title": "Open cases, newest hour first, most suspicious first"
               },
+              "invisibleColumns": [],
+              "allowHTMLByDefault": false,
+              "itemsPerPage": 25,
+              "paginationSize": "default",
+              "condensed": true,
+              "withRowNumber": false,
               "encodings": {
                 "columns": [
                   {
                     "fieldName": "simulated_hour",
-                    "displayName": "Simulated hour"
+                    "displayName": "Simulated hour",
+                    "title": "Simulated hour",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "alignContent": "right",
+                    "numberFormat": "0",
+                    "visible": true,
+                    "order": 100000,
+                    "allowHTML": false,
+                    "allowSearch": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true
                   },
                   {
                     "fieldName": "risk_score",
-                    "displayName": "Risk score"
+                    "displayName": "Risk score",
+                    "title": "Risk score",
+                    "type": "float",
+                    "displayAs": "number",
+                    "alignContent": "right",
+                    "numberFormat": "0.0##",
+                    "visible": true,
+                    "order": 100001,
+                    "allowHTML": false,
+                    "allowSearch": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true
                   },
                   {
                     "fieldName": "payment",
-                    "displayName": "Payment"
+                    "displayName": "Payment",
+                    "title": "Payment",
+                    "type": "string",
+                    "displayAs": "string",
+                    "alignContent": "left",
+                    "visible": true,
+                    "order": 100002,
+                    "allowHTML": false,
+                    "allowSearch": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true
                   },
                   {
                     "fieldName": "paying_account",
-                    "displayName": "Paying account"
+                    "displayName": "Paying account",
+                    "title": "Paying account",
+                    "type": "string",
+                    "displayAs": "string",
+                    "alignContent": "left",
+                    "visible": true,
+                    "order": 100003,
+                    "allowHTML": false,
+                    "allowSearch": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true
                   },
                   {
                     "fieldName": "receiving_account",
-                    "displayName": "Receiving account"
+                    "displayName": "Receiving account",
+                    "title": "Receiving account",
+                    "type": "string",
+                    "displayAs": "string",
+                    "alignContent": "left",
+                    "visible": true,
+                    "order": 100004,
+                    "allowHTML": false,
+                    "allowSearch": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true
                   },
                   {
                     "fieldName": "case_opened_at",
-                    "displayName": "Case opened at"
+                    "displayName": "Case opened at",
+                    "title": "Case opened at",
+                    "type": "datetime",
+                    "displayAs": "datetime",
+                    "alignContent": "right",
+                    "dateTimeFormat": "YYYY-MM-DD HH:mm",
+                    "visible": true,
+                    "order": 100005,
+                    "allowHTML": false,
+                    "allowSearch": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true
                   }
                 ]
               }
@@ -425,19 +572,97 @@
                 "showTitle": true,
                 "title": "The counts behind those shares"
               },
+              "invisibleColumns": [],
+              "allowHTMLByDefault": false,
+              "itemsPerPage": 25,
+              "paginationSize": "default",
+              "condensed": true,
+              "withRowNumber": false,
               "encodings": {
                 "columns": [
                   {
                     "fieldName": "confirmed_fraud",
-                    "displayName": "Confirmed fraud"
+                    "displayName": "Confirmed fraud",
+                    "title": "Confirmed fraud",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "alignContent": "right",
+                    "numberFormat": "0",
+                    "visible": true,
+                    "order": 100000,
+                    "allowHTML": false,
+                    "allowSearch": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true
                   },
                   {
                     "fieldName": "checked_cases",
-                    "displayName": "Flagged payments with a verdict"
+                    "displayName": "Flagged payments with a verdict",
+                    "title": "Flagged payments with a verdict",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "alignContent": "right",
+                    "numberFormat": "0",
+                    "visible": true,
+                    "order": 100001,
+                    "allowHTML": false,
+                    "allowSearch": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true
                   },
                   {
                     "fieldName": "all_fraud",
-                    "displayName": "All fraud in those hours"
+                    "displayName": "All fraud in those hours",
+                    "title": "All fraud in those hours",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "alignContent": "right",
+                    "numberFormat": "0",
+                    "visible": true,
+                    "order": 100002,
+                    "allowHTML": false,
+                    "allowSearch": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true
                   }
                 ]
               }

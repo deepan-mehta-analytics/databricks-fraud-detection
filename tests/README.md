@@ -72,7 +72,9 @@
   builder's output, each dashboard reads only its audience's views, a
   "How to read it" line per chart, the word-list page, the jargon guard,
   unique widgets, no identifiers, viewer credentials and group permissions,
-  the waiting counter read from the waiting view, and one bar per hour.
+  the waiting counter read from the waiting view, one bar per hour, and
+  tables carrying the full column settings Databricks exports (minimal
+  columns showed "Invalid widget definition" at D3).
 
 Notebook behavior, the Delta tables, the Silver pipeline and the model
 registry are verified by workspace runs (V1–V6, S1–S6, M1–M8, G1–G11, D1–D10), not by this

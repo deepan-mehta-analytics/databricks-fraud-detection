@@ -156,23 +156,123 @@
                 "showTitle": true,
                 "title": "Every job run and how it ended"
               },
+              "invisibleColumns": [],
+              "allowHTMLByDefault": false,
+              "itemsPerPage": 25,
+              "paginationSize": "default",
+              "condensed": true,
+              "withRowNumber": false,
               "encodings": {
                 "columns": [
                   {
                     "fieldName": "job_name",
-                    "displayName": "Job"
+                    "displayName": "Job",
+                    "title": "Job",
+                    "type": "string",
+                    "displayAs": "string",
+                    "alignContent": "left",
+                    "visible": true,
+                    "order": 100000,
+                    "allowHTML": false,
+                    "allowSearch": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true
                   },
                   {
                     "fieldName": "run_started_at",
-                    "displayName": "Started"
+                    "displayName": "Started",
+                    "title": "Started",
+                    "type": "datetime",
+                    "displayAs": "datetime",
+                    "alignContent": "right",
+                    "dateTimeFormat": "YYYY-MM-DD HH:mm",
+                    "visible": true,
+                    "order": 100001,
+                    "allowHTML": false,
+                    "allowSearch": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true
                   },
                   {
                     "fieldName": "minutes_taken",
-                    "displayName": "Minutes"
+                    "displayName": "Minutes",
+                    "title": "Minutes",
+                    "type": "float",
+                    "displayAs": "number",
+                    "alignContent": "right",
+                    "numberFormat": "0.0##",
+                    "visible": true,
+                    "order": 100002,
+                    "allowHTML": false,
+                    "allowSearch": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true
                   },
                   {
                     "fieldName": "outcome",
-                    "displayName": "How it ended"
+                    "displayName": "How it ended",
+                    "title": "How it ended",
+                    "type": "string",
+                    "displayAs": "string",
+                    "alignContent": "left",
+                    "visible": true,
+                    "order": 100003,
+                    "allowHTML": false,
+                    "allowSearch": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true
                   }
                 ]
               }
@@ -398,15 +498,68 @@
                 "showTitle": true,
                 "title": "Newest simulated hour at each stage"
               },
+              "invisibleColumns": [],
+              "allowHTMLByDefault": false,
+              "itemsPerPage": 25,
+              "paginationSize": "default",
+              "condensed": true,
+              "withRowNumber": false,
               "encodings": {
                 "columns": [
                   {
                     "fieldName": "stage",
-                    "displayName": "Stage"
+                    "displayName": "Stage",
+                    "title": "Stage",
+                    "type": "string",
+                    "displayAs": "string",
+                    "alignContent": "left",
+                    "visible": true,
+                    "order": 100000,
+                    "allowHTML": false,
+                    "allowSearch": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true
                   },
                   {
                     "fieldName": "newest_simulated_hour",
-                    "displayName": "Newest simulated hour"
+                    "displayName": "Newest simulated hour",
+                    "title": "Newest simulated hour",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "alignContent": "right",
+                    "numberFormat": "0",
+                    "visible": true,
+                    "order": 100001,
+                    "allowHTML": false,
+                    "allowSearch": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true
                   }
                 ]
               }
@@ -560,23 +713,124 @@
                 "showTitle": true,
                 "title": "Rows set aside, by reason"
               },
+              "invisibleColumns": [],
+              "allowHTMLByDefault": false,
+              "itemsPerPage": 25,
+              "paginationSize": "default",
+              "condensed": true,
+              "withRowNumber": false,
               "encodings": {
                 "columns": [
                   {
                     "fieldName": "reason",
-                    "displayName": "Why it was set aside"
+                    "displayName": "Why it was set aside",
+                    "title": "Why it was set aside",
+                    "type": "string",
+                    "displayAs": "string",
+                    "alignContent": "left",
+                    "visible": true,
+                    "order": 100000,
+                    "allowHTML": false,
+                    "allowSearch": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true
                   },
                   {
                     "fieldName": "rows_rejected",
-                    "displayName": "Rows"
+                    "displayName": "Rows",
+                    "title": "Rows",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "alignContent": "right",
+                    "numberFormat": "0",
+                    "visible": true,
+                    "order": 100001,
+                    "allowHTML": false,
+                    "allowSearch": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true
                   },
                   {
                     "fieldName": "first_hour",
-                    "displayName": "First simulated hour"
+                    "displayName": "First simulated hour",
+                    "title": "First simulated hour",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "alignContent": "right",
+                    "numberFormat": "0",
+                    "visible": true,
+                    "order": 100002,
+                    "allowHTML": false,
+                    "allowSearch": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true
                   },
                   {
                     "fieldName": "last_hour",
-                    "displayName": "Last simulated hour"
+                    "displayName": "Last simulated hour",
+                    "title": "Last simulated hour",
+                    "type": "integer",
+                    "displayAs": "number",
+                    "alignContent": "right",
+                    "numberFormat": "0",
+                    "visible": true,
+                    "order": 100003,
+                    "allowHTML": false,
+                    "allowSearch": false,
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "highlightLinks": false,
+                    "useMonospaceFont": false,
+                    "preserveWhitespace": false,
+                    "imageUrlTemplate": "{{ @ }}",
+                    "imageTitleTemplate": "{{ @ }}",
+                    "imageWidth": "",
+                    "imageHeight": "",
+                    "linkUrlTemplate": "{{ @ }}",
+                    "linkTextTemplate": "{{ @ }}",
+                    "linkTitleTemplate": "{{ @ }}",
+                    "linkOpenInNewTab": true
                   }
                 ]
               }
