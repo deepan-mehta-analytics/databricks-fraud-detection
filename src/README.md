@@ -35,4 +35,13 @@ tests without a Spark install.
 - `expected.py` — the local reference for Gold: Silver payments per scored
   hour, alerts per hour (at most 50), the closing cutoff and closed cases,
   and the late-alert rule the Gold SQL mirrors. Gives the expected values
-  for the workspace checks G3–G10. Stdlib only.
+  for the workspace checks G3–G10, plus `silver_counts`, `fraud_with_verdicts`
+  and `hours_with_verdicts` for the monitoring printout (`--monitoring`,
+  `--since`). Stdlib only.
+
+`fraud_monitoring/`:
+
+- `dashboards.py` — the two AI/BI dashboards as code: the word lists, the
+  jargon list, small building blocks (dataset, bar, table, counter, text,
+  layout) and the Fraud operations and Platform health definitions.
+  `scripts/build_dashboards.py` writes them to `dashboards/`.

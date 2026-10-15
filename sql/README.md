@@ -37,6 +37,13 @@ roles (G-06).
   newly closed cases, without account names, to an external table on
   Cloudflare R2. Not wired into the job: Free Edition's serverless compute
   can't resolve the R2 storage domain (measured 2026-10-11).
+- `monitoring/monitoring.sql` — the `monitor` SQL task in `fraud-ingest`
+  (after `gold`). Recreates five plain views — `model_accuracy_by_hour`,
+  `data_freshness`, `rejected_rows_by_reason`, `job_run_times`,
+  `pipeline_update_times` — and re-grants each one straight away. Job and
+  pipeline history comes from `system.lakeflow`, picked by name; minutes
+  come from start and end times because the duration columns read 0 on Free
+  Edition. The fraud label is read only for hours whose verdicts are in.
 - `50_governance.sql` — run once by the owner after the first Gold run: the
   account-name mask and the closed-cases-only row filter (both exempt
   engineers and reviewers), and the group grants (engineers schema-wide,
@@ -49,3 +56,8 @@ roles (G-06).
   table, with its clean-up.
 - `53_verify_gold.sql` — verification queries for the Gold checks G3–G10,
   expected values from `scripts/expected_gold.py` over `data/paysim.csv`.
+- `60_probe_system_tables.sql` — the system-table probes P1 and D1b (done
+  2026-10-15) and the column checks behind the monitoring views.
+- `61_verify_monitoring.sql` — the monitoring checks D3a and D5–D8, with
+  expected values from `scripts/expected_gold.py --monitoring` inline,
+  including a block for the test user in `fraud_managers`.

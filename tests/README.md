@@ -1,6 +1,6 @@
 # tests/
 
-`python -m pytest -q` runs 145 tests, all local (no Databricks needed):
+`python -m pytest -q` runs 179 tests, all local (no Databricks needed):
 
 - `test_contract.py` — segment boundaries, file naming, transaction ID and
   timestamp derivation, schema hints, volume paths.
@@ -15,7 +15,7 @@
 - `test_ingest.py` — Auto Loader option construction and that the module
   imports without PySpark installed.
 - `test_job_definition.py` — parses `resources/fraud_ingest_job.yml` and
-  checks the five tasks (release, ingest, silver, score, gold), the Gold SQL tasks on the warehouse found by name, retry, schedule and
+  checks the eight tasks (release, ingest, silver, score, gold, monitor and the two dashboard refreshes), the Gold SQL tasks on the warehouse found by name, retry, schedule and
   parameter list (release and scoring options), the on-demand
   `fraud_train` job and its defaults, plus the `fraud_silver` pipeline resource (serverless,
   triggered, anchor, the four SQL files in order), and that the job and
@@ -51,14 +51,25 @@
 - `test_gold_expected.py` — the local Gold calculator: alerts per hour
   capped at the budget, the closing cutoff 72 simulated hours back, closed
   cases, the late-alert rule for one payment and for a batch (the room left is filled first), and Silver
-  payments per hour from the CSV simulation.
+  payments per hour from the CSV simulation, plus the one-pass monitoring
+  tallies and the `--monitoring` / `--since` printout.
 - `test_gold_sql.py` — text guards on the Gold and governance SQL: alerts
   are insert-only, the top-50 budget and tie-break, the late-alert rule,
   the label read only when closing cases, an export without account names,
   masks and the row filter exempting engineers and reviewers, a row filter
   that reads only its own row, per-table grants for reviewers and managers,
   both Gold tasks refusing to run outside the engineers group, case names taken from Silver, no MODIFY grant, the view's visible-cases column, the view checked through the row filter, and no real R2 path or account ID in any tracked text file.
+- `test_monitoring_sql.py` — text guards on the monitoring SQL: views and
+  grants only, each view re-granted at once, every column commented, the
+  fraud label read in exactly two job statements behind the 72-hour cutoff,
+  waiting hours empty rather than 0, jobs and the pipeline matched by name
+  with any development-mode prefix stripped, minutes from start and end
+  times grouped per run, no ID columns, and the verification blocks.
+- `test_dashboards.py` — the two dashboards: committed JSON equals the
+  builder's output, each dashboard reads only its audience's views, a
+  "How to read it" line per chart, the word-list page, the jargon guard,
+  unique widgets, no identifiers, viewer credentials and group permissions.
 
 Notebook behavior, the Delta tables, the Silver pipeline and the model
-registry are verified by workspace runs (V1–V6, S1–S6, M1–M8, G1–G11), not by this
+registry are verified by workspace runs (V1–V6, S1–S6, M1–M8, G1–G11, D1–D10), not by this
 local suite.

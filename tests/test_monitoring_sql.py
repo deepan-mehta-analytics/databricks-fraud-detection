@@ -132,3 +132,12 @@ def test_landing_wait_uses_the_latest_scoring_run():  # ruling R6: back-filled h
     assert "WHERE s.scored_at = (SELECT MAX(scored_at) FROM workspace.fraud.transaction_risk_scores)" in view  # newest run only
     assert "timestampdiff(SECOND, t.file_arrived_at, s.scored_at)" in view  # landing to scored
     assert "FROM workspace.fraud.release_log WHERE status = 'released'" in view  # held hours don't count as released
+
+
+def test_verification_covers_every_check_and_reads_the_model_view_as_manager():  # spec §7; Review Focus 1
+    text = VERIFY.read_text(encoding="utf-8")  # the owner-run checks
+    for block in ("D3a", "D5", "D6", "D7", "D8"):  # every SQL check of the sheet
+        assert f"-- ── {block}" in text, block  # has its own block
+    manager = text.split("-- ── D8", 1)[1]  # the manager block
+    assert "FROM workspace.fraud.model_accuracy_by_hour" in manager  # the filter must apply through the view
+    assert "FROM workspace.fraud.job_run_times" in manager  # engineers-only view: must be refused
