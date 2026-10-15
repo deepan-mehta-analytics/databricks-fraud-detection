@@ -14,10 +14,11 @@ CREATE OR REPLACE VIEW workspace.fraud.model_accuracy_by_hour (               --
   share_flagged_that_were_fraud COMMENT 'Of the flagged payments with a verdict, the share that were fraud. Empty until the verdicts are in.',  -- hit share
   fraud_in_hour COMMENT 'All fraud in this hour, flagged or not. Empty until the verdicts are in.',  -- every fraud
   share_of_fraud_caught COMMENT 'Of all the fraud in this hour, the share that was flagged. Empty until the verdicts are in.',  -- caught share
-  verdicts_ready COMMENT 'True once the hour is 72 simulated hours older than the newest scored hour.'  -- ready flag
+  verdicts_ready COMMENT 'True once the hour is 72 simulated hours older than the newest scored hour and its cases are closed.'  -- ready flag
 ) COMMENT 'How good the flags were, per simulated hour and model version. The row filter on alert_cases applies to the reader.'  -- view comment
 AS WITH cutoff AS (                                                             -- the newest hour whose verdicts are in
-  SELECT (SELECT MAX(step) FROM workspace.fraud.transaction_risk_scores) - 72 AS last_ready_step),  -- same data clock as the closing MERGE
+  SELECT MAX(step) AS last_ready_step FROM workspace.fraud.alert_cases          -- newest hour gold has closed (one MERGE closes every older hour)...
+  WHERE status = 'closed' AND step <= (SELECT MAX(step) FROM workspace.fraud.transaction_risk_scores) - 72),  -- ...never past the 72-hour clock (review I3)
 cases AS (                                                                      -- the reader's cases per hour and version
   SELECT step, model_version,                                                   -- keys
          COUNT(*) AS flagged_payments,                                          -- visible cases
@@ -30,18 +31,37 @@ fraud AS (                                                                      
   SELECT step, SUM(fraud_label) AS fraud_in_hour                                -- the label: the second of the two allowed reads
   FROM workspace.fraud.silver_transactions                                      -- clean payments
   WHERE step <= (SELECT MAX(step) FROM workspace.fraud.transaction_risk_scores) - 72  -- never before a real team would know
+    AND step <= (SELECT last_ready_step FROM cutoff)                            -- and only once gold has closed the hour
   GROUP BY step)                                                                -- one row per hour
 SELECT c.step, c.model_version, c.flagged_payments, c.closed_cases, c.confirmed_fraud, c.false_alarms,  -- counts
        CASE WHEN c.step <= k.last_ready_step THEN try_divide(c.confirmed_fraud, c.closed_cases) END,  -- empty while waiting
        f.fraud_in_hour,                                                         -- empty while waiting (the LEFT JOIN finds nothing)
        CASE WHEN c.step <= k.last_ready_step THEN try_divide(c.confirmed_fraud, f.fraud_in_hour) END,  -- empty while waiting
-       c.step <= k.last_ready_step                                              -- verdicts_ready
+       (c.step <= k.last_ready_step) IS TRUE                                    -- verdicts_ready: false, not empty, before the first verdict
 FROM cases AS c                                                                 -- the reader's cases
 CROSS JOIN cutoff AS k                                                          -- one cutoff row
 LEFT JOIN fraud AS f ON f.step = c.step;                                        -- fraud totals for ready hours only
 GRANT SELECT ON TABLE workspace.fraud.model_accuracy_by_hour TO `fraud_engineers`;  -- engineers (the schema grant covers them too)
 GRANT SELECT ON TABLE workspace.fraud.model_accuracy_by_hour TO `fraud_reviewers`;  -- reviewers
 GRANT SELECT ON TABLE workspace.fraud.model_accuracy_by_hour TO `fraud_managers`;   -- managers: closed cases only, through the row filter
+
+-- ── 1b. How many hours still wait for verdicts? Counted from scored hours, so the managers' row filter can't hide them (review I1) ──
+CREATE OR REPLACE VIEW workspace.fraud.hours_waiting_for_verdicts (           -- one row
+  newest_hour_scored COMMENT 'Newest simulated hour the model has scored.',     -- scoring
+  newest_hour_with_verdicts COMMENT 'Newest simulated hour whose cases are closed. Empty before the first verdicts.',  -- verdicts
+  hours_waiting COMMENT 'Scored simulated hours still waiting for their verdicts.'  -- the count
+) COMMENT 'How many scored hours still wait for verdicts. It reads no case rows, so every group sees the same count.'  -- view comment
+AS WITH clock AS (                                                              -- the same clock as the model view
+  SELECT (SELECT MAX(step) FROM workspace.fraud.alert_cases                     -- newest closed hour...
+          WHERE status = 'closed' AND step <= (SELECT MAX(step) FROM workspace.fraud.transaction_risk_scores) - 72)  -- ...within the 72 hours
+         AS last_ready_step),                                                   -- one row, empty before the first verdict
+scored AS (SELECT DISTINCT step FROM workspace.fraud.transaction_risk_scores)  -- every scored hour, once
+SELECT MAX(s.step), MAX(k.last_ready_step),                                     -- newest scored, newest with verdicts
+       COUNT_IF(k.last_ready_step IS NULL OR s.step > k.last_ready_step)        -- hours_waiting
+FROM scored AS s CROSS JOIN clock AS k;                                         -- one clock row against every scored hour
+GRANT SELECT ON TABLE workspace.fraud.hours_waiting_for_verdicts TO `fraud_engineers`;  -- engineers
+GRANT SELECT ON TABLE workspace.fraud.hours_waiting_for_verdicts TO `fraud_reviewers`;  -- reviewers
+GRANT SELECT ON TABLE workspace.fraud.hours_waiting_for_verdicts TO `fraud_managers`;   -- managers: only hour numbers, no cases
 
 -- ── 2. Is the data fresh? Newest hour at each stage, and the latest run's wait from landing to scored ──
 CREATE OR REPLACE VIEW workspace.fraud.data_freshness (                       -- one row
@@ -78,6 +98,7 @@ GROUP BY rejection_reason;                                                      
 GRANT SELECT ON TABLE workspace.fraud.rejected_rows_by_reason TO `fraud_engineers`;  -- engineers only
 
 -- ── 4. Are the jobs healthy? Minutes per run and per task, from the platform's own run history ──
+-- System tables cover the whole account: a second person's development deploy ([dev name] fraud-ingest) would merge in here (review M2).
 CREATE OR REPLACE VIEW workspace.fraud.job_run_times (                        -- one row per job run and task
   job_name COMMENT 'The job, without any development-mode prefix.',             -- job
   run_started_at COMMENT 'When the run started.',                               -- start

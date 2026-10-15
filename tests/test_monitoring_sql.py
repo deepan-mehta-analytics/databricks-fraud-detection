@@ -16,6 +16,7 @@ VIEWS = {  # view -> its columns, in order (plan Task 2 Interfaces)
     "model_accuracy_by_hour": ["step", "model_version", "flagged_payments", "closed_cases", "confirmed_fraud",  # counts
                                "false_alarms", "share_flagged_that_were_fraud", "fraud_in_hour",  # shares and fraud
                                "share_of_fraud_caught", "verdicts_ready"],  # caught share and ready flag
+    "hours_waiting_for_verdicts": ["newest_hour_scored", "newest_hour_with_verdicts", "hours_waiting"],  # one row
     "data_freshness": ["newest_hour_released", "newest_hour_ingested", "newest_hour_scored", "newest_hour_flagged",  # stages
                        "median_minutes_landing_to_scored", "slowest_minutes_landing_to_scored"],  # waits
     "rejected_rows_by_reason": ["reason", "rows_rejected", "first_hour", "last_hour"],  # shelf summary
@@ -26,6 +27,7 @@ VIEWS = {  # view -> its columns, in order (plan Task 2 Interfaces)
 }  # end VIEWS
 AUDIENCE = {name: ["fraud_engineers"] for name in VIEWS}  # engineers only by default (ruling R4)
 AUDIENCE["model_accuracy_by_hour"] = list(GROUPS)  # the model page is for all three groups
+AUDIENCE["hours_waiting_for_verdicts"] = list(GROUPS)  # its waiting counter too
 
 
 def code(path: Path) -> str:  # SQL text with -- comments removed (comments may mention guarded words)
@@ -56,9 +58,9 @@ def test_monitoring_only_creates_views_and_grants():  # spec §5.1: views store 
     assert not re.search(r"\b(INSERT|MERGE|UPDATE|DELETE|DROP|TRUNCATE)\b", sql)  # no writes (upper case: comments say "update")
 
 
-def test_the_five_views_have_plain_names_and_commented_columns():  # spec §5.1 table; Global Constraints
+def test_the_six_views_have_plain_names_and_commented_columns():  # spec §5.1 table; Global Constraints
     created = re.findall(r"CREATE OR REPLACE VIEW workspace\.fraud\.(\w+) ", " ".join(statements(code(MONITORING))))  # in order
-    assert created == list(VIEWS)  # the five views, in file order
+    assert created == list(VIEWS)  # the six views, in file order
     for name, columns in VIEWS.items():  # each view
         assert view_columns(name) == columns, name  # every column declared with a COMMENT, in order
         assert re.search(r"\) COMMENT '[^']{20,}' AS ", view_statement(name)), name  # a real view comment
@@ -72,7 +74,7 @@ def test_every_view_is_granted_right_after_it_is_created():  # Review Focus 5: a
             name = match.group(1)  # which view
             expected = [f"GRANT SELECT ON TABLE workspace.fraud.{name} TO `{g}`" for g in AUDIENCE[name]]  # its grants
             assert stmts[i + 1:i + 1 + len(expected)] == expected, name  # immediately, in this order
-    assert sum(1 for s in stmts if s.startswith("GRANT")) == 7  # 3 + 1 + 1 + 1 + 1
+    assert sum(1 for s in stmts if s.startswith("GRANT")) == 10  # 3 + 3 + 1 + 1 + 1 + 1
 
 
 def test_label_is_read_in_exactly_two_job_statements_both_behind_the_cutoff():  # owner ruling 2026-10-15 (widened rule)
@@ -89,6 +91,37 @@ def test_waiting_hours_show_empty_shares_never_zero():  # Review Focus 2
     assert view.count("CASE WHEN c.step <= k.last_ready_step THEN try_divide(") == 2  # both shares empty until ready
     assert "LEFT JOIN fraud AS f ON f.step = c.step" in view  # fraud_in_hour empty for hours the fraud CTE leaves out
     assert not re.search(r"\b(coalesce|nvl|ifnull|zeroifnull)\s*\(", view, re.I)  # nothing turns "waiting" into 0
+
+
+READY_CLOCK = ("SELECT MAX(step) FROM workspace.fraud.alert_cases "  # newest hour with a verdict...
+               f"WHERE status = 'closed' AND step <= {CUTOFF}")  # ...never past the 72-hour clock
+
+
+def test_an_hour_is_ready_only_once_gold_has_closed_its_cases():  # review I3: gold may fail after score
+    view = view_statement("model_accuracy_by_hour")  # the model view
+    assert READY_CLOCK.replace("MAX(step)", "MAX(step) AS last_ready_step", 1) in view  # closed cases set the clock
+    assert "(c.step <= k.last_ready_step) IS TRUE" in view  # no closed case yet reads false, not empty
+    assert f"WHERE step <= {CUTOFF} AND step <= (SELECT last_ready_step FROM cutoff)" in view  # label waits for both
+
+
+def test_waiting_hours_are_counted_from_scored_hours_not_cases():  # review I1: managers see no open cases
+    view = view_statement("hours_waiting_for_verdicts")  # the waiting view
+    assert "fraud_label" not in view  # no label here
+    assert "scored AS (SELECT DISTINCT step FROM workspace.fraud.transaction_risk_scores)" in view  # every scored hour
+    assert "COUNT_IF(k.last_ready_step IS NULL OR s.step > k.last_ready_step)" in view  # counts unless it has verdicts
+    assert "model_accuracy_by_hour" not in view  # never from the reader's case rows
+    assert READY_CLOCK in view  # the same clock as the model view (managers see closed cases, so it holds for them)
+
+
+def test_fraud_is_summed_once_per_hour():  # review I2: fraud_in_hour repeats once per model version
+    for path in (VERIFY, ROOT / "src" / "fraud_monitoring" / "dashboards.py"):  # every place that adds it up
+        raw = code(path) if path.suffix == ".sql" else path.read_text(encoding="utf-8")  # SQL without comments, or Python
+        text = " ".join(raw.split())  # whitespace collapsed
+        sums = re.findall(r"SUM\(fraud_in_hour\) FROM (\w+)", text, re.I)  # what each sum reads
+        assert sums, path.name  # there are sums to check
+        assert set(sums) == {"hours"}, path.name  # always the one-row-per-hour CTE...
+        assert "hours AS (SELECT DISTINCT step, fraud_in_hour FROM" in text, path.name  # ...made once per hour
+        assert not re.search(r"SUM\(\s*IF\([^)]*fraud_in_hour", text, re.I), path.name  # no per-row sum in disguise
 
 
 def test_jobs_and_pipeline_are_matched_by_name_with_the_dev_prefix_stripped():  # Review Focus 3, ruling R2

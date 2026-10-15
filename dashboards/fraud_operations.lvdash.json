@@ -18,12 +18,12 @@
     {
       "name": "model_by_hour",
       "displayName": "Model results per hour",
-      "query": "SELECT step AS simulated_hour, model_version,\n       share_flagged_that_were_fraud, share_of_fraud_caught\nFROM workspace.fraud.model_accuracy_by_hour\nWHERE verdicts_ready"
+      "query": "SELECT step AS simulated_hour,\n       array_join(sort_array(collect_set(CAST(model_version AS STRING))), ' and ') AS model_version,\n       try_divide(SUM(confirmed_fraud), SUM(closed_cases)) AS share_flagged_that_were_fraud,\n       try_divide(SUM(confirmed_fraud), MAX(fraud_in_hour)) AS share_of_fraud_caught\nFROM workspace.fraud.model_accuracy_by_hour\nWHERE verdicts_ready\nGROUP BY step"
     },
     {
       "name": "model_totals",
       "displayName": "Model results so far",
-      "query": "WITH ready AS (SELECT * FROM workspace.fraud.model_accuracy_by_hour WHERE verdicts_ready),\n     hours AS (SELECT DISTINCT step, fraud_in_hour FROM ready),\n     totals AS (SELECT (SELECT SUM(confirmed_fraud) FROM ready) AS confirmed_fraud,\n                       (SELECT SUM(closed_cases) FROM ready) AS checked_cases,\n                       (SELECT SUM(fraud_in_hour) FROM hours) AS all_fraud,\n                       (SELECT COUNT(DISTINCT step) FROM workspace.fraud.model_accuracy_by_hour\n                        WHERE NOT verdicts_ready) AS hours_waiting)\nSELECT confirmed_fraud, checked_cases, all_fraud, hours_waiting,\n       ROUND(try_divide(confirmed_fraud, checked_cases), 3) AS share_flagged_that_were_fraud,\n       ROUND(try_divide(confirmed_fraud, all_fraud), 3) AS share_of_fraud_caught\nFROM totals"
+      "query": "WITH ready AS (SELECT * FROM workspace.fraud.model_accuracy_by_hour WHERE verdicts_ready),\n     hours AS (SELECT DISTINCT step, fraud_in_hour FROM ready),\n     totals AS (SELECT (SELECT SUM(confirmed_fraud) FROM ready) AS confirmed_fraud,\n                       (SELECT SUM(closed_cases) FROM ready) AS checked_cases,\n                       (SELECT SUM(fraud_in_hour) FROM hours) AS all_fraud,\n                       (SELECT hours_waiting FROM workspace.fraud.hours_waiting_for_verdicts) AS hours_waiting)\nSELECT confirmed_fraud, checked_cases, all_fraud, hours_waiting,\n       ROUND(try_divide(confirmed_fraud, checked_cases), 3) AS share_flagged_that_were_fraud,\n       ROUND(try_divide(confirmed_fraud, all_fraud), 3) AS share_of_fraud_caught\nFROM totals"
     }
   ],
   "pages": [

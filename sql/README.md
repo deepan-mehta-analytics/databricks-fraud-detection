@@ -38,12 +38,14 @@ roles (G-06).
   Cloudflare R2. Not wired into the job: Free Edition's serverless compute
   can't resolve the R2 storage domain (measured 2026-10-11).
 - `monitoring/monitoring.sql` — the `monitor` SQL task in `fraud-ingest`
-  (after `gold`). Recreates five plain views — `model_accuracy_by_hour`,
-  `data_freshness`, `rejected_rows_by_reason`, `job_run_times`,
-  `pipeline_update_times` — and re-grants each one straight away. Job and
-  pipeline history comes from `system.lakeflow`, picked by name; minutes
-  come from start and end times because the duration columns read 0 on Free
-  Edition. The fraud label is read only for hours whose verdicts are in.
+  (after `gold`). Recreates six plain views — `model_accuracy_by_hour`,
+  `hours_waiting_for_verdicts`, `data_freshness`, `rejected_rows_by_reason`,
+  `job_run_times`, `pipeline_update_times` — and re-grants each one straight
+  away. Job and pipeline history comes from `system.lakeflow`, picked by
+  name; minutes come from start and end times because the duration columns
+  read 0 on Free Edition. The fraud label is read only for hours whose
+  verdicts are in and whose cases Gold has closed. Grants added by hand to
+  these views are lost at the next run; add them to this file instead.
 - `50_governance.sql` — run once by the owner after the first Gold run: the
   account-name mask and the closed-cases-only row filter (both exempt
   engineers and reviewers), and the group grants (engineers schema-wide,

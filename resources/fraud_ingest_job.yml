@@ -62,7 +62,7 @@ resources:                                        # bundle resources
             warehouse_id: ${var.warehouse_id}     # looked up by name at deploy time
             file:                                 # the SQL file to run
               path: ../sql/gold/gold.sql          # path relative to this file
-        - task_key: monitor                       # rebuild the five monitoring views (ADR 0012)
+        - task_key: monitor                       # rebuild the six monitoring views (ADR 0012)
           depends_on:                             # ordering
             - task_key: gold                      # after alerts and cases are current; can never hurt Gold
           sql_task:                               # runs a SQL file on the SQL warehouse

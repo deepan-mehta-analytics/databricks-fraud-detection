@@ -62,13 +62,17 @@
 - `test_monitoring_sql.py` — text guards on the monitoring SQL: views and
   grants only, each view re-granted at once, every column commented, the
   fraud label read in exactly two job statements behind the 72-hour cutoff,
-  waiting hours empty rather than 0, jobs and the pipeline matched by name
-  with any development-mode prefix stripped, minutes from start and end
-  times grouped per run, no ID columns, and the verification blocks.
+  waiting hours empty rather than 0, an hour ready only once Gold has
+  closed its cases, waiting hours counted from scored hours (so managers
+  see the same count), fraud summed once per hour, jobs and the pipeline
+  matched by name with any development-mode prefix stripped, minutes from
+  start and end times grouped per run, no ID columns, and the verification
+  blocks.
 - `test_dashboards.py` — the two dashboards: committed JSON equals the
   builder's output, each dashboard reads only its audience's views, a
   "How to read it" line per chart, the word-list page, the jargon guard,
-  unique widgets, no identifiers, viewer credentials and group permissions.
+  unique widgets, no identifiers, viewer credentials and group permissions,
+  the waiting counter read from the waiting view, and one bar per hour.
 
 Notebook behavior, the Delta tables, the Silver pipeline and the model
 registry are verified by workspace runs (V1–V6, S1–S6, M1–M8, G1–G11, D1–D10), not by this

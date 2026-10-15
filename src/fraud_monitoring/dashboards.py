@@ -42,7 +42,8 @@ REASON_WORDS: dict[str, str] = {  # Silver rejection codes -> plain words
     "unparsed_value": "A value could not be read",  # rule 8
     "conflicting_duplicate": "Two different records with the same payment ID",  # rule 9
 }  # end REASON_WORDS
-OPERATIONS_SOURCES = frozenset({"alert_cases", "alert_summary_hourly", "model_accuracy_by_hour"})  # all three groups have grants
+OPERATIONS_SOURCES = frozenset({"alert_cases", "alert_summary_hourly", "model_accuracy_by_hour",  # all three groups...
+                                "hours_waiting_for_verdicts"})  # ...have grants on these
 PLATFORM_SOURCES = frozenset({"job_run_times", "pipeline_update_times", "data_freshness", "rejected_rows_by_reason"})  # engineers
 GRID_WIDTH = 6  # AI/BI dashboards lay widgets out on a 6-column grid
 
@@ -155,11 +156,14 @@ REVIEW_OUTCOMES = dataset("review_outcomes", "Review outcomes per hour", sql(  #
     "SELECT step, 'False alarm', false_alarms",  # honest payments
     "FROM workspace.fraud.alert_summary_hourly WHERE closed_cases > 0",  # hours with verdicts
 ))  # end REVIEW_OUTCOMES
-MODEL_BY_HOUR = dataset("model_by_hour", "Model results per hour", sql(  # the two shares per hour
-    "SELECT step AS simulated_hour, model_version,",  # hour and version
-    "       share_flagged_that_were_fraud, share_of_fraud_caught",  # the two shares
+MODEL_BY_HOUR = dataset("model_by_hour", "Model results per hour", sql(  # the two shares per hour (review I2)
+    "SELECT step AS simulated_hour,",  # the hour
+    "       array_join(sort_array(collect_set(CAST(model_version AS STRING))), ' and ') AS model_version,",  # e.g. "3 and 4"
+    "       try_divide(SUM(confirmed_fraud), SUM(closed_cases)) AS share_flagged_that_were_fraud,",  # from counts
+    "       try_divide(SUM(confirmed_fraud), MAX(fraud_in_hour)) AS share_of_fraud_caught",  # fraud counted once
     "FROM workspace.fraud.model_accuracy_by_hour",  # the model view
     "WHERE verdicts_ready",  # waiting hours have no bar, never a zero
+    "GROUP BY step",  # one row per hour, however many model versions
 ))  # end MODEL_BY_HOUR
 MODEL_TOTALS = dataset("model_totals", "Model results so far", sql(  # every hour with verdicts, together (ruling R8)
     "WITH ready AS (SELECT * FROM workspace.fraud.model_accuracy_by_hour WHERE verdicts_ready),",  # hours with verdicts
@@ -167,8 +171,7 @@ MODEL_TOTALS = dataset("model_totals", "Model results so far", sql(  # every hou
     "     totals AS (SELECT (SELECT SUM(confirmed_fraud) FROM ready) AS confirmed_fraud,",  # real fraud flagged
     "                       (SELECT SUM(closed_cases) FROM ready) AS checked_cases,",  # flagged with a verdict
     "                       (SELECT SUM(fraud_in_hour) FROM hours) AS all_fraud,",  # every fraud in those hours
-    "                       (SELECT COUNT(DISTINCT step) FROM workspace.fraud.model_accuracy_by_hour",  # hours...
-    "                        WHERE NOT verdicts_ready) AS hours_waiting)",  # ...still waiting
+    "                       (SELECT hours_waiting FROM workspace.fraud.hours_waiting_for_verdicts) AS hours_waiting)",  # review I1
     "SELECT confirmed_fraud, checked_cases, all_fraud, hours_waiting,",  # the counts
     "       ROUND(try_divide(confirmed_fraud, checked_cases), 3) AS share_flagged_that_were_fraud,",  # 0.139 after run E
     "       ROUND(try_divide(confirmed_fraud, all_fraud), 3) AS share_of_fraud_caught",  # 0.493 after run E
@@ -222,7 +225,7 @@ def operations_dashboard() -> dict[str, Any]:  # "Fraud operations": reviewers, 
 
 
 # ── Platform health: datasets (engineers only) ────────────────
-def _plain_outcome(column: str) -> str:  # SUCCEEDED -> Succeeded, TIMED_OUT -> Timed out, empty -> Still running
+def _plain_outcome(column: str) -> str:  # SUCCEEDED -> Succeeded, TIMED_OUT -> Timed Out, empty -> Still running
     return f"coalesce(initcap(replace({column}, '_', ' ')), 'Still running')"  # SQL expression
 
 
@@ -276,7 +279,8 @@ def platform_dashboard() -> dict[str, Any]:  # "Platform health": engineers only
         (bar("task_minutes", "Minutes per task in each run of fraud-ingest", "task_times", ("run_started_at", "Run started"),  # per task
              ("task_minutes", "Minutes"), color=("task_name", "Task"), x_scale="temporal"), GRID_WIDTH, 5),  # stacked by task
         (how_to_read("task_minutes_how", "Each bar is one run, split into its tasks. The tallest part is "  # the line
-                     "where the time goes."), GRID_WIDTH, 1),  # reading a stacked bar
+                     "where the time goes. The two dashboard refreshes run side by side, so a bar can be "  # review M4
+                     "taller than the run itself."), GRID_WIDTH, 1),  # reading a stacked bar
         (bar("pipeline_minutes", "Minutes the cleaning pipeline itself spent per update", "pipeline_updates",  # per update
              ("update_started_at", "Update started"), ("minutes_taken", "Minutes"),  # axes
              color=("update_kind", "Kind of update"), x_scale="temporal"), GRID_WIDTH, 5),  # by kind

@@ -271,7 +271,7 @@
         {
           "widget": {
             "name": "task_minutes_how",
-            "textbox_spec": "**How to read it:** Each bar is one run, split into its tasks. The tallest part is where the time goes."
+            "textbox_spec": "**How to read it:** Each bar is one run, split into its tasks. The tallest part is where the time goes. The two dashboard refreshes run side by side, so a bar can be taller than the run itself."
           },
           "position": {
             "x": 0,

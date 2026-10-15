@@ -133,3 +133,16 @@ def test_dashboards_use_viewer_credentials_and_group_permissions():  # Review Fo
 def test_dashboard_resources_hold_no_identifiers():  # public repo
     text = DASHBOARD_FILE.read_text(encoding="utf-8")  # the YAML
     assert not re.search(r"[0-9a-f]{16}|[0-9a-f]{8}-[0-9a-f]{4}|@", text)  # no IDs, no emails
+
+
+def test_model_page_counts_waiting_hours_from_the_waiting_view():  # review I1: managers' rows hide waiting hours
+    totals = next(ds for ds in BUILT["fraud_operations"]["datasets"] if ds["name"] == "model_totals")  # the counters
+    assert "FROM workspace.fraud.hours_waiting_for_verdicts" in query_text(totals)  # counted from scored hours
+    assert "NOT verdicts_ready" not in query_text(totals)  # never from the reader's case rows
+
+
+def test_model_bars_have_one_row_per_hour():  # review I2: shares made from counts, whatever the versions
+    by_hour = " ".join(query_text(next(ds for ds in BUILT["fraud_operations"]["datasets"] if ds["name"] == "model_by_hour")).split())
+    assert "GROUP BY step" in by_hour  # one row per hour
+    assert "try_divide(SUM(confirmed_fraud), SUM(closed_cases))" in by_hour  # share 1 from counts
+    assert "try_divide(SUM(confirmed_fraud), MAX(fraud_in_hour))" in by_hour  # share 2: fraud counted once
