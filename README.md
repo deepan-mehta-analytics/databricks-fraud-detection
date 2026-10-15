@@ -39,7 +39,7 @@ account, including taking access away and giving it back.
 [![Databricks](https://img.shields.io/badge/Databricks-Free_Edition-FF3621?style=for-the-badge&logo=databricks&logoColor=white)](https://www.databricks.com/)
 [![Apache Spark](https://img.shields.io/badge/Spark-Structured_Streaming-E25A1C?style=for-the-badge&logo=apachespark&logoColor=white)](https://spark.apache.org/)
 [![Auto Loader](https://img.shields.io/badge/Auto_Loader-cloudFiles-FF3621?style=for-the-badge&logo=databricks&logoColor=white)](https://docs.databricks.com/aws/en/ingestion/cloud-object-storage/auto-loader/)
-[![Delta Lake](https://img.shields.io/badge/Delta_Lake-Bronze_Table-00ADD4?style=for-the-badge)](https://delta.io/)
+[![Delta Lake](https://img.shields.io/badge/Delta_Lake-Bronze_to_Gold-00ADD4?style=for-the-badge)](https://delta.io/)
 [![Unity Catalog](https://img.shields.io/badge/Unity_Catalog-Volumes_%2B_Governance-1B3139?style=for-the-badge&logo=databricks&logoColor=white)](https://docs.databricks.com/aws/en/data-governance/unity-catalog/)
 [![Asset Bundles](https://img.shields.io/badge/Asset_Bundles-Jobs_as_Code-1B3139?style=for-the-badge&logo=databricks&logoColor=white)](https://docs.databricks.com/aws/en/dev-tools/bundles/)
 [![MLflow](https://img.shields.io/badge/MLflow-UC_Model_Registry-0194E2?style=for-the-badge&logo=mlflow&logoColor=white)](https://mlflow.org/)
@@ -124,7 +124,7 @@ stream through **Auto Loader into a Unity Catalog medallion layout**.
 | ☁️ Platform | Databricks Free Edition (serverless) | Compute, jobs, SQL warehouse; limits verified (G-08) |
 | 📥 Ingestion | Auto Loader (`cloudFiles`) | Incremental JSON Lines ingest with schema hints, evolution and rescued data |
 | 🔄 Stream engine | Spark Structured Streaming, `Trigger.AvailableNow` | Batch-style streaming, the trigger serverless supports (G-02) |
-| 🗄️ Storage | Delta Lake | Append-only Bronze table and the release log |
+| 🗄️ Storage | Delta Lake | Append-only Bronze table, release log, scoring decision log, Gold alert log and case table |
 | 🥈 Transformation | Lakeflow declarative pipeline (SQL materialized views, expectations) | Silver: quality rules, quarantine, dedup and strict-past window features, refreshed incrementally on serverless |
 | 🥇 Gold | Databricks SQL: SQL file task on the serverless SQL warehouse, Delta `MERGE` | Append-only alert log, case table and a plain summary view; warehouse found by name at deploy time |
 | 🏛️ Governance | Unity Catalog: schema, 4 Volumes, 3 groups, grants, row filter, column masks, governed tags | Files, checkpoints and tables under one namespace; per-group access proven with a second user (G-06), tag-based policy probed (G-19) |
@@ -354,6 +354,7 @@ databricks-fraud-detection/
 ├── pyproject.toml                 ← pytest config
 ├── requirements-dev.txt           ← pytest, PyYAML, scikit-learn, pandas
 ├── .env.example                   ← placeholder configuration
+├── LICENSE                        ← MIT
 └── PROJECT-STATUS.md              ← phase tracker
 ```
 
@@ -728,7 +729,7 @@ shown.
 - **Quiet hours inflate recall**: 18 of the 72 test hours have fewer than 50 payments, all fraud, so every approach catches those 216 for free. Recall in the 54 full hours is 0.312 for the champion, against 0.493 overall (GAPS §3, M-QUIET)
 - **Invalid JSON loses its text**: a line that is not valid JSON lands in Bronze as one all-null row (its text is lost, and the run succeeds). Silver rejects such a row as `missing_id` onto the rejected shelf, so it is visible there, but the original text cannot be recovered (GAPS §3, V5)
 - **Hourly features and warm-up**: PaySim time is in whole hours, so the features count earlier hours only, never the same hour. The first 24 hours have partial history (GAPS §3, S-HOURS)
-- **SQL logic is not unit-tested in CI**: CI checks the Silver SQL's structure (names, frames, column lists, guards). The logic is proven by the workspace runs against the reference model (GAPS §3, CI-SQL)
+- **SQL logic is not unit-tested in CI**: CI checks the Silver and Gold SQL's structure (names, frames, column lists, insert-only writes, guards). The logic is proven by the workspace runs against the two reference models (GAPS §3, CI-SQL)
 - **Reset needs a manual full refresh**: after a Bronze reset, Silver keeps its old results until someone clicks **Full refresh all** on the pipeline (GAPS §3, S-RESET)
 - **Batch-sized Silver**: materialized views fit 6M rows. At bank scale this would be streaming tables plus a feature store with online lookups (ADR 0008)
 - **No external tables on this tier**: an external table on a Cloudflare R2 bucket was designed (`sql/gold/export.sql`), but Free Edition's serverless compute can't resolve R2's storage domain (measured 2026-10-11), so all tables are managed (G-18)
