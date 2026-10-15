@@ -223,6 +223,62 @@ payments once each, a rerun added none, and after a promotion the next hour's
 
 ---
 
+## ADR 0010 — Gold alert log and case table
+
+**Brief assumed:** a single Gold table,
+`fraud_alerts(transaction_id, fraud_score, risk_level, timestamp)`, filled
+with every payment above a score cut-off, in its own schema per layer.
+**We found:** a fraud team works to a fixed review budget, so a cut-off makes
+the queue swing with traffic. An alert must not change after it is handed out,
+and late files can add payments to an hour that was already alerted. Real
+verdicts arrive days later, and they are a different kind of record (where an
+investigation stands) from the alert itself (what was flagged).
+**We decided:** an append-only log, `fraud_alerts`, holding the top 50 per
+simulated hour (ties go to the smaller ID), with a late-payment rule. A case
+table, `alert_cases`, opens one case per alert and closes it 72 simulated hours
+later with a verdict taken from the label (simulated reviewers). A plain view
+gives managers per-hour totals. All of it is one SQL file task, `gold`, after
+`score`, in the existing `workspace.fraud` schema.
+**Trade-off, stated plainly:** the verdicts are simulated, Gold runs per job
+run rather than per payment, and a truly late payment can't occur in an hourly
+replay, so that rule is proven by tests only.
+**Verified 2026-10-12 and 2026-10-13:** 3,154 alerts over 82 hours and 262
+closed cases, exactly as the local calculator predicted, with 0 missing or
+extra alerts and every verdict matching the label. A rerun wrote 0 rows. A
+held-back hour released late got 50 fresh alerts, and the totals moved to
+3,268 alerts and 412 closed, again matching the calculator.
+→ [ADR 0010](adr/0010-gold-alert-log-and-case-table.md)
+
+---
+
+## ADR 0011 — Governance with groups, masks, a tag policy, and an external export
+
+**Brief assumed:** `GRANT … TO ROLE` statements, dynamic views for personal
+data, and card or device IDs to protect.
+**We found:** grants go to groups, users or service principals; `role` isn't
+a principal type (G-06). PaySim's identifiers are account names, not cards.
+Free Edition can create custom groups and invite a second user (verified
+2026-10-11), and it has the Governed Tags screen that tag-based policies need.
+It can't reach Cloudflare R2 (G-18), the same network limit that blocks
+Kafka.
+**We decided:** three groups (engineers, reviewers, managers). Engineers get a
+schema-wide grant, the other two get grants table by table. A row filter shows
+managers closed cases only, and a column mask shows them `REDACTED` for account
+names. Both functions exempt engineers, and the Gold SQL refuses to run as
+anyone outside that group. A tag-based policy was probed on a scratch table.
+The R2 export is kept in `sql/` as a documented design, not wired into the job.
+**Trade-off, stated plainly:** one person plays every role with one test
+user, the job runs as the owner rather than a service principal, the live
+tables keep per-table masks, and no external table exists.
+**Verified 2026-10-11 and 2026-10-12:** the test user was refused at the
+schema with no group. In `fraud_managers` they saw 262 closed cases with every
+name `REDACTED`, while the owner saw all 3,154 with none. `REVOKE` cut access
+on the next query and `GRANT` restored it. The tag policy masked all 5 scratch
+rows for the test user and none for the owner.
+→ [ADR 0011](adr/0011-governance-groups-masks-and-external-export.md)
+
+---
+
 ## Reading this alongside the code
 
 Every decision above is `Proposed`, not yet `Accepted` — that flip happens

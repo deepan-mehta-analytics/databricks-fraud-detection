@@ -1,8 +1,14 @@
 # Cost Model
 
 Only verified figures appear here. Anything unverified is marked `unverified`
-and tracked in `docs/GAPS.md` (G-08, G-09). No total is quoted until G-08 is
-settled.
+and tracked in `docs/GAPS.md` (G-08).
+
+**Total cost: ₹0 (G-09, 2026-10-15).** Nothing in this project can bill: no
+Confluent account (ADR 0007), no Cloudflare R2 bucket or payment method
+(G-18), Databricks Free Edition only, where going over the daily limit stops
+compute instead of charging (G-08), and GitHub Actions on a public repo. The
+real limit is the daily compute quota, so the tables below track time, not
+money.
 
 ---
 
@@ -36,6 +42,10 @@ cost figure can be attached until the numeric quota is known (G-08).
 | `fraud-ingest` job, first scoring run (release + ingest + silver + score; 1,205,673 payments scored) | 5 m 3 s | job run history | 2026-10-11 |
 | `fraud-ingest` job, rerun with nothing new (0 payments scored) | 8 m 13 s | job run history | 2026-10-11 |
 | `fraud-ingest` job, one drift hour released (6 payments scored) | 5 m 27 s | job run history | 2026-10-11 |
+| `fraud-ingest` run A, first run with the `gold` SQL task (3,154 alerts written) | 4 m 20 s | job run history | 2026-10-12 |
+| `fraud-ingest` run B, nothing new (0 rows written by Gold) | 14 m 52 s: release 46 s, ingest 19 s, silver 11 m 45 s, score 1 m 14 s, gold 42 s | job run history, per-task view | 2026-10-12 |
+| `fraud-ingest` run C, one drift hour released, one held | 5 m 15 s | job run history | 2026-10-13 |
+| `fraud-ingest` run D, one drift hour plus the held one | 4 m 34 s | job run history | 2026-10-13 |
 
 At this size, incremental refresh did not shorten an update: fixed pipeline
 start-up and planning (about 1.5–2 minutes) dominates (GAPS G-15). All of
@@ -47,12 +57,22 @@ time, the pipeline's above all (G-15), is the likely main cost (not timed per
 task).
 The second `fraud-train` run (no label delay) was not timed.
 
+**Gold's share (Phase 5):** the `gold` SQL task took 42 s of run B's
+14 m 52 s on the SQL warehouse (its query history showed 16 queries reading
+15,199,568 rows and writing 0). The Silver pipeline task took 11 m 45 s of the
+same run with nothing new to process, against a whole job of 4 m 20 s on run A
+the same day, so the pipeline's start-up time is the main and most variable
+cost (GAPS G-15). The first warehouse query of a day starts slowly (cold start,
+not timed).
+
 **Daily limit, observed (G-08):** on 2026-10-10 the 4th full `fraud-ingest`
 run of the day was refused with `CLUSTER_CREATION_RESOURCE_EXHAUSTED` after 3
 runs had completed, and the limit also stopped a run on 2026-10-08. On
 2026-10-11, 3 job runs, 3 evaluation notebook runs and a few SQL checks fit.
 So this project plans for about 3 full ingest runs a day. Databricks
-publishes no number or reset time for this limit.
+publishes no number or reset time for this limit. Phase 5 kept to 2 job runs a
+day on 2026-10-12 and 2026-10-13. On 2026-10-11 a 5th job run was refused at
+its Silver task (`RESOURCE_EXHAUSTED`) after 4 had fitted.
 
 ## Unverified inputs
 
@@ -60,7 +80,6 @@ publishes no number or reset time for this limit.
 |---|---|
 | Free Edition numeric quotas (daily compute quota, model-serving endpoint count) | unverified as a number; about 3 full ingest runs a day observed, see G-08 |
 | Whether a Confluent Basic cluster can be paused, and trial reactivation terms | unverified, see G-07 |
-| Total monthly cost (the brief's ₹0–400 claim) | unverified, see G-09 |
 
 ---
 

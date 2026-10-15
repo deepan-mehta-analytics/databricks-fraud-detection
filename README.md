@@ -23,6 +23,12 @@ fraud model is trained on those warning signs and scores every new payment
 after each load. With the same 50 alerts per hour a review team could handle,
 it catches 405 of the 822 frauds in the test period, more than any simpler
 rule, and every score is logged with the model version that made it.
+**Phase 5 is done:** the scores now feed a fraud team's work queue. Each hour's
+50 riskiest payments become alerts that never change once issued, each alert
+opens a case, and cases close three simulated days later with a verdict. Who
+sees what is enforced by the platform itself: managers see only closed cases
+and never a customer's account name. This was proven with a second, real user
+account, including taking access away and giving it back.
 
 ### Streaming fraud detection on a Databricks lakehouse, built in verified steps, measured rather than claimed
 
@@ -38,13 +44,14 @@ rule, and every score is logged with the model version that made it.
 [![Asset Bundles](https://img.shields.io/badge/Asset_Bundles-Jobs_as_Code-1B3139?style=for-the-badge&logo=databricks&logoColor=white)](https://docs.databricks.com/aws/en/dev-tools/bundles/)
 [![MLflow](https://img.shields.io/badge/MLflow-UC_Model_Registry-0194E2?style=for-the-badge&logo=mlflow&logoColor=white)](https://mlflow.org/)
 [![scikit-learn](https://img.shields.io/badge/scikit--learn-1.7.2-F7931E?style=for-the-badge&logo=scikitlearn&logoColor=white)](https://scikit-learn.org/)
+[![Databricks SQL](https://img.shields.io/badge/Databricks_SQL-Warehouse_Tasks-FF3621?style=for-the-badge&logo=databricks&logoColor=white)](https://docs.databricks.com/aws/en/sql/)
 
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![pytest](https://img.shields.io/badge/pytest-145_passing-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white)](tests/README.md)
 [![CI](https://img.shields.io/github/actions/workflow/status/deepan-mehta-analytics/databricks-fraud-detection/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI)](https://github.com/deepan-mehta-analytics/databricks-fraud-detection/actions)
 [![Release](https://img.shields.io/github/v/release/deepan-mehta-analytics/databricks-fraud-detection?style=for-the-badge&logo=github)](https://github.com/deepan-mehta-analytics/databricks-fraud-detection/releases)
-[![Status](https://img.shields.io/badge/Status-Phase_5_Verified_·_Write--up_Next-yellow?style=for-the-badge)](PROJECT-STATUS.md)
-[![Exam coverage](https://img.shields.io/badge/DE_Associate-15%2F33_shown-blue?style=for-the-badge)](docs/exam-guide-map.md)
+[![Status](https://img.shields.io/badge/Status-Phase_5_Done_·_Monitoring_Next-yellow?style=for-the-badge)](PROJECT-STATUS.md)
+[![Exam coverage](https://img.shields.io/badge/DE_Associate-16%2F33_shown-blue?style=for-the-badge)](docs/exam-guide-map.md)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
 ---
@@ -67,7 +74,7 @@ stream through **Auto Loader into a Unity Catalog medallion layout**.
 - **Jobs as code**: a Databricks job (release → ingest → silver, plus a `score` task from Phase 4 and a `gold` SQL task from Phase 5) and the Silver pipeline, declared in an Asset Bundle with shared catalog/schema variables and deployed from the workspace UI, with no token
 - **Guarded parameters**: scenario settings that can't take effect raise an error before any file is copied
 - **Tested and CI-gated**: 145 local unit tests, and a GitHub Actions job running hygiene checks plus tests on every push
-- **Exam-skills coverage map**: every Data Engineer Associate exam item mapped to repo evidence (15 of 33 shown), with short concept notes in [`docs/concepts/`](docs/concepts/)
+- **Exam-skills coverage map**: every Data Engineer Associate exam item mapped to repo evidence (16 of 33 shown), with short concept notes in [`docs/concepts/`](docs/concepts/)
 
 **✅ Implemented and verified (Phase 3: Silver)**
 
@@ -87,16 +94,25 @@ stream through **Auto Loader into a Unity Catalog medallion layout**.
 - **Measured against baselines**: precision and recall at 50 alerts per hour, plus PR-AUC, against "largest amount first", PaySim's old rules and a logistic regression
 - **Label delay measured**: a model trained without the latest 3 days of labels (as a real bank must) is compared with one that saw them
 
+**✅ Implemented and verified (Phase 5: Gold alerts and governance)**
+
+- **Append-only alert log**: a `gold` SQL task on the SQL warehouse writes the top 50 payments per simulated hour, never re-ranks an alerted hour, and handles late payments with a fill-or-beat rule; a rerun writes 0 rows
+- **Case table with verdicts**: one case per alert, closed 72 simulated hours later with a verdict (simulated from the dataset's label, the only Gold statement that reads it)
+- **Managers' summary view**: a plain view of per-hour totals that stores nothing and is always current
+- **Three groups, least privilege**: engineers get a schema-wide grant, reviewers and managers get grants table by table
+- **Row filter and column masks**: managers see closed cases only, with account names `REDACTED`, and the rule holds through the view; proven with a second user, including `REVOKE` and `GRANT`
+- **Tag-based policy probe**: a governed tag and one schema-level policy masked a scratch table, showing ABAC works on Free Edition
+- **Measured limits**: an external table on Cloudflare R2 was designed, but Free Edition can't reach R2, so it is documented, not wired in
+
 **🔜 Planned**
 
-- **Gold and governance** (built 2026-10-11, workspace checks all passed 2026-10-12/13, write-up next): an append-only alert log (top 50 per hour), a case table with simulated verdicts, a managers' summary view, three groups with per-table grants, an account-name mask and a closed-cases-only row filter
 - **Monitoring app**: alert dashboard and job alerting
 
 **🧭 Engineering principles**
 
 - **Research first**: every claim in the original brief is re-verified and logged in [`docs/GAPS.md`](docs/GAPS.md) before adoption
 - **Measured results only**: no number is reported unless it came from a real run
-- **Decisions on record**: nine ADRs in [`docs/adr/`](docs/adr/) capture each choice and what it cost, summarised in [Key Design Choices](#-key-design-choices)
+- **Decisions on record**: eleven ADRs in [`docs/adr/`](docs/adr/) capture each choice and what it cost, summarised in [Key Design Choices](#-key-design-choices)
 - **Cost-disciplined and public-safe**: free tier only, placeholders for every workspace identifier
 
 ---
@@ -110,7 +126,8 @@ stream through **Auto Loader into a Unity Catalog medallion layout**.
 | 🔄 Stream engine | Spark Structured Streaming, `Trigger.AvailableNow` | Batch-style streaming, the trigger serverless supports (G-02) |
 | 🗄️ Storage | Delta Lake | Append-only Bronze table and the release log |
 | 🥈 Transformation | Lakeflow declarative pipeline (SQL materialized views, expectations) | Silver: quality rules, quarantine, dedup and strict-past window features, refreshed incrementally on serverless |
-| 🏛️ Governance | Unity Catalog: schema, 4 Volumes, grants | Files, checkpoints and tables under one namespace; row filters and masks verified (G-06) |
+| 🥇 Gold | Databricks SQL: SQL file task on the serverless SQL warehouse, Delta `MERGE` | Append-only alert log, case table and a plain summary view; warehouse found by name at deploy time |
+| 🏛️ Governance | Unity Catalog: schema, 4 Volumes, 3 groups, grants, row filter, column masks, governed tags | Files, checkpoints and tables under one namespace; per-group access proven with a second user (G-06), tag-based policy probed (G-19) |
 | 💾 Checkpoints | Unity Catalog Volume | DBFS root is deprecated (G-03) |
 | 🤖 ML | scikit-learn 1.7.2, MLflow, Unity Catalog model registry | Gradient-boosted trees vs a logistic baseline, experiment tracking, versioned models with `@champion` / `@challenger` aliases |
 | 🧩 Orchestration | Databricks Jobs + Asset Bundle (`databricks.yml`) | Five-task ingest job (release, ingest, the Silver pipeline task, score, and a `gold` SQL task on the SQL warehouse, found by name at deploy time), an on-demand training job and the pipeline, as code, deployed from the workspace UI (G-11) |
@@ -196,16 +213,31 @@ flowchart LR
     FEAT --> TRAIN
     FEAT --> SCORE
 
-    SCORES -.-> GOLD["🥇 Gold alerts"]
-    GOLD -.-> APP["📊 Monitoring app"]
+    subgraph GOLD["🥇 Gold · gold SQL task · job task 5"]
+        direction TB
+        ALERTS[["fraud_alerts<br/>append-only · top 50 per hour"]]
+        CASES[["alert_cases<br/>open → closed + verdict"]]
+        SUMMARY["alert_summary_hourly<br/>plain view"]
+        ALERTS -->|open a case| CASES
+        CASES --> SUMMARY
+    end
+
+    SCORES -->|insert new only| ALERTS
+    CLEAN -.->|label, when closing| CASES
+
+    GOV{{"🔐 Governance<br/>3 groups · row filter · masks"}}
+    GOV -.-> CASES
+    GOV -.-> ALERTS
+
+    SUMMARY -.-> APP["📊 Monitoring app"]
 
     classDef planned fill:#f5f5f5,stroke:#999,stroke-dasharray:4 3,color:#666
     classDef done fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20
-    class GOLD,APP planned
-    class REL,ING,SPLIT,BRONZE,CHK,CLEAN,REJ,FEAT,TRAIN,REG,SCORE,SCORES done
+    class APP planned
+    class REL,ING,SPLIT,BRONZE,CHK,CLEAN,REJ,FEAT,TRAIN,REG,SCORE,SCORES,ALERTS,CASES,SUMMARY,GOV done
 ```
 
-*Solid lines are built and verified; dashed nodes are planned phases.*
+*Green nodes are built and verified; the grey dashed node is a planned phase. Dotted arrows show the label read when closing cases and where governance applies.*
 
 | Component | Type | Role |
 |---|---|---|
@@ -224,15 +256,21 @@ flowchart LR
 | `05_score_transactions` | Job task 4 | Scores new Silver payments from hour 337 with `@champion` |
 | `transaction_risk_scores` | Delta table | Append-only decision log: score, model version, time and the inputs as seen |
 | `06_promote_model` / `07_evaluate_model` | Notebooks (owner-run) | Move `@champion`; evaluate any version against the baselines |
+| `sql/gold/gold.sql` | Job task 5 (SQL file, SQL warehouse) | Refuses to run outside `fraud_engineers`; adds new alerts, opens cases, closes 72-hour-old cases |
+| `fraud_alerts` | Delta table | Append-only alert log: top 50 per hour, ties to the smaller ID, late alerts flagged |
+| `alert_cases` | Delta table | One case per alert, `open` → `closed` with a verdict; row filter and masks attached |
+| `alert_summary_hourly` | View | Per-hour alerts, closed cases, confirmed fraud and false alarms; stores nothing |
+| `sql/50_governance.sql` | SQL (owner-run once) | Mask and filter functions, attaching them, and the group grants |
+| `sql/52_abac_probe.sql` | SQL (owner-run probe) | Tag-based policy on a 5-row scratch table, then clean-up |
 
 | Phase | Layer | Status |
 |---|---|---|
-| 0 | Research, gaps register, ADRs | 🔄 17 of 18 gaps resolved |
+| 0 | Research, gaps register, ADRs | ✅ 19 of 19 gaps resolved (ADRs proposed, awaiting review) |
 | 1 | Scaffolding, CI | ✅ Done |
 | 2 | Ingest to Bronze | ✅ Verified 2026-09-24 |
 | 3 | Silver and features | ✅ Verified 2026-10-06/07 (S1–S6) |
 | 4 | Training and scoring | ✅ Verified 2026-10-08 to 2026-10-11 (M1–M8) |
-| 5 | Gold alerts and governance | 🔄 Built 2026-10-11 (145 tests, CI green); workspace checks G2–G8 and G11 passed 2026-10-12, late-hour check G10 passed 2026-10-13; write-up next |
+| 5 | Gold alerts and governance | ✅ Verified 2026-10-11 to 2026-10-13 (G1–G11; G9 dropped, R2 unreachable) |
 | 6 | Monitoring app and alerting | ⏳ |
 | 7 | Live demo window and teardown | ⏳ |
 
@@ -300,7 +338,7 @@ databricks-fraud-detection/
 │
 ├── tests/                         ← 145 pytest tests (see tests/README.md)
 ├── docs/
-│   ├── adr/                       ← ADRs 0001–0009
+│   ├── adr/                       ← ADRs 0001–0011
 │   ├── GAPS.md                    ← brief-vs-reality register + accepted limitations
 │   ├── ENGINEERING-DECISIONS.md   ← decision log
 │   ├── cost-model.md              ← free-tier cost tracking
@@ -341,7 +379,8 @@ make help                # lint / deploy / teardown are stubs until their phase 
 
 ### ☁️ Option 2: Databricks Free Edition workspace
 
-This is the path used for the 2026-09-24 (Bronze) and 2026-10-06/07 (Silver)
+This is the path used for the Bronze (2026-09-24), Silver (2026-10-06/07),
+model (2026-10-08 to 2026-10-11) and Gold (2026-10-11 to 2026-10-13)
 verifications. Every step is done by hand in the workspace UI.
 
 1. **Git folder**: Workspace → Home → Create → Git folder → this repo's URL. A public clone needs no token (G-12)
@@ -372,9 +411,11 @@ verifications. Every step is done by hand in the workspace UI.
 13. **Score**: run `fraud-ingest` again. The `score` task scores every unscored Silver payment from hour 337 and prints `Scored N new payments …`. Check it with `sql/40_verify_model.sql`
 14. **Evaluate**: run `notebooks/07_evaluate_model` the same way, with `model_uri` = `models:/workspace.fraud.fraud_model/<version>`. It prints the model's and the baselines' metrics and logs them to the model's MLflow run
 
-15. **Gold and governance** (Phase 5, verified 2026-10-12/13): create the groups `fraud_engineers`, `fraud_reviewers` and `fraud_managers` (Settings → Identity and access → Groups) and add yourself to the first two. Run `fraud-ingest`, whose `gold` task builds the alert log and cases, then run `sql/50_governance.sql` once and check with `sql/53_verify_gold.sql`
+15. **Gold setup**: create the groups `fraud_engineers`, `fraud_reviewers` and `fraud_managers` (Settings → Identity and access → Groups → Add new group to account and workspace) and add yourself to the first two, never to managers: the `gold` task refuses to run unless its identity is an engineer. The bundle finds the SQL warehouse by name (`databricks.yml`, default "Serverless Starter Warehouse"); edit the name if yours differs, then deploy
+16. **Gold**: run `fraud-ingest`. Its `gold` task creates the alert log, the case table and the view on the first run, then adds alerts and closes cases on every run. Print the expected numbers locally with `python scripts/expected_gold.py --csv data/paysim.csv` and compare them with the G3–G5 blocks of `sql/53_verify_gold.sql`
+17. **Governance**: run `sql/50_governance.sql` once, after the first Gold run. To see the rules work, invite a second user, add them to `fraud_managers`, and run the G6-manager block as them; `sql/52_abac_probe.sql` walks through the tag-based policy probe
 
-The daily compute limit fits about 3–4 full job runs (G-08), so spread steps 11–15 over several days if needed.
+The daily compute limit fits about 3–4 full job runs (G-08), so spread steps 11–17 over several days if needed.
 
 ### ⚙️ Option 3: CI (GitHub Actions)
 
@@ -549,6 +590,43 @@ is the 54 full hours, where the budget forces a real choice:
 - The model leans on amount, hour of day and payment type. None of Silver's receiver-history features made the top 5. In PaySim, fraud only appears in TRANSFER and CASH_OUT payments, so the type columns mostly rule fraud out. Hour of day matters because of how PaySim simulates time: in hours 1–336, clock hours 0–7 carry 31% of the fraud but only 1.2% of normal payments.
 - Scores are rankings, not probabilities, because training used all fraud plus a 10% sample of the rest.
 
+### 🥇 Phase 5 Gold and governance, verified 2026-10-11 to 2026-10-13
+
+> Same workspace, code at commit `4222ecc`. Expected values come from a
+> pure-Python calculator (`scripts/expected_gold.py`) run over the same CSV
+> before the workspace runs. Role checks used a second, real user account.
+
+| Gold check | Expected | Measured |
+|---|---|---|
+| G3 alert log after the first Gold run: alerts / distinct / hours / steps / late / duplicate ranks | 3,154 / 3,154 / 82 / 337–418 / 0 / 0 | ✅ exact |
+| G4 alerts are the top 50 per hour, rebuilt from the decision log | 0 missing, 0 extra | ✅ exact |
+| G5 cases: total / closed / open / newest closed hour / verdicts matching the label | 3,154 / 262 / 2,892 / 346 / 262 | ✅ exact |
+| G3b rerun with nothing new, first run under the masks | nothing changes | ✅ 0 rows written |
+| G10 hour 419 held back, then released late | 50 fresh alerts, 0 late, alerted after hour 420; totals 3,268 alerts / 412 closed | ✅ exact |
+| G11 lineage of `alert_cases` | upstream reaches Silver | ✅ `fraud_alerts`, `silver_transactions`, the job |
+
+| Governance check (who ran it) | Expected | Measured |
+|---|---|---|
+| G6b owner (engineer and reviewer) | all 3,154 cases, 0 `REDACTED`; view 3,154 | ✅ exact |
+| G7 test user in no group | refused | ✅ `does not have USE SCHEMA` (42501) |
+| G7b test user in `fraud_managers` | 262 closed cases, 0 open, 0 real names; view 262 | ✅ exact |
+| G7c after `REVOKE SELECT` from `fraud_managers` | refused | ✅ `does not have SELECT on Table`, on the next query |
+| G7d after `GRANT SELECT` again | access back | ✅ 262 |
+| G8 tag-based policy on a scratch table | owner sees names, manager doesn't | ✅ owner real names, test user `REDACTED` ×5 |
+| G9 export to Cloudflare R2 | rows in the bucket | — dropped: R2 unreachable from Free Edition (G-18) |
+
+| Run | Duration |
+|---|---|
+| `fraud-ingest` run A, first Gold run | 4m 20s |
+| `fraud-ingest` run B, nothing new (Silver 11m 45s, Gold 42s) | 14m 52s |
+| `fraud-ingest` runs C and D, one held hour each way | 5m 15s / 4m 34s |
+
+💡 **What the Gold results show.**
+- Every alert and case count matched the calculator exactly, before and after a late hour, so the SQL does what the plain-Python rules say.
+- A row filter follows the reader, not the object: the same summary view counted 3,154 cases for the owner and 262 for a manager.
+- Taking access away worked on the very next query, with no cache to wait out.
+- The Gold task itself is cheap (42 s). The time goes to the Silver pipeline's start-up, even when there is nothing new (G-15).
+
 ---
 
 ## 🧩 Key Design Choices
@@ -579,6 +657,16 @@ the evidence and the alternatives rejected. Full narrative:
 | ML | A decision log that keeps each score's inputs as the model saw them | A later correction to Silver never rewrites a past decision; audits can replay exactly | Retention rules and model-monitoring tables on the log |
 | ML | The fraud label never enters scoring, enforced by a CI text guard | The score must not depend on the answer; checked in the workspace too (0 label columns) | The same, plus schema contracts on the scoring table |
 | ML | No Feature Engineering client and no Spark ML | Silver's features are already point-in-time; Spark ML on serverless has a 100 MB model cap, for no gain at 6M rows | Both, once online lookups or distributed training are needed |
+| Gold | An append-only alert log, not a materialized view ([ADR 0010](docs/adr/0010-gold-alert-log-and-case-table.md)) | An alert is a promise to a reviewer; a materialized view would re-pick the top 50 when late data arrives; a rerun writes 0 rows (measured) | Alerts raised per payment from a stream, into a case-management tool |
+| Gold | A separate case table (current state) next to the log (what happened) | Closing a case must not edit the log; the case's own `status` column keeps the row filter simple enough for `MERGE` | Real reviewers recording verdicts, with an audit trail |
+| Gold | Late payments: fill the hour's room left, else beat its lowest alert | A late fraud still reaches a reviewer without re-ranking alerts already handed out | The same rule, tuned with the fraud-operations team |
+| Gold | Verdicts 72 simulated hours later, on the data's own clock | The same 3-day delay the model was trained with; reruns behave identically | Verdicts from people, arriving on real chargeback timing |
+| Gold | One SQL file task on the SQL warehouse, warehouse found by name | Pure SQL needs no notebook; no warehouse ID ever lands in this public repo | A streaming Gold table or a dedicated warehouse per team |
+| Governance | Three groups; a schema-wide grant for engineers, table-by-table grants for everyone else ([ADR 0011](docs/adr/0011-governance-groups-masks-and-external-export.md)) | Least privilege: a new table stays invisible to managers until someone decides to share it | Groups synced from the company's identity provider (SCIM) |
+| Governance | A row filter and column masks on the tables, not dynamic views | The rule protects the table wherever it is read from, including through the summary view (measured) | Tag-based policies across every schema |
+| Governance | The job identity must be an engineer, checked before any read | A masked job would store `REDACTED` for good; the Gold SQL stops instead | A service principal with its own exempt group |
+| Governance | A tag-based policy probed on a scratch table, live tables kept on per-table masks | ABAC works here (measured), but mixing both on one table is listed as unsupported | Tag policies replacing per-table masks, with tagging automated |
+| Governance | No account names in the designed external export | Files outside Unity Catalog can't be masked (data minimisation); R2 is unreachable here anyway | External tables for auditors, with the same rule |
 | Testing | A pure-Python reference model checks the SQL's results row for row | CI can't run Spark; the workspace runs were compared with an independent calculation | Integration tests on a dev workspace in CI |
 
 ---
@@ -604,6 +692,12 @@ reach for as volume or latency needs grow.
 | Scoring | Millisecond serving endpoint with an online feature store | Scoring at payment time | — (online tables unsupported on Free Edition) |
 | Model lifecycle | Manual promotion between aliases | A person reviews each new version | ✅ |
 | Model lifecycle | Shadow-scored challenger with automated, drift-triggered retraining | Frequent retrains, many models | 🔜 Phase 6 |
+| Alerting | A SQL task after each load, top 50 per hour | Hourly batches, a fixed review team | ✅ |
+| Alerting | A streaming Gold table raising alerts per payment | Alerts needed seconds after payment | — |
+| Access control | Per-table row filters and column masks | A handful of governed tables | ✅ |
+| Access control | Tag-based policies (ABAC) at catalog or schema level | Many tables, new ones added often | 🟡 probed on a scratch table (G-19) |
+| Job identity | The job runs as the owner, an engineer | Single developer | ✅ |
+| Job identity | A service principal in its own exempt group | A team, with audited automation | 🔜 Phase 3 add-on |
 | Environments | One `dev` bundle target with shared variables | Single developer | ✅ |
 | Environments | dev/test/prod targets with CI deploys | A team, with promotion gates | 🔜 Phase 3 add-on |
 
@@ -612,9 +706,9 @@ reach for as volume or latency needs grow.
 ## 🎓 Exam Alignment
 
 This repo doubles as verifiable skills coverage for the **Databricks
-Certified Data Engineer Associate** exam guide: 15 of 33 official items are
-shown with real code or a verified run, 5 more are designed (an ADR or a
-`docs/GAPS.md` row), and 13 are not started. See the full breakdown in
+Certified Data Engineer Associate** exam guide: 16 of 33 official items are
+shown with real code or a verified run, 6 more are designed (an ADR or a
+`docs/GAPS.md` row), and 11 are not started. See the full breakdown in
 [`docs/exam-guide-map.md`](docs/exam-guide-map.md), and the study notes
 building toward it in [`docs/concepts/`](docs/concepts/). This is a skills
 coverage map, not exam prep. Several ✅ rows are partial rather than
@@ -643,7 +737,12 @@ shown.
 - **Synthetic, uneven data**: PaySim is a simulation. Legitimate volume collapses after simulated day 17 while fraud stays constant, so days 1–17 are used for training and scoring, and days 18–31 are held back as a drift scenario (G-10)
 - **Storage duplication**: landing files are kept after ingest, so the data sits in the workspace about three times (CSV, outbox, landing) plus Bronze. There is no stated storage quota; `cleanSource` archiving is not yet implemented
 - **Retry with changed flags**: if a failed release is retried with different scenario flags, a step can land twice; recovery is `99_reset`
-- **Open gaps**: G-09 (cost recompute) in [`docs/GAPS.md`](docs/GAPS.md)
+- **Simulated verdicts**: cases close with the dataset's label as the verdict, 72 simulated hours later; no person reviews anything (GAPS §3, G-SIM)
+- **One person plays every role**: the owner is an engineer and a reviewer, and one test user stands in for a manager and an outsider (GAPS §3, G-ROLES)
+- **The job runs as the owner**, not a service principal; the Gold SQL refuses to run if that identity isn't an engineer (GAPS §3, G-RUNAS)
+- **Late payments shown in tests only**: each replayed hour is one file, so a single payment never arrives after its hour was alerted. The workspace proved a late *hour*; the late-payment rule is proven by the calculator and a SQL guard (GAPS §3, G-LATE)
+- **Tag-based policy on a scratch table only**: the live Gold tables keep per-table masks, because mixing both on one table is listed as unsupported (GAPS §3, G-POLICY)
+- **No open research gaps**: all 19 rows in [`docs/GAPS.md`](docs/GAPS.md) are resolved. The total cost is ₹0 (G-09); the real limit is the unpublished daily compute quota (G-08)
 - **Exam items out of scope for this project**: 2.2 (COPY INTO), 2.4 (Lakeflow Connect) and 2.5 (JDBC/ODBC/REST landing) are not planned — see [`docs/exam-guide-map.md`](docs/exam-guide-map.md) for why
 - **Keyless CI/CD unavailable**: Keyless OIDC deploys from GitHub Actions need a Databricks account console, which Free Edition does not have, so CI deploys will use a stored credential in a protected GitHub environment instead ([docs](https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation-policy), checked 2026-09-27)
 
@@ -651,13 +750,13 @@ shown.
 
 ## 🔜 Roadmap
 
-- [ ] Phase 0: research and ADRs (17 of 18 gaps resolved)
+- [x] Phase 0: research and ADRs (19 of 19 gaps resolved; ADRs proposed, awaiting review)
 - [x] Phase 1: scaffolding and CI
 - [x] Phase 2: ingest to Bronze (44 unit tests at ship; workspace V1–V6 verified 2026-09-24)
 - [x] Phase 3: Silver (quality rules with quarantine, dedup on `transaction_id`, strict-past velocity features; workspace S1–S6 verified 2026-10-06/07)
 - [ ] Phase 3 add-on: dev and prod bundle targets, and CI deploys from a protected GitHub environment (exam items 5.2, 5.4)
 - [x] Phase 4: ML training and batch scoring (champion catches 405 of 822 frauds at 50 alerts per hour; workspace M1–M8 verified 2026-10-08 to 2026-10-11)
-- [ ] Phase 5: Gold alerts and Unity Catalog governance (built 2026-10-11; workspace checks G2–G8 and G11 passed 2026-10-12, G10 passed 2026-10-13; write-up and `v0.4.0` next)
+- [x] Phase 5: Gold alerts and Unity Catalog governance (3,154 then 3,268 alerts, every count matching the calculator; manager access proven with a second user; workspace G1–G11 verified 2026-10-11 to 2026-10-13)
 - [ ] Phase 6: monitoring app and alerting
 - [ ] Phase 7: live demo window and teardown
 - [x] Databricks Data Engineer Associate coverage map
