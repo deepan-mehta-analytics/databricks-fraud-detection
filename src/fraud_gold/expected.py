@@ -4,6 +4,7 @@
 from __future__ import annotations  # modern type hints on 3.11
 
 from collections import Counter     # payments per hour
+from dataclasses import dataclass   # the one-pass tallies
 from typing import Any, Iterable, Mapping, Sequence  # type hints
 
 from fraud_model.windows import ALERT_BUDGET_DEFAULT, LABEL_DELAY_DAYS_DEFAULT, SCORE_FROM_STEP_DEFAULT  # shared rules
@@ -38,6 +39,39 @@ def closing_cutoff(newest_scored_step: int, delay_steps: int = CLOSE_DELAY_STEPS
 
 def closed_cases(alerts: Mapping[int, int], cutoff: int) -> int:  # cases closed at this cutoff
     return sum(n for step, n in alerts.items() if step <= cutoff)  # every alert in a closed hour
+
+
+# ── Monitoring tallies (Phase 6a spec §5.5) ───────────────────
+@dataclass(frozen=True)  # read-only result of one pass over the CSV
+class SilverCounts:  # everything the monitoring printout needs
+    payments: Counter[int]  # clean scored payments per hour
+    fraud: Counter[int]     # fraud among them per hour (only hours with fraud)
+    rejected: Counter[str]  # rows Silver shelves, by reason (identical copies excluded)
+
+
+def silver_counts(judged: Iterable[tuple[str, dict[str, Any]]],  # (verdict, record) pairs from judge()
+                  first_step: int = SCORE_FROM_STEP_DEFAULT) -> SilverCounts:  # first scored hour
+    """Payments, fraud and rejected rows in one pass, so the 6.3M-row CSV is read once."""  # docstring
+    payments: Counter[int] = Counter()  # per hour
+    fraud: Counter[int] = Counter()     # per hour
+    rejected: Counter[str] = Counter()  # per reason
+    for verdict, record in judged:  # every Bronze row with its verdict
+        if verdict == "ok":  # a clean payment
+            if record["step"] >= first_step:  # scored, not training data
+                payments[record["step"]] += 1  # one more payment
+                if record["fraud_label"] == 1:  # it was fraud
+                    fraud[record["step"]] += 1  # one more fraud
+        elif verdict != "duplicate_copy":  # identical copies are removed, not shelved
+            rejected[verdict] += 1  # one more rejected row
+    return SilverCounts(payments, fraud, rejected)  # all three tallies
+
+
+def fraud_with_verdicts(fraud: Mapping[int, int], cutoff: int) -> int:  # fraud in hours whose verdicts are in
+    return sum(n for step, n in fraud.items() if step <= cutoff)  # same rule as the view's 72-hour cutoff
+
+
+def hours_with_verdicts(payments: Mapping[int, int], cutoff: int) -> int:  # hours whose verdicts are in
+    return sum(1 for step in payments if step <= cutoff)  # every scored hour at or before the cutoff
 
 
 # ── Late-alert rule (mirrors gold.sql) ────────────────────────
