@@ -47,10 +47,10 @@ account, including taking access away and giving it back.
 [![Databricks SQL](https://img.shields.io/badge/Databricks_SQL-Warehouse_Tasks-FF3621?style=for-the-badge&logo=databricks&logoColor=white)](https://docs.databricks.com/aws/en/sql/)
 
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
-[![pytest](https://img.shields.io/badge/pytest-145_passing-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white)](tests/README.md)
+[![pytest](https://img.shields.io/badge/pytest-188_passing-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white)](tests/README.md)
 [![CI](https://img.shields.io/github/actions/workflow/status/deepan-mehta-analytics/databricks-fraud-detection/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI)](https://github.com/deepan-mehta-analytics/databricks-fraud-detection/actions)
 [![Release](https://img.shields.io/github/v/release/deepan-mehta-analytics/databricks-fraud-detection?style=for-the-badge&logo=github)](https://github.com/deepan-mehta-analytics/databricks-fraud-detection/releases)
-[![Status](https://img.shields.io/badge/Status-Phase_5_Done_·_Monitoring_Next-yellow?style=for-the-badge)](PROJECT-STATUS.md)
+[![Status](https://img.shields.io/badge/Status-Phase_6a_Monitoring_In_Progress-yellow?style=for-the-badge)](PROJECT-STATUS.md)
 [![Exam coverage](https://img.shields.io/badge/DE_Associate-16%2F33_shown-blue?style=for-the-badge)](docs/exam-guide-map.md)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
@@ -71,9 +71,9 @@ stream through **Auto Loader into a Unity Catalog medallion layout**.
 - **Replayable event stream**: a splitter turns the CSV into 743 hourly JSON Lines files, and a release task drops them into a landing volume a few hours at a time
 - **Auto Loader ingest**: incremental file discovery, pinned schema hints, `addNewColumns` schema evolution, rescued data, and an exactly-once checkpoint on a UC Volume
 - **Staged failure scenarios**: duplicate delivery, late arrival, a new column mid-stream and malformed values, each switched on per run and each proven with a SQL check
-- **Jobs as code**: a Databricks job (release → ingest → silver, plus a `score` task from Phase 4 and a `gold` SQL task from Phase 5) and the Silver pipeline, declared in an Asset Bundle with shared catalog/schema variables and deployed from the workspace UI, with no token
+- **Jobs as code**: a Databricks job (release → ingest → silver, plus a `score` task from Phase 4, a `gold` SQL task from Phase 5, and a `monitor` SQL task with two dashboard refreshes from Phase 6a) and the Silver pipeline, declared in an Asset Bundle with shared catalog/schema variables and deployed from the workspace UI, with no token
 - **Guarded parameters**: scenario settings that can't take effect raise an error before any file is copied
-- **Tested and CI-gated**: 145 local unit tests, and a GitHub Actions job running hygiene checks plus tests on every push
+- **Tested and CI-gated**: 188 local unit tests, and a GitHub Actions job running hygiene checks plus tests on every push
 - **Exam-skills coverage map**: every Data Engineer Associate exam item mapped to repo evidence (16 of 33 shown), with short concept notes in [`docs/concepts/`](docs/concepts/)
 
 **✅ Implemented and verified (Phase 3: Silver)**
@@ -104,9 +104,15 @@ stream through **Auto Loader into a Unity Catalog medallion layout**.
 - **Tag-based policy probe**: a governed tag and one schema-level policy masked a scratch table, showing ABAC works on Free Edition
 - **Measured limits**: an external table on Cloudflare R2 was designed, but Free Edition can't reach R2, so it is documented, not wired in
 
+**🔄 In progress (Phase 6a: monitoring view)**
+
+- **Six plain monitoring views** rebuilt by a `monitor` SQL task after every load: model results per hour, hours still waiting for verdicts, data freshness, rejected rows, and job and pipeline run times read from `system.lakeflow` by name
+- **Two AI/BI dashboards as code**: *Fraud operations* for all three groups (each viewer's own grants, so the row filter and masks apply) and *Platform health* for engineers, built from commented Python and deployed with the bundle; every chart has a plain "How to read it" line and each dashboard ends with a word list
+- **Status**: deployed 2026-10-15; the pre-deploy view checks (412 closed cases, 120 fraud, 72 hours waiting) matched the CSV calculation exactly. The test run and the role checks are next, so no Phase 6a results are reported yet
+
 **🔜 Planned**
 
-- **Monitoring app**: alert dashboard and job alerting
+- **Phase 6b**: job alerting · **Phase 6c**: model monitoring
 
 **🧭 Engineering principles**
 
@@ -130,10 +136,11 @@ stream through **Auto Loader into a Unity Catalog medallion layout**.
 | 🏛️ Governance | Unity Catalog: schema, 4 Volumes, 3 groups, grants, row filter, column masks, governed tags | Files, checkpoints and tables under one namespace; per-group access proven with a second user (G-06), tag-based policy probed (G-19) |
 | 💾 Checkpoints | Unity Catalog Volume | DBFS root is deprecated (G-03) |
 | 🤖 ML | scikit-learn 1.7.2, MLflow, Unity Catalog model registry | Gradient-boosted trees vs a logistic baseline, experiment tracking, versioned models with `@champion` / `@challenger` aliases |
-| 🧩 Orchestration | Databricks Jobs + Asset Bundle (`databricks.yml`) | Five-task ingest job (release, ingest, the Silver pipeline task, score, and a `gold` SQL task on the SQL warehouse, found by name at deploy time), an on-demand training job and the pipeline, as code, deployed from the workspace UI (G-11) |
+| 🧩 Orchestration | Databricks Jobs + Asset Bundle (`databricks.yml`) | Eight-task ingest job (release, ingest, the Silver pipeline task, score, a `gold` and a `monitor` SQL task on the SQL warehouse, found by name at deploy time, then two dashboard refreshes), an on-demand training job, the pipeline and two dashboards, as code, deployed from the workspace UI (G-11) |
+| 📊 Monitoring | AI/BI dashboards (`.lvdash.json` built from Python), plain views over Gold, Silver and `system.lakeflow` | Fraud operations and platform health pages; Phase 6a, deployed, verification in progress |
 | 🔗 Code delivery | Databricks Git folder | Workspace runs use this repo at a known commit (G-12) |
 | 🐍 Language | Python 3.11, SQL | Splitter, release logic, scenario transforms, local Silver and Gold reference models (stdlib only); model code with scikit-learn and pandas; Silver and Gold in SQL |
-| 🧪 Testing | pytest (145 tests), PyYAML | Contract, split, scenarios, release, ingest options, job and pipeline definitions, Silver reference model and SQL guards, model windows, features, metrics, training and scoring, Gold calculator and Gold/governance SQL guards |
+| 🧪 Testing | pytest (188 tests), PyYAML | Contract, split, scenarios, release, ingest options, job and pipeline definitions, Silver reference model and SQL guards, model windows, features, metrics, training and scoring, Gold calculator and Gold/governance SQL guards, monitoring SQL and dashboard guards |
 | ⚙️ CI | GitHub Actions | Hygiene check + unit tests on every push |
 | 📊 Data | PaySim (CC BY-SA 4.0) | Synthetic mobile-money transactions with fraud labels |
 
@@ -229,7 +236,7 @@ flowchart LR
     GOV -.-> CASES
     GOV -.-> ALERTS
 
-    SUMMARY -.-> APP["📊 Monitoring app"]
+    SUMMARY -.-> APP["📊 Dashboards<br/>Phase 6a · verifying"]
 
     classDef planned fill:#f5f5f5,stroke:#999,stroke-dasharray:4 3,color:#666
     classDef done fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20
@@ -237,7 +244,7 @@ flowchart LR
     class REL,ING,SPLIT,BRONZE,CHK,CLEAN,REJ,FEAT,TRAIN,REG,SCORE,SCORES,ALERTS,CASES,SUMMARY,GOV done
 ```
 
-*Green nodes are built and verified; the grey dashed node is a planned phase. Dotted arrows show the label read when closing cases and where governance applies.*
+*Green nodes are built and verified; the grey dashed node is built but still being verified. Dotted arrows show the label read when closing cases and where governance applies.*
 
 | Component | Type | Role |
 |---|---|---|
@@ -262,6 +269,8 @@ flowchart LR
 | `alert_summary_hourly` | View | Per-hour alerts, closed cases, confirmed fraud and false alarms; stores nothing |
 | `sql/50_governance.sql` | SQL (owner-run once) | Mask and filter functions, attaching them, and the group grants |
 | `sql/52_abac_probe.sql` | SQL (owner-run probe) | Tag-based policy on a 5-row scratch table, then clean-up |
+| `sql/monitoring/monitoring.sql` | Job task 6 (SQL file, SQL warehouse) | Recreates and re-grants six plain monitoring views; stores nothing (Phase 6a) |
+| `refresh_operations` / `refresh_platform` | Job tasks 7–8 (dashboard tasks) | Refresh the two dashboards after the views are rebuilt (Phase 6a) |
 
 | Phase | Layer | Status |
 |---|---|---|
@@ -271,7 +280,7 @@ flowchart LR
 | 3 | Silver and features | ✅ Verified 2026-10-06/07 (S1–S6) |
 | 4 | Training and scoring | ✅ Verified 2026-10-08 to 2026-10-11 (M1–M8) |
 | 5 | Gold alerts and governance | ✅ Verified 2026-10-11 to 2026-10-13 (G1–G11; G9 dropped, R2 unreachable) |
-| 6 | Monitoring app and alerting | ⏳ |
+| 6 | Monitoring view (6a), alerting (6b), model monitoring (6c) | 🔄 6a deployed 2026-10-15, workspace checks in progress |
 | 7 | Live demo window and teardown | ⏳ |
 
 ---
@@ -296,9 +305,11 @@ databricks-fraud-detection/
 │   ├── scoring.py                 ← scoring decision-log schema and rows
 │   └── runtime.py                 ← library-version and "no model yet" guards
 ├── src/fraud_silver/expected.py   ← local Silver reference model (expected counts and features)
-├── src/fraud_gold/expected.py     ← local Gold reference model (alerts per hour, closed cases, late-alert rule)
+├── src/fraud_gold/expected.py     ← local Gold reference model (alerts per hour, closed cases, late-alert rule, monitoring tallies)
+├── src/fraud_monitoring/dashboards.py ← the two dashboards as commented Python (pages, charts, plain words)
 ├── scripts/expected_silver.py     ← prints the expected Silver numbers from data/paysim.csv
-├── scripts/expected_gold.py       ← prints the expected Gold numbers from data/paysim.csv
+├── scripts/expected_gold.py       ← prints the expected Gold numbers from data/paysim.csv (--monitoring for Phase 6a)
+├── scripts/build_dashboards.py    ← writes dashboards/*.lvdash.json from the builder
 │
 ├── pipelines/                     ← Lakeflow pipeline sources (see pipelines/README.md)
 │   └── silver/
@@ -328,15 +339,21 @@ databricks-fraud-detection/
 │   ├── 50_governance.sql          ← mask, row filter and group grants (run once)
 │   ├── 51_export_setup.sql        ← external table setup for a workspace that can reach R2
 │   ├── 52_abac_probe.sql          ← tag-based policy probe on a scratch table
-│   └── 53_verify_gold.sql         ← Gold checks G3–G10
+│   ├── 53_verify_gold.sql         ← Gold checks G3–G10
+│   ├── monitoring/monitoring.sql  ← job task: six plain monitoring views, re-granted
+│   ├── 60_probe_system_tables.sql ← system.lakeflow probe record
+│   └── 61_verify_monitoring.sql   ← monitoring checks D3a–D8
+│
+├── dashboards/                    ← generated AI/BI dashboards: fraud_operations, platform_health
 │
 ├── resources/
-│   ├── fraud_ingest_job.yml       ← job: release → ingest → silver → score → gold, retries, paused schedule
+│   ├── fraud_ingest_job.yml       ← job: release → ingest → silver → score → gold → monitor → 2 dashboard refreshes, retries, paused schedule
+│   ├── fraud_dashboards.yml       ← the two dashboards, viewer credentials, group permissions
 │   ├── fraud_train_job.yml        ← on-demand training job
 │   └── fraud_silver_pipeline.yml  ← Silver Lakeflow pipeline (serverless, triggered)
 ├── databricks.yml                 ← Asset Bundle root (dev target, catalog/schema variables, warehouse lookup)
 │
-├── tests/                         ← 145 pytest tests (see tests/README.md)
+├── tests/                         ← 188 pytest tests (see tests/README.md)
 ├── docs/
 │   ├── adr/                       ← ADRs 0001–0011
 │   ├── GAPS.md                    ← brief-vs-reality register + accepted limitations
@@ -347,7 +364,7 @@ databricks-fraud-detection/
 │   ├── concepts/                  ← short plain-English notes for each shown skill
 │   └── 00-initial-brief.md        ← original non-binding brief
 │
-├── app/                           ← monitoring app (Phase 6)
+├── app/                           ← reserved: Phase 6a uses AI/BI dashboards instead
 ├── data/                          ← local datasets (gitignored)
 ├── .github/workflows/ci.yml       ← hygiene + unit-test jobs
 ├── Makefile                       ← check-hygiene, test (lint/deploy/teardown: honest stubs)
@@ -373,7 +390,7 @@ python -m pip install -r requirements-dev.txt
 
 #### 2. Run the checks
 ```bash
-python -m pytest -q      # 145 unit tests (or: make test)
+python -m pytest -q      # 188 unit tests (or: make test)
 make check-hygiene       # no local-only or secret file is tracked
 make help                # lint / deploy / teardown are stubs until their phase lands
 ```
@@ -429,7 +446,7 @@ pytest).
 ## 🧪 Tests
 
 ```bash
-python -m pytest -q      # → 145 passed
+python -m pytest -q      # → 188 passed
 ```
 
 | File | What it covers |
@@ -440,7 +457,7 @@ python -m pytest -q      # → 145 passed
 | `test_release_core.py` | Backfill-first, K-per-run pacing, crash/resume repair, parameter validation, batched logging |
 | `test_release_scenarios.py` | Duplicate, late, schema-change and malformed scenarios as applied by `run_release` |
 | `test_ingest.py` | Auto Loader option construction; module imports without PySpark |
-| `test_job_definition.py` | Bundle YAML: task graph (including the `gold` SQL task on the warehouse found by name), retry, schedule, parameter list, Silver pipeline, shared catalog/schema; the model notebooks install the same pinned scikit-learn first |
+| `test_job_definition.py` | Bundle YAML: task graph (including the `gold` and `monitor` SQL tasks on the warehouse found by name and the two dashboard refreshes), retry, schedule, parameter list, Silver pipeline, shared catalog/schema; the model notebooks install the same pinned scikit-learn first |
 | `test_silver_expected.py` | Silver reference model: verdict rules, duplicate ranking, Bronze simulation, strict-past features, CLI |
 | `test_silver_sql.py` | Text guards on the pipeline SQL: private view, expectations, fixed columns, strict-past frames |
 | `test_model_windows.py` | Training and comparison windows for a 3-day and a 0-day label delay |
@@ -451,6 +468,8 @@ python -m pytest -q      # → 145 passed
 | `test_model_runtime.py` | Only "not found" skips scoring; MLflow 3 and matching scikit-learn versions required |
 | `test_gold_expected.py` | Gold calculator: alerts capped at 50 per hour, closing cutoff 72 hours back, closed cases, the late-alert rule for one payment and for a batch |
 | `test_gold_sql.py` | Gold and governance SQL guards: insert-only alert log, tie-break, late rule, label read only when closing cases, run-as check, names from Silver, masks and filter exempting trusted groups, per-table grants, no real storage path or account ID in tracked files |
+| `test_monitoring_sql.py` | Monitoring SQL guards: views and grants only, every column commented, the label read only behind the 72-hour clock, an hour ready only once Gold closed it, waiting hours counted for every reader, fraud summed once per hour, jobs matched by name, no ID columns |
+| `test_dashboards.py` | The two dashboards: committed JSON equals the builder, only each audience's views, a "How to read it" line per chart, a word list, a jargon guard, full table column settings, UTC time labels, viewer credentials and group permissions |
 
 Notebook behaviour, the Delta tables and Auto Loader itself are verified by
 workspace runs (V1–V6, S1–S6 for Silver, M1–M8 for the model, G1–G11 for Gold), not by this local suite. File-by-file detail is in
@@ -758,7 +777,7 @@ shown.
 - [ ] Phase 3 add-on: dev and prod bundle targets, and CI deploys from a protected GitHub environment (exam items 5.2, 5.4)
 - [x] Phase 4: ML training and batch scoring (champion catches 405 of 822 frauds at 50 alerts per hour; workspace M1–M8 verified 2026-10-08 to 2026-10-11)
 - [x] Phase 5: Gold alerts and Unity Catalog governance (3,154 then 3,268 alerts, every count matching the calculator; manager access proven with a second user; workspace G1–G11 verified 2026-10-11 to 2026-10-13)
-- [ ] Phase 6: monitoring app and alerting
+- [ ] Phase 6: monitoring view (6a: built and deployed 2026-10-15, workspace checks in progress), alerting (6b), model monitoring (6c)
 - [ ] Phase 7: live demo window and teardown
 - [x] Databricks Data Engineer Associate coverage map
 

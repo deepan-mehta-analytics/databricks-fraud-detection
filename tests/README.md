@@ -1,6 +1,6 @@
 # tests/
 
-`python -m pytest -q` runs 179 tests, all local (no Databricks needed):
+`python -m pytest -q` runs 188 tests, all local (no Databricks needed):
 
 - `test_contract.py` — segment boundaries, file naming, transaction ID and
   timestamp derivation, schema hints, volume paths.
