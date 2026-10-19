@@ -4,33 +4,33 @@
 
 Mobile-money apps move millions of payments a day, and a small share of them
 are fraud. This project builds the system a bank's data team would use to
-catch it. Transactions flow in continuously, get cleaned and organised, are
-scored by a machine-learning model, and suspicious ones surface as alerts on
-a dashboard. Everything runs on **Databricks**, the data platform many large
-companies use for this work, using only its free tier.
-
-The build is done in phases, and each phase is proven with real runs before
-the next begins. **Phase 2 is done:** about 6 million simulated transactions
-were streamed into the platform and checked against their expected counts.
-Every count matched exactly. The runs included deliberately staged problems:
-a file sent twice, a file that arrived late, a new column appearing
-mid-stream, and corrupted values. **Phase 3 is done:** those transactions
-are now checked against quality rules, copies are removed, bad rows are set
-aside with the reason, and each payment gets warning signs, such as how many
-payments its receiving account got in the previous 24 hours. Every count
-again matched an independent calculation exactly. **Phase 4 is done:** a
-fraud model is trained on those warning signs and scores every new payment
-after each load. With the same 50 alerts per hour a review team could handle,
-it catches 405 of the 822 frauds in the test period, more than any simpler
-rule, and every score is logged with the model version that made it.
-**Phase 5 is done:** the scores now feed a fraud team's work queue. Each hour's
-50 riskiest payments become alerts that never change once issued, each alert
-opens a case, and cases close three simulated days later with a verdict. Who
-sees what is enforced by the platform itself: managers see only closed cases
-and never a customer's account name. This was proven with a second, real user
-account, including taking access away and giving it back.
+catch it, on **Databricks** (the data platform many large companies use for
+this work) using only its free tier.
 
 ### Streaming fraud detection on a Databricks lakehouse, built in verified steps, measured rather than claimed
+
+#### 🔁 How it works
+
+- 📥 **Transactions flow in continuously** — a live stream of simulated mobile-money payments
+- 🧹 **Cleaned and organised** — checked against quality rules, with copies removed
+- 🤖 **Scored by a machine-learning model** — every new payment, after each load
+- 🚨 **Suspicious ones become alerts** — surfaced on a dashboard for a fraud team
+
+#### ✅ Built in phases, each proven with real runs
+
+- 📥 **Phase 2 — Ingest (done)** — about **6 million** simulated transactions streamed in, and **every count matched exactly**
+  - Deliberately staged problems were included: a file sent twice, a file that arrived late, a new column appearing mid-stream, and corrupted values
+- 🧹 **Phase 3 — Clean (done)** — payments checked against quality rules, copies removed, and bad rows set aside with the reason
+  - Each payment gets warning signs, such as how many payments its receiving account got in the previous 24 hours
+  - Every count again matched an independent calculation exactly
+- 🤖 **Phase 4 — Score (done)** — a fraud model trained on those warning signs scores every new payment after each load
+  - With the same **50 alerts per hour** a review team could handle, it catches **405 of the 822 frauds** in the test period, more than any simpler rule
+  - Every score is logged with the model version that made it
+- 🗂️ **Phase 5 — Alerts and access (done)** — each hour's 50 riskiest payments become alerts that never change once issued
+  - Each alert opens a case, and cases close three simulated days later with a verdict
+  - Who sees what is enforced by the platform itself: managers see only closed cases and never a customer's account name
+  - Proven with a second, real user account, including taking access away and giving it back
+- 📊 **Phase 6a — Monitoring (in progress)** — model, data-freshness and job-health views are deployed; results are reported once their checks finish
 
 ---
 
