@@ -203,13 +203,14 @@ MODEL_TOTALS = dataset("model_totals", "Model results so far", sql(  # every hou
 # ── Fraud operations: pages ───────────────────────────────────
 def operations_dashboard() -> dict[str, Any]:  # "Fraud operations": reviewers, managers, engineers
     queue = page("queue", "What is waiting for review?",  # page 1
-        (counter("open_count", "Open cases waiting for a verdict", "open_case_count", ("open_cases", "Open cases")), GRID_WIDTH, 2),  # total
+        (counter("open_count", "Open cases you can see, waiting for a verdict", "open_case_count", ("open_cases", "Open cases")), GRID_WIDTH, 2),  # the reader's own count (D8)
         (table("open_table", "Open cases, newest hour first, most suspicious first", "open_cases", [  # the queue
             ("simulated_hour", "Simulated hour", "integer"), ("risk_score", "Risk score", "float"), ("payment", "Payment", "string"),  # what
             ("paying_account", "Paying account", "string"), ("receiving_account", "Receiving account", "string"),  # who
             ("case_opened_at", "Case opened at (UTC)", "datetime")]), GRID_WIDTH, 8),  # when
-        (how_to_read("open_how", "Each row is one flagged payment still waiting for its verdict. If you may not see "  # the line
-                     "open cases, the table is empty. If you may not see account names, they show as REDACTED."), GRID_WIDTH, 1),  # masks
+        (how_to_read("open_how", "Each row is one flagged payment still waiting for its verdict. Managers see 0 and an "  # the line
+                     "empty table here: open cases are shown to reviewers and engineers only. "  # row filter, explained (D8)
+                     "Anyone who may not see account names sees REDACTED."), GRID_WIDTH, 1),  # masks
     )  # end queue
     outcomes = page("outcomes", "How did the reviews turn out?",  # page 2
         (bar("outcomes_bar", "Confirmed fraud and false alarms per simulated hour", "review_outcomes",  # stacked bars
@@ -292,7 +293,8 @@ def platform_dashboard() -> dict[str, Any]:  # "Platform health": engineers only
         (bar("run_minutes", "Minutes per job run", "job_runs", ("run_started_at", "Run started (UTC)"),  # per run
              ("minutes_taken", "Minutes"), color=("job_name", "Job"), x_scale="temporal"), GRID_WIDTH, 5),  # by job
         (how_to_read("run_minutes_how", "Each bar is one run, placed at the time it started. Taller means slower. "  # the line
-                     "A run shows up here up to an hour after it finishes."), GRID_WIDTH, 1),  # system table lag (ruling R3)
+                     "Databricks records a run up to an hour after it ends, but the job refreshes this page as it ends, "  # system table lag (R3)
+                     "so its newest run is missing until you click Refresh an hour later."), GRID_WIDTH, 1),  # D7: in-job refresh is one run behind
         (table("run_table", "Every job run and how it ended", "job_runs", [  # the run list
             ("job_name", "Job", "string"), ("run_started_at", "Started (UTC)", "datetime"), ("minutes_taken", "Minutes", "float"),  # what and how long
             ("outcome", "How it ended", "string")]), GRID_WIDTH, 5),  # result

@@ -1,6 +1,6 @@
 # tests/
 
-`python -m pytest -q` runs 189 tests, all local (no Databricks needed):
+`python -m pytest -q` runs 191 tests, all local (no Databricks needed):
 
 - `test_contract.py` — segment boundaries, file naming, transaction ID and
   timestamp derivation, schema hints, volume paths.
@@ -74,7 +74,9 @@
   unique widgets, no identifiers, viewer credentials and group permissions,
   the waiting counter read from the waiting view, one bar per hour, and
   tables carrying the full column settings Databricks exports (minimal
-  columns showed "Invalid widget definition" at D3).
+  columns showed "Invalid widget definition" at D3), plus the wording that
+  explains a manager's empty queue (D8) and the job refresh missing its own
+  run until a manual Refresh (D7).
 
 Notebook behavior, the Delta tables, the Silver pipeline and the model
 registry are verified by workspace runs (V1–V6, S1–S6, M1–M8, G1–G11, D1–D10), not by this

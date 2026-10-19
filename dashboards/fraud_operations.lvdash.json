@@ -54,7 +54,7 @@
               "widgetType": "counter",
               "frame": {
                 "showTitle": true,
-                "title": "Open cases waiting for a verdict"
+                "title": "Open cases you can see, waiting for a verdict"
               },
               "encodings": {
                 "value": {
@@ -303,7 +303,7 @@
         {
           "widget": {
             "name": "open_how",
-            "textbox_spec": "**How to read it:** Each row is one flagged payment still waiting for its verdict. If you may not see open cases, the table is empty. If you may not see account names, they show as REDACTED."
+            "textbox_spec": "**How to read it:** Each row is one flagged payment still waiting for its verdict. Managers see 0 and an empty table here: open cases are shown to reviewers and engineers only. Anyone who may not see account names sees REDACTED."
           },
           "position": {
             "x": 0,

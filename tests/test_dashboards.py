@@ -190,3 +190,20 @@ def test_model_bars_have_one_row_per_hour():  # review I2: shares made from coun
     assert "GROUP BY step" in by_hour  # one row per hour
     assert "try_divide(SUM(confirmed_fraud), SUM(closed_cases))" in by_hour  # share 1 from counts
     assert "try_divide(SUM(confirmed_fraud), MAX(fraud_in_hour))" in by_hour  # share 2: fraud counted once
+
+
+def page_text(key: str, title: str) -> str:  # every string a viewer reads on one page
+    page = next(p for p in BUILT[key]["pages"] if p["displayName"] == title)  # the page
+    return " ".join(visible_text({"pages": [page]}))  # its titles, labels and text lines
+
+
+def test_queue_page_tells_managers_why_it_is_empty():  # D8: a manager's 0 and "No data" looked broken
+    text = page_text("fraud_operations", "What is waiting for review?")  # the queue page
+    assert "Open cases you can see" in text  # the counter says it counts the reader's own view
+    assert "Managers see 0 and an empty table here" in text  # the empty state is explained, not a fault
+
+
+def test_job_page_says_the_job_refresh_misses_its_own_run():  # D7: the in-job refresh ran before the run was recorded
+    text = page_text("platform_health", "Are the jobs healthy?")  # the jobs page
+    assert "up to an hour after it finishes." not in text  # the old line was only true after a manual refresh
+    assert "click Refresh" in text  # how to see the newest run

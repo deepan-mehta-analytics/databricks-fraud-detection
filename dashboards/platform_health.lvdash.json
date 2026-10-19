@@ -110,7 +110,7 @@
         {
           "widget": {
             "name": "run_minutes_how",
-            "textbox_spec": "**How to read it:** Each bar is one run, placed at the time it started. Taller means slower. A run shows up here up to an hour after it finishes."
+            "textbox_spec": "**How to read it:** Each bar is one run, placed at the time it started. Taller means slower. Databricks records a run up to an hour after it ends, but the job refreshes this page as it ends, so its newest run is missing until you click Refresh an hour later."
           },
           "position": {
             "x": 0,
