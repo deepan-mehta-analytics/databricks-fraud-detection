@@ -62,4 +62,5 @@ roles (G-06).
   2026-10-15) and the column checks behind the monitoring views.
 - `61_verify_monitoring.sql` — the monitoring checks D3a and D5–D8, with
   expected values from `scripts/expected_gold.py --monitoring` inline,
-  including a block for the test user in `fraud_managers`.
+  including a block for the test user in `fraud_managers`. D5–D8 each
+  return one row ending in `all_as_expected`, so one Run shows the check.

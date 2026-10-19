@@ -1,6 +1,6 @@
 # tests/
 
-`python -m pytest -q` runs 188 tests, all local (no Databricks needed):
+`python -m pytest -q` runs 189 tests, all local (no Databricks needed):
 
 - `test_contract.py` — segment boundaries, file naming, transaction ID and
   timestamp derivation, schema hints, volume paths.
@@ -66,8 +66,8 @@
   closed its cases, waiting hours counted from scored hours (so managers
   see the same count), fraud summed once per hour, jobs and the pipeline
   matched by name with any development-mode prefix stripped, minutes from
-  start and end times grouped per run, no ID columns, and the verification
-  blocks.
+  start and end times grouped per run, no ID columns, the verification
+  blocks, and one-row after-run checks each ending in `all_as_expected`.
 - `test_dashboards.py` — the two dashboards: committed JSON equals the
   builder's output, each dashboard reads only its audience's views, a
   "How to read it" line per chart, the word-list page, the jargon guard,
