@@ -174,3 +174,20 @@ def test_verification_covers_every_check_and_reads_the_model_view_as_manager(): 
     manager = text.split("-- ── D8", 1)[1]  # the manager block
     assert "FROM workspace.fraud.model_accuracy_by_hour" in manager  # the filter must apply through the view
     assert "FROM workspace.fraud.job_run_times" in manager  # engineers-only view: must be refused
+
+
+def block(name: str) -> list[str]:  # the statements of one verification block, comments removed
+    body = VERIFY.read_text(encoding="utf-8").split(f"-- ── {name}:", 1)[1].split("\n-- ── ", 1)[0]  # up to the next block
+    body = body.split("\n", 1)[1]  # drop the rest of the header line (no longer behind its --)
+    return statements("\n".join(line.split("--", 1)[0] for line in body.splitlines()))  # code only
+
+
+def test_after_run_checks_each_return_one_row_with_a_verdict():  # owner feedback 2026-10-15: one Run, one row
+    for name in ("D5", "D6", "D7"):  # the checks after run E
+        found = block(name)  # its statements
+        assert len(found) == 1, name  # a single Run shows the whole check
+        assert found[0].endswith("AS all_as_expected FROM result"), name  # last column says whether every value matched
+    manager = block("D8")  # the test user's check
+    assert len(manager) == 2, "D8"  # one row, then the statement that must be refused (an error stops a query)
+    assert manager[0].endswith("AS all_as_expected FROM result"), "D8"  # the row has the verdict too
+    assert "FROM workspace.fraud.job_run_times" in manager[1], "D8"  # the refused one stays on its own
