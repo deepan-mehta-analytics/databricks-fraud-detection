@@ -108,7 +108,7 @@ stream through **Auto Loader into a Unity Catalog medallion layout**.
 
 - **Six plain monitoring views** rebuilt by a `monitor` SQL task after every load: model results per hour, hours still waiting for verdicts, data freshness, rejected rows, and job and pipeline run times read from `system.lakeflow` by name
 - **Two AI/BI dashboards as code**: *Fraud operations* for all three groups (each viewer's own grants, so the row filter and masks apply) and *Platform health* for engineers, built from commented Python and deployed with the bundle; every chart has a plain "How to read it" line and each dashboard ends with a word list
-- **Status**: deployed 2026-10-15; the pre-deploy view checks (412 closed cases, 120 fraud, 72 hours waiting) matched the CSV calculation exactly. The test run and the role checks are next, so no Phase 6a results are reported yet
+- **Status**: deployed 2026-10-15; the pre-deploy view checks (412 closed cases, 120 fraud, 72 hours waiting) matched the CSV calculation exactly. On 2026-10-19 the test run (17m 9s, all 8 tasks green) and the after-run number checks also matched exactly; the run-history and role checks are next, so Phase 6a results are reported once they finish
 
 **🔜 Planned**
 

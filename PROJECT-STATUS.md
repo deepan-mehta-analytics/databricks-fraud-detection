@@ -66,7 +66,11 @@ first deploy showed every table widget as invalid, fixed with the full column
 settings Databricks exports (`e4a84d3`), plus UTC labels (`a47286a`). Workspace
 checks D3a (views on today's data: 412 / 120 / 13 / 72, all equal to the CSV
 calculation) and D3 (deploy, 8-task graph, both dashboards render) passed.
-Next: D4 test run, then D5–D10 and the write-up (`v0.5.0`). (as of 2026-10-15)
+On 2026-10-19 the test run (run E, 59 drift hours to hour 480) took 17m 9s
+with all 8 tasks green, and the Gold and view checks D5–D6 (5,033 alerts,
+405 of 822 frauds caught, 72 hours waiting) equalled the CSV calculation;
+both dashboard refreshes succeeded (D9). Next: D7 run history, D8 manager
+check, D10 screenshots, then the write-up (`v0.5.0`). (as of 2026-10-19)
 
 ## Phase status
 
@@ -80,7 +84,7 @@ Provisional — to be replaced by the real plan once Phase 0 research lands.
 | 3 — Silver + velocity features | ✅ Done | Lakeflow pipeline of 4 SQL materialized views (quality verdicts, clean table, rejected shelf, strict-past receiver features), ADR 0008; 79 local tests; workspace checks S1–S6 all passed 2026-10-06/07 (counts, quality, features three-way identical, late-file recalculation, incremental refresh measured). The Phase 3 add-on (dev/prod targets, CI deploy) is still open |
 | 4 — ML training + batch scoring | ✅ Done | scikit-learn model (gradient-boosted trees vs a logistic baseline), MLflow + Unity Catalog registry aliases, `score` job task with a decision log, ADR 0009; 117 local tests; workspace M1–M8 passed 2026-10-08 to 2026-10-11 (1,205,673 payments scored once each; champion 405 of 822 frauds caught at 50 alerts per hour); README Model Summary |
 | 5 — Gold alerts + Unity Catalog governance | ✅ Done | Gold SQL task (append-only alerts, cases, summary view), governance SQL (mask, row filter, per-table grants), ABAC probe, local Gold calculator; 145 local tests; final review fixed (run-as guard, view check); workspace G1 passed 2026-10-11 (groups, test user, warehouse lookup), R2 export dropped (blocked, G-18); G2–G8 and G11 passed 2026-10-12 (alerts, cases, rerun, grants, mask, row filter, REVOKE, ABAC policy, lineage); G10 (late hour) passed 2026-10-13; ADRs 0010–0011, README Gold Results, `v0.4.0` 2026-10-15 |
-| 6 — Monitoring view (6a), job alerting (6b), model monitoring (6c) | 🔄 In progress | 6a: `monitor` SQL task with six plain views and two AI/BI dashboards as code (Fraud operations for all three groups, Platform health for engineers); 189 local tests; deployed 2026-10-15; D3a and D3 passed; D4–D10 (test run, numbers, role checks, screenshots) next |
+| 6 — Monitoring view (6a), job alerting (6b), model monitoring (6c) | 🔄 In progress | 6a: `monitor` SQL task with six plain views and two AI/BI dashboards as code (Fraud operations for all three groups, Platform health for engineers); 189 local tests; deployed 2026-10-15; D3a, D3, D4 (test run), D5–D6 (numbers) and D9 (refreshes) passed; D7, D8 (role check) and D10 (screenshots) next |
 | 7 — Live demo window + teardown | ⏳ Pending | |
 
 ## Exam coverage
