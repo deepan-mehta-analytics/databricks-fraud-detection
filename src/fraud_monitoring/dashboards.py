@@ -505,7 +505,7 @@ def platform_dashboard() -> dict[str, Any]:  # "Platform health": engineers only
              color=("outcome", "How it ended"), values=OUTCOMES, x_scale="categorical"), GRID_WIDTH, 6),  # by result
         (bar("newest_tasks", "Where the time went in the newest run", "newest_run_tasks", ("task_name", "Task"),  # per task
              ("task_minutes", "Minutes"),  # across
-             "Each bar is one task of the newest run, longest first. The slowest task is in full blue. "  # the sentence
+             "Each bar is one task of the newest run; the slowest task is in full blue. "  # the sentence
              "The two dashboard refreshes run side by side, so the tasks can add up to more than the run.",  # review M4
              color=("task_kind", "Task"), values=("Slowest task", "Other tasks"), x_scale="categorical",  # highlight one
              horizontal=True, sort_by_value=True), GRID_WIDTH, 5),  # sorted bars
@@ -549,7 +549,7 @@ def platform_dashboard() -> dict[str, Any]:  # "Platform health": engineers only
                "One row for the picked run; every run while none is picked.", RUN_RULES), GRID_WIDTH, 3),  # what it shows
         (bar("detail_tasks", "Where the time went in this run", "task_times", ("task_name", "Task"),  # per task
              ("task_minutes", "Minutes"),  # across
-             "Each bar is one task of the picked run, longest first. With no run picked it shows each task's "  # the sentence
+             "Each bar is one task of the picked run; the longest bar is where the time went. With no run picked it shows each task's "  # the sentence
              "average over all runs. Only fraud-ingest runs record their tasks here, so a fraud-train run shows no bars.", aggregate="AVG", x_scale="categorical", horizontal=True, sort_by_value=True), GRID_WIDTH, 5),  # sorted bars
     )  # end detail
     return {"datasets": [JOB_RUNS, NEWEST_RUN, TASK_TIMES, NEWEST_RUN_TASKS, PIPELINE_UPDATES, FRESHNESS, WAIT, REJECTIONS],  # eight datasets

@@ -346,7 +346,7 @@
                 "showTitle": true,
                 "title": "Where the time went in the newest run",
                 "showDescription": true,
-                "description": "How to read it: Each bar is one task of the newest run, longest first. The slowest task is in full blue. The two dashboard refreshes run side by side, so the tasks can add up to more than the run."
+                "description": "How to read it: Each bar is one task of the newest run; the slowest task is in full blue. The two dashboard refreshes run side by side, so the tasks can add up to more than the run."
               },
               "encodings": {
                 "x": {
@@ -1315,7 +1315,7 @@
                 "showTitle": true,
                 "title": "Where the time went in this run",
                 "showDescription": true,
-                "description": "How to read it: Each bar is one task of the picked run, longest first. With no run picked it shows each task's average over all runs. Only fraud-ingest runs record their tasks here, so a fraud-train run shows no bars."
+                "description": "How to read it: Each bar is one task of the picked run; the longest bar is where the time went. With no run picked it shows each task's average over all runs. Only fraud-ingest runs record their tasks here, so a fraud-train run shows no bars."
               },
               "encodings": {
                 "x": {

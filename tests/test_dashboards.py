@@ -461,3 +461,9 @@ def test_hours_are_readable_everywhere_a_person_reads_them():  # owner choice 8
     assert "day_and_time" in dataset_sql("fraud_operations", "open_cases")  # the queue shows it
     assert "first_day_and_time" in dataset_sql("platform_health", "rejections")  # the shelf too
     assert "newest_day_and_time" in dataset_sql("platform_health", "freshness")  # and each stage
+
+
+def test_task_charts_promise_no_order():  # D11: Databricks ignored the value sort on horizontal bars
+    for name in ("newest_tasks", "detail_tasks"):  # both task charts
+        description = find("platform_health", name)["spec"]["frame"]["description"]  # its sentence
+        assert "longest first" not in description, name  # no claim the chart cannot keep
