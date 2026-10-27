@@ -240,7 +240,7 @@ def test_model_page_counts_waiting_hours_from_the_waiting_view():  # review I1: 
 
 @pytest.mark.parametrize("name", ["model_by_hour", "fraud_caught_by_hour"])  # both per-hour datasets
 def test_model_bars_have_one_row_per_hour(name):  # review I2: shares made from counts, whatever the versions
-    by_hour = " ".join(query_text(next(ds for ds in BUILT["fraud_operations"]["datasets"] if ds["name"] == name)).split())
+    by_hour = " ".join(query_text(next(ds for ds in BUILT["fraud_operations"]["datasets"] if ds["name"] == name)).split())  # SQL on one line
     assert "GROUP BY step" in by_hour  # one row per hour
     assert "SUM(confirmed_fraud)" in by_hour and "MAX(fraud_in_hour)" in by_hour  # fraud counted once per hour
     if name == "model_by_hour":  # the share line
@@ -336,7 +336,8 @@ def test_model_page_says_big_numbers_cover_every_hour():  # spec §4.3: the slid
 
 
 # ── Platform health restyle and Run detail (dashboard beautify Task 3) ──
-KNOWN_STATES = ("SUCCEEDED", "COMPLETED", "ERROR", "FAILED", "TIMED_OUT", "CANCELED", "SKIPPED", "UPSTREAM_FAILED")  # run/update results
+KNOWN_STATES = ("SUCCEEDED", "COMPLETED", "ERROR", "FAILED", "TIMED_OUT", "CANCELED", "SKIPPED", "UPSTREAM_FAILED",  # run/update results...
+                "CANCELLED", "BLOCKED")  # ...as system.lakeflow spells them (review: BLOCKED had no pin)
 
 
 def plain(state: str | None) -> str:  # what _plain_outcome's SQL gives for one state (Python mirror)
@@ -402,3 +403,10 @@ def test_cell_rules_on_minutes_and_rows():  # spec §4.2 table cell rules
 def test_wait_counters_show_minutes():  # spec §4.4: unit on the number
     for name in ("typical_wait", "longest_wait"):  # both waits
         assert find("platform_health", name)["spec"]["encodings"]["value"]["formatTemplate"] == "{{@formatted}} min", name  # "4.6 min"
+
+
+def test_chart_sentences_match_what_is_drawn():  # review: no promised gaps; an empty task chart is explained
+    line = find("fraud_operations", "flagged_line")["spec"]["frame"]["description"]  # the share line
+    assert "Gaps" not in line and "newer hours" in line.lower()  # waiting hours are simply not drawn yet
+    detail = find("platform_health", "detail_tasks")["spec"]["frame"]["description"]  # the Run detail task chart
+    assert "fraud-ingest" in detail  # only the loading job's tasks are recorded here

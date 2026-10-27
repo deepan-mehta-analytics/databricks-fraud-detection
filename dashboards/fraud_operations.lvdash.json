@@ -818,7 +818,7 @@
                 "showTitle": true,
                 "title": "Percent of flagged payments that were fraud, per simulated hour",
                 "showDescription": true,
-                "description": "How to read it: The blue line is each hour; the grey line is the average over every hour with verdicts and stays put when you move the slider. Higher is better. Gaps are hours waiting for verdicts (3 days)."
+                "description": "How to read it: The blue line is each hour; the grey line is the average over every hour with verdicts and stays put when you move the slider. Higher is better. Newer hours are waiting for verdicts (3 days) and are not drawn yet."
               },
               "encodings": {
                 "x": {

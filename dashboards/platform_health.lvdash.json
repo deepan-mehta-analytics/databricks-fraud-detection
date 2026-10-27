@@ -252,6 +252,10 @@
                       {
                         "value": "✕ Upstream Failed",
                         "color": "#D03B3B"
+                      },
+                      {
+                        "value": "✕ Blocked",
+                        "color": "#D03B3B"
                       }
                     ]
                   }
@@ -1140,7 +1144,7 @@
                 "showTitle": true,
                 "title": "Where the time went in this run",
                 "showDescription": true,
-                "description": "How to read it: Each bar is one task of the picked run, longest first. With no run picked it shows each task's average over all runs."
+                "description": "How to read it: Each bar is one task of the picked run, longest first. With no run picked it shows each task's average over all runs. Only fraud-ingest runs record their tasks here, so a fraud-train run shows no bars."
               },
               "encodings": {
                 "x": {

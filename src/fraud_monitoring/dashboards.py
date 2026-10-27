@@ -30,7 +30,7 @@ PLATFORM_WORDS: dict[str, str] = {  # extra terms on the engineers' dashboard
 }  # end PLATFORM_WORDS
 JARGON = ("precision", "recall", "latency", "p95", "drift", "sla", "throughput", "f1", "auc",  # model and operations jargon
           "percentile", "median", "idempotent", "cardinality", "etl")  # data jargon (CI guard on all visible text)
-HOW_TO_READ = "How to read it:"  # every chart has a text line containing this
+HOW_TO_READ = "How to read it:"  # starts every chart's description (ruling R-B3)
 WAITING = "waiting for verdicts (3 days)"  # how an hour without verdicts is described
 REASON_WORDS: dict[str, str] = {  # Silver rejection codes -> plain words
     "missing_id": "Payment ID missing",  # rule 1
@@ -60,7 +60,7 @@ THEME: dict[str, Any] = {  # spec §4.1, identical on both dashboards
     "widgetHeaderAlignment": "LEFT",  # titles on the left
 }  # end THEME
 GOOD, BAD, WAIT_AMBER = "#0CA30C", "#D03B3B", "#FAB219"  # status colours, always paired with a word or symbol
-FAILED_OUTCOMES = ("Error", "Failed", "Timed Out", "Canceled", "Cancelled", "Skipped", "Upstream Failed")  # run results shown with ✕
+FAILED_OUTCOMES = ("Error", "Failed", "Timed Out", "Canceled", "Cancelled", "Skipped", "Upstream Failed", "Blocked")  # run results shown with ✕
 MEANING: dict[str, str] = {  # spec §4.2: value -> its colour on every chart
     "✓ Succeeded": GOOD, "Up to date": GOOD,  # good
     "Confirmed fraud": BAD, "Missed": BAD, "Behind": BAD,  # bad
@@ -378,7 +378,7 @@ def operations_dashboard() -> dict[str, Any]:  # "Fraud operations": reviewers, 
         (line("flagged_line", "Percent of flagged payments that were fraud, per simulated hour", "model_by_hour",  # the share line
               ("simulated_hour", "Simulated hour"), ("percent_flagged_that_were_fraud", "Percent that were fraud"),  # axes
               "The blue line is each hour; the grey line is the average over every hour with verdicts and stays put "  # the sentence
-              f"when you move the slider. Higher is better. Gaps are hours {WAITING}.",  # waiting
+              f"when you move the slider. Higher is better. Newer hours are {WAITING} and are not drawn yet.",  # waiting
               color=("series", "Line"), values=("Each hour", "Average, all hours")), GRID_WIDTH, 6),  # blue and grey
         (bar("caught_bar", "Fraud caught and missed, per simulated hour", "fraud_caught_by_hour",  # stacked bars
              ("simulated_hour", "Simulated hour"), ("payments", "Fraud payments"),  # axes
@@ -526,7 +526,7 @@ def platform_dashboard() -> dict[str, Any]:  # "Platform health": engineers only
         (bar("detail_tasks", "Where the time went in this run", "task_times", ("task_name", "Task"),  # per task
              ("task_minutes", "Minutes"),  # across
              "Each bar is one task of the picked run, longest first. With no run picked it shows each task's "  # the sentence
-             "average over all runs.", aggregate="AVG", x_scale="categorical", horizontal=True, sort_by_value=True), GRID_WIDTH, 5),  # sorted bars
+             "average over all runs. Only fraud-ingest runs record their tasks here, so a fraud-train run shows no bars.", aggregate="AVG", x_scale="categorical", horizontal=True, sort_by_value=True), GRID_WIDTH, 5),  # sorted bars
     )  # end detail
     return {"datasets": [JOB_RUNS, NEWEST_RUN, TASK_TIMES, NEWEST_RUN_TASKS, PIPELINE_UPDATES, FRESHNESS, WAIT, REJECTIONS],  # eight datasets
             "pages": [jobs, data, detail, word_page({**WORD_LIST, **PLATFORM_WORDS})],  # four pages
