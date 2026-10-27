@@ -28,7 +28,7 @@
     {
       "name": "freshness",
       "displayName": "Newest hour at each stage",
-      "query": "WITH stages AS (\n  SELECT '1. Copied to the landing folder' AS stage, newest_hour_released AS hour, newest_hour_released AS released FROM workspace.fraud.data_freshness\n  UNION ALL SELECT '2. Loaded', newest_hour_ingested, newest_hour_released FROM workspace.fraud.data_freshness\n  UNION ALL SELECT '3. Scored by the model', newest_hour_scored, newest_hour_released FROM workspace.fraud.data_freshness\n  UNION ALL SELECT '4. Flagged for review', newest_hour_flagged, newest_hour_released FROM workspace.fraud.data_freshness)\nSELECT stage, hour AS newest_simulated_hour, released - hour AS hours_behind,\n       CASE WHEN released - hour = 0 THEN 'Up to date' ELSE 'Behind' END AS stage_status\nFROM stages\nORDER BY stage"
+      "query": "WITH stages AS (\n  SELECT '1. Copied to the landing folder' AS stage, newest_hour_released AS hour, newest_hour_released AS released FROM workspace.fraud.data_freshness\n  UNION ALL SELECT '2. Loaded', newest_hour_ingested, newest_hour_released FROM workspace.fraud.data_freshness\n  UNION ALL SELECT '3. Scored by the model', newest_hour_scored, newest_hour_released FROM workspace.fraud.data_freshness\n  UNION ALL SELECT '4. Flagged for review', newest_hour_flagged, newest_hour_released FROM workspace.fraud.data_freshness)\nSELECT stage, hour AS newest_simulated_hour, released - hour AS hours_behind,\n       concat('Day ', CAST(floor((hour - 1) / 24) + 1 AS STRING), ', ', lpad(CAST((hour - 1) % 24 AS STRING), 2, '0'), ':00 (hour ', CAST(hour AS STRING), ')') AS newest_day_and_time,\n       CASE WHEN released - hour = 0 THEN 'Up to date' ELSE 'Behind' END AS stage_status\nFROM stages\nORDER BY stage"
     },
     {
       "name": "wait",
@@ -38,7 +38,7 @@
     {
       "name": "rejections",
       "displayName": "Rows set aside",
-      "query": "SELECT CASE reason WHEN 'missing_id' THEN 'Payment ID missing' WHEN 'missing_time' THEN 'Payment time missing' WHEN 'time_step_mismatch' THEN 'Payment time does not match its simulated hour' WHEN 'bad_amount' THEN 'Amount missing or below zero' WHEN 'unknown_type' THEN 'Unknown payment type' WHEN 'missing_account' THEN 'Account name missing' WHEN 'bad_label' THEN 'Fraud answer is not 0 or 1' WHEN 'unparsed_value' THEN 'A value could not be read' WHEN 'conflicting_duplicate' THEN 'Two different records with the same payment ID'\n            ELSE reason END AS reason,\n       rows_rejected, first_hour, last_hour\nFROM workspace.fraud.rejected_rows_by_reason\nORDER BY rows_rejected DESC"
+      "query": "SELECT CASE reason WHEN 'missing_id' THEN 'Payment ID missing' WHEN 'missing_time' THEN 'Payment time missing' WHEN 'time_step_mismatch' THEN 'Payment time does not match its simulated hour' WHEN 'bad_amount' THEN 'Amount missing or below zero' WHEN 'unknown_type' THEN 'Unknown payment type' WHEN 'missing_account' THEN 'Account name missing' WHEN 'bad_label' THEN 'Fraud answer is not 0 or 1' WHEN 'unparsed_value' THEN 'A value could not be read' WHEN 'conflicting_duplicate' THEN 'Two different records with the same payment ID'\n            ELSE reason END AS reason,\n       rows_rejected, concat('Day ', CAST(floor((first_hour - 1) / 24) + 1 AS STRING), ', ', lpad(CAST((first_hour - 1) % 24 AS STRING), 2, '0'), ':00 (hour ', CAST(first_hour AS STRING), ')') AS first_day_and_time,\n       concat('Day ', CAST(floor((last_hour - 1) / 24) + 1 AS STRING), ', ', lpad(CAST((last_hour - 1) % 24 AS STRING), 2, '0'), ':00 (hour ', CAST(last_hour AS STRING), ')') AS last_day_and_time\nFROM workspace.fraud.rejected_rows_by_reason\nORDER BY rows_rejected DESC"
     }
   ],
   "pages": [
@@ -104,11 +104,13 @@
                     "fieldName": "minutes_taken",
                     "displayName": "Minutes",
                     "format": {
-                      "type": "number",
+                      "type": "number-plain",
+                      "abbreviation": "none",
                       "decimalPlaces": {
                         "type": "exact",
                         "places": 1
-                      }
+                      },
+                      "hideGroupSeparator": true
                     },
                     "style": {
                       "type": "basic",
@@ -121,9 +123,7 @@
                             },
                             "operator": ">="
                           },
-                          "backgroundColor": {
-                            "hex": "#B9D3F2"
-                          }
+                          "backgroundColor": "#B9D3F2"
                         },
                         {
                           "condition": {
@@ -133,16 +133,59 @@
                             },
                             "operator": ">="
                           },
-                          "backgroundColor": {
-                            "hex": "#DCE9F9"
-                          }
+                          "backgroundColor": "#DCE9F9"
                         }
                       ]
                     }
                   },
                   {
                     "fieldName": "outcome",
-                    "displayName": "How it ended"
+                    "displayName": "How it ended",
+                    "style": {
+                      "type": "basic",
+                      "rules": [
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "Succeeded"
+                            },
+                            "operator": "contains"
+                          },
+                          "backgroundColor": "#DDF3E2"
+                        },
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "Still running"
+                            },
+                            "operator": "contains"
+                          },
+                          "backgroundColor": "#FDF0D2"
+                        },
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "Cancel"
+                            },
+                            "operator": "contains"
+                          },
+                          "backgroundColor": "#ECEEF2"
+                        },
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "✕"
+                            },
+                            "operator": "contains"
+                          },
+                          "backgroundColor": "#FBE3E1"
+                        }
+                      ]
+                    }
                   }
                 ]
               }
@@ -239,11 +282,11 @@
                       },
                       {
                         "value": "✕ Canceled",
-                        "color": "#D03B3B"
+                        "color": "#8C96A5"
                       },
                       {
                         "value": "✕ Cancelled",
-                        "color": "#D03B3B"
+                        "color": "#8C96A5"
                       },
                       {
                         "value": "✕ Skipped",
@@ -486,17 +529,44 @@
                   },
                   {
                     "fieldName": "job_name",
-                    "displayName": "Job"
+                    "displayName": "Job",
+                    "style": {
+                      "type": "basic",
+                      "rules": [
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "fraud-ingest"
+                            },
+                            "operator": "contains"
+                          },
+                          "backgroundColor": "#DFF1F7"
+                        },
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "fraud-train"
+                            },
+                            "operator": "contains"
+                          },
+                          "backgroundColor": "#ECE8FB"
+                        }
+                      ]
+                    }
                   },
                   {
                     "fieldName": "minutes_taken",
                     "displayName": "Minutes",
                     "format": {
-                      "type": "number",
+                      "type": "number-plain",
+                      "abbreviation": "none",
                       "decimalPlaces": {
                         "type": "exact",
                         "places": 1
-                      }
+                      },
+                      "hideGroupSeparator": true
                     },
                     "style": {
                       "type": "basic",
@@ -509,9 +579,7 @@
                             },
                             "operator": ">="
                           },
-                          "backgroundColor": {
-                            "hex": "#B9D3F2"
-                          }
+                          "backgroundColor": "#B9D3F2"
                         },
                         {
                           "condition": {
@@ -521,16 +589,59 @@
                             },
                             "operator": ">="
                           },
-                          "backgroundColor": {
-                            "hex": "#DCE9F9"
-                          }
+                          "backgroundColor": "#DCE9F9"
                         }
                       ]
                     }
                   },
                   {
                     "fieldName": "outcome",
-                    "displayName": "How it ended"
+                    "displayName": "How it ended",
+                    "style": {
+                      "type": "basic",
+                      "rules": [
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "Succeeded"
+                            },
+                            "operator": "contains"
+                          },
+                          "backgroundColor": "#DDF3E2"
+                        },
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "Still running"
+                            },
+                            "operator": "contains"
+                          },
+                          "backgroundColor": "#FDF0D2"
+                        },
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "Cancel"
+                            },
+                            "operator": "contains"
+                          },
+                          "backgroundColor": "#ECEEF2"
+                        },
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "✕"
+                            },
+                            "operator": "contains"
+                          },
+                          "backgroundColor": "#FBE3E1"
+                        }
+                      ]
+                    }
                   }
                 ]
               }
@@ -687,7 +798,7 @@
                 "showTitle": true,
                 "title": "Newest simulated hour at each stage",
                 "showDescription": true,
-                "description": "How to read it: Each bar is one stage, in pipeline order. Green stages are up to date; a red, shorter bar shows where payments are stuck."
+                "description": "How to read it: Each bar is one stage, in pipeline order. Green stages are up to date; a red, shorter bar shows where payments are stuck. Hour 480 is day 20, 11 pm; each day has 24 hours."
               },
               "encodings": {
                 "x": {
@@ -751,6 +862,10 @@
                       "expression": "`stage`"
                     },
                     {
+                      "name": "newest_day_and_time",
+                      "expression": "`newest_day_and_time`"
+                    },
+                    {
                       "name": "hours_behind",
                       "expression": "`hours_behind`"
                     }
@@ -775,14 +890,20 @@
                     "displayName": "Stage"
                   },
                   {
+                    "fieldName": "newest_day_and_time",
+                    "displayName": "Newest hour (simulated)"
+                  },
+                  {
                     "fieldName": "hours_behind",
                     "displayName": "Hours behind",
                     "format": {
-                      "type": "number",
+                      "type": "number-plain",
+                      "abbreviation": "none",
                       "decimalPlaces": {
                         "type": "exact",
                         "places": 0
-                      }
+                      },
+                      "hideGroupSeparator": true
                     },
                     "style": {
                       "type": "basic",
@@ -795,9 +916,7 @@
                             },
                             "operator": "="
                           },
-                          "backgroundColor": {
-                            "hex": "#DDF3E2"
-                          }
+                          "backgroundColor": "#DDF3E2"
                         },
                         {
                           "condition": {
@@ -807,9 +926,7 @@
                             },
                             "operator": ">"
                           },
-                          "backgroundColor": {
-                            "hex": "#FBE3E1"
-                          }
+                          "backgroundColor": "#FBE3E1"
                         }
                       ]
                     }
@@ -843,12 +960,12 @@
                       "expression": "`rows_rejected`"
                     },
                     {
-                      "name": "first_hour",
-                      "expression": "`first_hour`"
+                      "name": "first_day_and_time",
+                      "expression": "`first_day_and_time`"
                     },
                     {
-                      "name": "last_hour",
-                      "expression": "`last_hour`"
+                      "name": "last_day_and_time",
+                      "expression": "`last_day_and_time`"
                     }
                   ],
                   "disaggregated": true
@@ -874,11 +991,13 @@
                     "fieldName": "rows_rejected",
                     "displayName": "Rows",
                     "format": {
-                      "type": "number",
+                      "type": "number-plain",
+                      "abbreviation": "none",
                       "decimalPlaces": {
                         "type": "exact",
                         "places": 0
-                      }
+                      },
+                      "hideGroupSeparator": true
                     },
                     "style": {
                       "type": "basic",
@@ -891,34 +1010,18 @@
                             },
                             "operator": ">"
                           },
-                          "backgroundColor": {
-                            "hex": "#FBE3E1"
-                          }
+                          "backgroundColor": "#FBE3E1"
                         }
                       ]
                     }
                   },
                   {
-                    "fieldName": "first_hour",
-                    "displayName": "First simulated hour",
-                    "format": {
-                      "type": "number",
-                      "decimalPlaces": {
-                        "type": "exact",
-                        "places": 0
-                      }
-                    }
+                    "fieldName": "first_day_and_time",
+                    "displayName": "First seen (simulated)"
                   },
                   {
-                    "fieldName": "last_hour",
-                    "displayName": "Last simulated hour",
-                    "format": {
-                      "type": "number",
-                      "decimalPlaces": {
-                        "type": "exact",
-                        "places": 0
-                      }
-                    }
+                    "fieldName": "last_day_and_time",
+                    "displayName": "Last seen (simulated)"
                   }
                 ]
               }
@@ -1058,17 +1161,44 @@
                   },
                   {
                     "fieldName": "job_name",
-                    "displayName": "Job"
+                    "displayName": "Job",
+                    "style": {
+                      "type": "basic",
+                      "rules": [
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "fraud-ingest"
+                            },
+                            "operator": "contains"
+                          },
+                          "backgroundColor": "#DFF1F7"
+                        },
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "fraud-train"
+                            },
+                            "operator": "contains"
+                          },
+                          "backgroundColor": "#ECE8FB"
+                        }
+                      ]
+                    }
                   },
                   {
                     "fieldName": "minutes_taken",
                     "displayName": "Minutes",
                     "format": {
-                      "type": "number",
+                      "type": "number-plain",
+                      "abbreviation": "none",
                       "decimalPlaces": {
                         "type": "exact",
                         "places": 1
-                      }
+                      },
+                      "hideGroupSeparator": true
                     },
                     "style": {
                       "type": "basic",
@@ -1081,9 +1211,7 @@
                             },
                             "operator": ">="
                           },
-                          "backgroundColor": {
-                            "hex": "#B9D3F2"
-                          }
+                          "backgroundColor": "#B9D3F2"
                         },
                         {
                           "condition": {
@@ -1093,16 +1221,59 @@
                             },
                             "operator": ">="
                           },
-                          "backgroundColor": {
-                            "hex": "#DCE9F9"
-                          }
+                          "backgroundColor": "#DCE9F9"
                         }
                       ]
                     }
                   },
                   {
                     "fieldName": "outcome",
-                    "displayName": "How it ended"
+                    "displayName": "How it ended",
+                    "style": {
+                      "type": "basic",
+                      "rules": [
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "Succeeded"
+                            },
+                            "operator": "contains"
+                          },
+                          "backgroundColor": "#DDF3E2"
+                        },
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "Still running"
+                            },
+                            "operator": "contains"
+                          },
+                          "backgroundColor": "#FDF0D2"
+                        },
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "Cancel"
+                            },
+                            "operator": "contains"
+                          },
+                          "backgroundColor": "#ECEEF2"
+                        },
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "✕"
+                            },
+                            "operator": "contains"
+                          },
+                          "backgroundColor": "#FBE3E1"
+                        }
+                      ]
+                    }
                   }
                 ]
               }
@@ -1190,7 +1361,7 @@
         {
           "widget": {
             "name": "word_list",
-            "textbox_spec": "# What these words mean\n\n- **Flagged payment**: A payment the model ranked among the 50 most suspicious of its hour, so a person should look at it.\n- **Case**: The review of one flagged payment. It stays open until its verdict is recorded.\n- **Verdict**: The answer to a case: confirmed fraud or false alarm. It arrives 3 simulated days after the payment.\n- **Confirmed fraud**: A flagged payment that really was fraud.\n- **False alarm**: A flagged payment that turned out to be honest.\n- **Simulated hour**: One hour of the replayed month of payments, numbered from 1 to 743.\n- **Model version**: Which saved copy of the fraud model made the decision. Each new copy gets the next number.\n- **Champion model**: The model version currently trusted to score new payments.\n- **Risk score**: How suspicious the model found a payment. Higher is more suspicious. It ranks payments, it is not a chance.\n- **Rejected row**: A payment record that failed a basic check, such as an amount below zero, and was set aside.\n- **Job run**: One run of the scheduled work that releases, loads, cleans, scores and flags payments.\n- **Task**: One step inside a job run, such as loading or scoring.\n- **REDACTED**: Shown instead of an account name to people who may not see who paid whom.\n- **Landing folder**: Where each simulated hour's file of payments arrives before it is loaded.\n- **Pipeline update**: One run of the cleaning step that turns loaded payments into clean ones.\n- **Full rebuild**: A pipeline update that redoes everything from the start instead of only the new rows.\n- **Run detail**: A page showing one job run task by task. Open it from a run's bar: right-click, then Drill to."
+            "textbox_spec": "# What these words mean\n\n- **Flagged payment**: A payment the model ranked among the 50 most suspicious of its hour, so a person should look at it.\n- **Case**: The review of one flagged payment. It stays open until its verdict is recorded.\n- **Verdict**: The answer to a case: confirmed fraud or false alarm. It arrives 3 simulated days after the payment.\n- **Confirmed fraud**: A flagged payment that really was fraud.\n- **False alarm**: A flagged payment that turned out to be honest.\n- **Simulated hour**: One hour of the replayed month of payments, numbered from 1 to 743. Hour 1 is day 1, midnight to 1 am; hour 480 is day 20, 11 pm.\n- **Model version**: Which saved copy of the fraud model made the decision. Each new copy gets the next number.\n- **Champion model**: The model version currently trusted to score new payments.\n- **Risk score**: How suspicious the model found a payment. Higher is more suspicious. It ranks payments, it is not a chance.\n- **Rejected row**: A payment record that failed a basic check, such as an amount below zero, and was set aside.\n- **Job run**: One run of the scheduled work that releases, loads, cleans, scores and flags payments.\n- **Task**: One step inside a job run, such as loading or scoring.\n- **REDACTED**: Shown instead of an account name to people who may not see who paid whom.\n- **Landing folder**: Where each simulated hour's file of payments arrives before it is loaded.\n- **Pipeline update**: One run of the cleaning step that turns loaded payments into clean ones.\n- **Full rebuild**: A pipeline update that redoes everything from the start instead of only the new rows.\n- **Run detail**: A page showing one job run task by task. Open it from a run's bar: right-click, then Drill to."
           },
           "position": {
             "x": 0,

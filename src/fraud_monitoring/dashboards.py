@@ -13,7 +13,8 @@ WORD_LIST: dict[str, str] = {  # term -> one plain sentence; on both dashboards 
     "Verdict": "The answer to a case: confirmed fraud or false alarm. It arrives 3 simulated days after the payment.",  # verdict
     "Confirmed fraud": "A flagged payment that really was fraud.",  # true positive
     "False alarm": "A flagged payment that turned out to be honest.",  # false positive
-    "Simulated hour": "One hour of the replayed month of payments, numbered from 1 to 743.",  # step
+    "Simulated hour": "One hour of the replayed month of payments, numbered from 1 to 743. "  # the counter...
+                      "Hour 1 is day 1, midnight to 1 am; hour 480 is day 20, 11 pm.",  # step
     "Model version": "Which saved copy of the fraud model made the decision. Each new copy gets the next number.",  # registry version
     "Champion model": "The model version currently trusted to score new payments.",  # alias
     "Risk score": "How suspicious the model found a payment. Higher is more suspicious. It ranks payments, it is not a chance.",  # score
@@ -65,6 +66,7 @@ MEANING: dict[str, str] = {  # spec §4.2: value -> its colour on every chart
     "✓ Succeeded": GOOD, "Up to date": GOOD,  # good
     "Confirmed fraud": BAD, "Missed": BAD, "Behind": BAD,  # bad
     **{f"✕ {outcome}": BAD for outcome in FAILED_OUTCOMES},  # every failed run
+    "✕ Canceled": "#8C96A5", "✕ Cancelled": "#8C96A5",  # stopped on purpose: grey, not red (owner 2026-10-27)
     "↻ Still running": WAIT_AMBER,  # in progress
     "False alarm": "#B8C4D4",  # neutral grey
     "Caught": "#2A78D6", "Each hour": "#2A78D6", "New rows only": "#2A78D6", "Slowest task": "#2A78D6",  # main blue
@@ -73,6 +75,8 @@ MEANING: dict[str, str] = {  # spec §4.2: value -> its colour on every chart
     "Other tasks": "#A9C3E6",  # light blue tint
 }  # end MEANING
 TINT_GREEN, TINT_RED, TINT_BLUE_DARK, TINT_BLUE_LIGHT = "#DDF3E2", "#FBE3E1", "#B9D3F2", "#DCE9F9"  # cell-rule tints
+TINT_AMBER, TINT_GREY, TINT_SKY, TINT_LILAC = "#FDF0D2", "#ECEEF2", "#DFF1F7", "#ECE8FB"  # status and job pastels
+HOUR_EXAMPLE = "Hour 480 is day 20, 11 pm; each day has 24 hours."  # owner choice 8: hours a person can read
 
 
 # ── Building blocks ───────────────────────────────────────────
@@ -130,6 +134,7 @@ def bar(name: str, title: str, dataset_name: str, x: tuple[str, str], y: tuple[s
         color: tuple[str, str] | None = None, values: tuple[str, ...] = (), aggregate: str | None = "SUM",  # colour split, pins, sum
         x_scale: str = "quantitative", horizontal: bool = False, sort_by_value: bool = False) -> dict[str, Any]:  # options
     y_field = _field(y[0], aggregate)  # the bar length
+    how = f"{how} {HOUR_EXAMPLE}" if "simulated_hour" in x[0] + y[0] else how  # hours explained under the chart
     fields = [_field(x[0]), y_field] + ([_field(color[0])] if color else [])  # columns the chart needs
     across = _axis(x[0], x[1], x_scale, sort_by_value)  # the category or time axis
     length = _axis(y_field["name"], y[1], "quantitative")  # the number axis
@@ -144,6 +149,7 @@ def bar(name: str, title: str, dataset_name: str, x: tuple[str, str], y: tuple[s
 def line(name: str, title: str, dataset_name: str, x: tuple[str, str], y: tuple[str, str], how: str,  # chart, data, axes
          color: tuple[str, str], values: tuple[str, ...], x_scale: str = "quantitative") -> dict[str, Any]:  # one line per series
     fields = [_field(x[0]), _field(y[0]), _field(color[0])]  # one row per point, already computed in SQL
+    how = f"{how} {HOUR_EXAMPLE}" if "simulated_hour" in x[0] + y[0] else how  # hours explained under the chart
     encodings = {"x": _axis(x[0], x[1], x_scale), "y": _axis(y[0], y[1], "quantitative"),  # across and up
                  "color": {"fieldName": color[0], "displayName": color[1],  # one line per series...
                            "scale": {"type": "categorical", "mappings": _mappings(values)}}}  # ...in its meaning colour
@@ -152,14 +158,16 @@ def line(name: str, title: str, dataset_name: str, x: tuple[str, str], y: tuple[
 
 
 NUMBER_FORMATS: dict[str, dict[str, Any]] = {  # table number kinds -> documented format (D3: 4.600 showed)
-    "integer": {"type": "number", "decimalPlaces": {"type": "exact", "places": 0}},  # whole numbers
-    "float": {"type": "number", "decimalPlaces": {"type": "exact", "places": 1}},  # one decimal place
+    "integer": {"type": "number-plain", "abbreviation": "none",  # whole numbers, in the shape...
+                "decimalPlaces": {"type": "exact", "places": 0}, "hideGroupSeparator": True},  # ...the UI exports
+    "float": {"type": "number-plain", "abbreviation": "none",  # one decimal place (D11: "number" showed 17.20)...
+              "decimalPlaces": {"type": "exact", "places": 1}, "hideGroupSeparator": True},  # ...as exported
 }  # end NUMBER_FORMATS
 
 
 def cell_rule(op: str, value: str, tint: str) -> dict[str, Any]:  # one conditional cell colour
     return {"condition": {"operand": {"type": "data-value", "value": value}, "operator": op},  # when it applies
-            "backgroundColor": {"hex": tint}}  # the tint behind the text
+            "backgroundColor": tint}  # bare hex string, as the UI exports it (D11: {"hex": ...} was dropped)
 
 
 def table(name: str, title: str, dataset_name: str, columns: list[tuple[str, str, str]], how: str,  # a table
@@ -255,9 +263,15 @@ def render(dashboard: dict[str, Any]) -> str:  # the .lvdash.json text
     return json.dumps(dashboard, indent=2, ensure_ascii=False) + "\n"  # stable, readable, UTF-8
 
 
+def _day_and_time(hour: str) -> str:  # SQL: 480 -> "Day 20, 23:00 (hour 480)" (owner choice 8)
+    return (f"concat('Day ', CAST(floor(({hour} - 1) / 24) + 1 AS STRING), ', ',"  # the simulated day...
+            f" lpad(CAST(({hour} - 1) % 24 AS STRING), 2, '0'), ':00 (hour ', CAST({hour} AS STRING), ')')")  # ...time, and the hour kept
+
+
 # ── Fraud operations: datasets (all three groups; filters and masks apply to the viewer) ──
 OPEN_CASES = dataset("open_cases", "Open cases", sql(  # flagged payments still waiting for a verdict
     "SELECT step AS simulated_hour,",  # the hour
+    f"       {_day_and_time('step')} AS day_and_time,",  # the same hour, readable
     "       risk_score,",  # how suspicious
     "       transaction_id AS payment,",  # which payment
     "       sender_account AS paying_account,",  # REDACTED for managers (mask)
@@ -329,7 +343,7 @@ def operations_dashboard() -> dict[str, Any]:  # "Fraud operations": reviewers, 
     queue = page("queue", "What is waiting for review?",  # page 1
         (counter("open_count", "Open cases you can see, waiting for a verdict", "open_case_count", ("open_cases", "Open cases")), GRID_WIDTH, 2),  # the reader's own count (D8)
         (table("open_table", "Open cases, newest hour first, most suspicious first", "open_cases", [  # the queue
-            ("simulated_hour", "Simulated hour", "integer"), ("risk_score", "Risk score", "float"), ("payment", "Payment", "string"),  # what
+            ("simulated_hour", "Simulated hour", "integer"), ("day_and_time", "Day and time (simulated)", "string"), ("risk_score", "Risk score", "float"), ("payment", "Payment", "string"),  # what
             ("paying_account", "Paying account", "string"), ("receiving_account", "Receiving account", "string"),  # who
             ("case_opened_at", "Case opened at (UTC)", "string")],  # when, as SQL text (ruling R-B4)
             "Each row is one flagged payment still waiting for its verdict. Managers see 0 and an "  # the sentence
@@ -340,7 +354,7 @@ def operations_dashboard() -> dict[str, Any]:  # "Fraud operations": reviewers, 
         (header("outcomes_header", "How did the reviews turn out?",  # the question...
                 "Every flagged payment gets a verdict 3 simulated days later. Drag the slider or click a bar to "  # ...and
                 "narrow the totals and the chart together."), 4, 2),  # how to use the page
-        (range_slider("outcomes_hours", "Simulated hours", [("review_outcomes", "simulated_hour")]), 2, 2),  # narrows the page
+        (range_slider("outcomes_hours", "Simulated hours (24 per day)", [("review_outcomes", "simulated_hour")]), 2, 2),  # narrows the page
         (counter("fraud_total", "Confirmed fraud", "review_outcomes", ("cases", "Confirmed fraud"),  # 405 on all hours
                  "Flagged payments that really were fraud, in the hours shown.", aggregate="SUM",  # what it counts
                  where="`outcome` = 'Confirmed fraud'"), 3, 2),  # one verdict
@@ -357,7 +371,7 @@ def operations_dashboard() -> dict[str, Any]:  # "Fraud operations": reviewers, 
         (header("model_header", "Is the model still good?",  # the question...
                 "The slider narrows the two charts. The big numbers always cover every hour whose verdicts are in, "  # ...what moves
                 "and the shares compare the newest 24 of those hours with all of them."), 4, 2),  # ...and what the shares mean
-        (range_slider("model_hours", "Simulated hours", [("model_by_hour", "simulated_hour"),  # narrows the line...
+        (range_slider("model_hours", "Simulated hours (24 per day)", [("model_by_hour", "simulated_hour"),  # narrows the line...
                                                          ("fraud_caught_by_hour", "simulated_hour")]), 2, 2),  # ...and the bars
         (counter("flagged_share", "Flagged payments that were fraud, newest 24 hours with verdicts", "model_totals",  # share 1
                  ("newest_24h_share_flagged_that_were_fraud", "Newest 24 hours"),  # the value
@@ -443,6 +457,7 @@ FRESHNESS = dataset("freshness", "Newest hour at each stage", sql(  # one row pe
     "  UNION ALL SELECT '3. Scored by the model', newest_hour_scored, newest_hour_released FROM workspace.fraud.data_freshness",  # scoring
     "  UNION ALL SELECT '4. Flagged for review', newest_hour_flagged, newest_hour_released FROM workspace.fraud.data_freshness)",  # Gold
     "SELECT stage, hour AS newest_simulated_hour, released - hour AS hours_behind,",  # how far each stage lags
+    f"       {_day_and_time('hour')} AS newest_day_and_time,",  # the newest hour, readable
     "       CASE WHEN released - hour = 0 THEN 'Up to date' ELSE 'Behind' END AS stage_status",  # Review Focus 2
     "FROM stages",  # four rows
     "ORDER BY stage",  # in pipeline order
@@ -455,7 +470,8 @@ WAIT = dataset("wait", "Wait from landing to scored", sql(  # the latest run's w
 REJECTIONS = dataset("rejections", "Rows set aside", sql(  # one row per reason, in plain words
     "SELECT CASE reason " + " ".join(f"WHEN '{code}' THEN '{words}'" for code, words in REASON_WORDS.items()),  # plain reason
     "            ELSE reason END AS reason,",  # an unknown code shows as is
-    "       rows_rejected, first_hour, last_hour",  # count and hour range
+    f"       rows_rejected, {_day_and_time('first_hour')} AS first_day_and_time,",  # count and first hour, readable
+    f"       {_day_and_time('last_hour')} AS last_day_and_time",  # last hour, readable
     "FROM workspace.fraud.rejected_rows_by_reason",  # the shelf summary
     "ORDER BY rows_rejected DESC",  # biggest first
 ))  # end REJECTIONS
@@ -463,6 +479,13 @@ OUTCOMES = ("✓ Succeeded", "↻ Still running", *(f"✕ {o}" for o in FAILED_O
 RUN_COLUMNS = [("run_label", "Run (UTC)", "string"), ("job_name", "Job", "string"),  # which run
                ("minutes_taken", "Minutes", "float"), ("outcome", "How it ended", "string")]  # how long, how it ended
 SLOW_RUN = {"minutes_taken": [cell_rule(">=", "10", TINT_BLUE_DARK), cell_rule(">=", "5", TINT_BLUE_LIGHT)]}  # slow runs stand out
+OUTCOME_TINTS = {"outcome": [cell_rule("contains", "Succeeded", TINT_GREEN),  # text rules need contains (owner probe)
+                             cell_rule("contains", "Still running", TINT_AMBER),  # in progress
+                             cell_rule("contains", "Cancel", TINT_GREY),  # stopped on purpose, before the red rule
+                             cell_rule("contains", "✕", TINT_RED)]}  # every other result needs a look
+JOB_TINTS = {"job_name": [cell_rule("contains", "fraud-ingest", TINT_SKY),  # told apart...
+                          cell_rule("contains", "fraud-train", TINT_LILAC)]}  # ...never good or bad (owner choice 9)
+RUN_RULES = {**SLOW_RUN, **OUTCOME_TINTS, **JOB_TINTS}  # every run list
 
 
 # ── Platform health: pages ────────────────────────────────────
@@ -473,7 +496,7 @@ def platform_dashboard() -> dict[str, Any]:  # "Platform health": engineers only
                 "right-click a run, then Drill to, to open it on the Run detail page."), GRID_WIDTH, 2),  # to use it
         (table("newest_run_table", "Newest fraud-ingest run", "newest_run", [  # one row (ruling R-B5)
             ("started", "Started (UTC)", "string"), ("minutes_taken", "Minutes", "float"), ("outcome", "How it ended", "string")],  # its columns
-            "The loading job's latest run: when it started, how long it took and how it ended.", SLOW_RUN), GRID_WIDTH, 3),  # what it shows
+            "The loading job's latest run: when it started, how long it took and how it ended.", {**SLOW_RUN, **OUTCOME_TINTS}), GRID_WIDTH, 3),  # what it shows
         (bar("run_minutes", "Minutes per job run, oldest to newest", "job_runs", ("run_label", "Run, by start time (UTC)"),  # per run
              ("minutes_taken", "Minutes"),  # up
              "Each bar is one run, labelled with its start time and job. Taller means slower. "  # the sentence
@@ -492,7 +515,7 @@ def platform_dashboard() -> dict[str, Any]:  # "Platform health": engineers only
              color=("update_kind", "Kind of update"), values=("New rows only", "Full rebuild"), x_scale="categorical"), GRID_WIDTH, 5),  # by kind
         (table("run_table", "Every job run and how it ended", "job_runs", RUN_COLUMNS,  # the run list
                "Anything other than ✓ Succeeded is a run that needs a look. Darker blue minutes are slower runs.",  # failures
-               SLOW_RUN), GRID_WIDTH, 6),  # minutes tint
+               RUN_RULES), GRID_WIDTH, 6),  # minutes, outcome and job tints
     )  # end jobs
     data = page("data", "Is the data fresh and clean?",  # page 2
         (header("data_header", "Is the data fresh and clean?",  # the question...
@@ -507,12 +530,13 @@ def platform_dashboard() -> dict[str, Any]:  # "Platform health": engineers only
              "payments are stuck.", color=("stage_status", "Status"), values=("Up to date", "Behind"),  # by status
              aggregate="MAX", x_scale="categorical", horizontal=True), GRID_WIDTH, 4),  # one value per stage
         (table("behind_table", "Hours behind the landing folder", "freshness", [  # the gap per stage
-            ("stage", "Stage", "string"), ("hours_behind", "Hours behind", "integer")],  # stage and gap
+            ("stage", "Stage", "string"), ("newest_day_and_time", "Newest hour (simulated)", "string"),  # stage and hour
+            ("hours_behind", "Hours behind", "integer")],  # the gap
             "0 on a green cell means the stage has caught up; a red cell shows how many hours it lags.",  # the sentence
             {"hours_behind": [cell_rule("=", "0", TINT_GREEN), cell_rule(">", "0", TINT_RED)]}), GRID_WIDTH, 4),  # green or red
         (table("rejections_table", "Rows set aside, by reason", "rejections", [  # the shelf
             ("reason", "Why it was set aside", "string"), ("rows_rejected", "Rows", "integer"),  # reason and count
-            ("first_hour", "First simulated hour", "integer"), ("last_hour", "Last simulated hour", "integer")],  # range
+            ("first_day_and_time", "First seen (simulated)", "string"), ("last_day_and_time", "Last seen (simulated)", "string")],  # range
             "Each row is one reason a payment record failed a basic check. "  # the sentence
             "Set-aside rows are kept for checking, never scored.",  # what happens to them
             {"rows_rejected": [cell_rule(">", "0", TINT_RED)]}), GRID_WIDTH, 3),  # any set-aside row is red
@@ -522,7 +546,7 @@ def platform_dashboard() -> dict[str, Any]:  # "Platform health": engineers only
                 "Pick a run, or open one from a run's bar on the first page: right-click, then Drill to."), 4, 2),  # ...how to get here
         (single_select("detail_run", "Job run (UTC)", [("job_runs", "run_label"), ("task_times", "run_label")]), 2, 2),  # narrows both
         (table("detail_table", "The picked run", "job_runs", RUN_COLUMNS,  # its summary (ruling R-B5)
-               "One row for the picked run; every run while none is picked.", SLOW_RUN), GRID_WIDTH, 3),  # what it shows
+               "One row for the picked run; every run while none is picked.", RUN_RULES), GRID_WIDTH, 3),  # what it shows
         (bar("detail_tasks", "Where the time went in this run", "task_times", ("task_name", "Task"),  # per task
              ("task_minutes", "Minutes"),  # across
              "Each bar is one task of the picked run, longest first. With no run picked it shows each task's "  # the sentence

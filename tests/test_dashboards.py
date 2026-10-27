@@ -410,3 +410,54 @@ def test_chart_sentences_match_what_is_drawn():  # review: no promised gaps; an 
     assert "Gaps" not in line and "newer hours" in line.lower()  # waiting hours are simply not drawn yet
     detail = find("platform_health", "detail_tasks")["spec"]["frame"]["description"]  # the Run detail task chart
     assert "fraud-ingest" in detail  # only the loading job's tasks are recorded here
+
+
+# ── Task 6 fixes from the owner's exported copy, and readable hours (Task 6b) ──
+def test_cell_rules_use_the_exported_shape():  # D11: {"hex": ...} was dropped on import; the export saves a bare string
+    rule = d.cell_rule("=", "0", "#DDF3E2")  # one rule
+    assert rule["backgroundColor"] == "#DDF3E2"  # bare hex, as Databricks saves it
+
+
+def test_numbers_use_the_exported_format():  # D11: "number" ignored exact places (17.20); the export uses number-plain
+    assert d.NUMBER_FORMATS["float"] == {"type": "number-plain", "abbreviation": "none",  # plain number...
+                                         "decimalPlaces": {"type": "exact", "places": 1}, "hideGroupSeparator": True}  # ...17.2
+    assert d.NUMBER_FORMATS["integer"]["decimalPlaces"] == {"type": "exact", "places": 0}  # whole numbers
+
+
+@pytest.mark.parametrize("name", ["run_table", "detail_table", "newest_run_table"])  # every table showing outcomes
+def test_outcome_cells_are_tinted_with_contains_rules(name):  # owner probe: '=' on text did nothing, 'contains' works
+    rules = column_rules("platform_health", name, "outcome")  # the outcome column
+    pairs = [(r["condition"]["operator"], r["condition"]["operand"]["value"], r["backgroundColor"]) for r in rules]  # flat
+    assert pairs[0] == ("contains", "Succeeded", "#DDF3E2")  # green
+    assert pairs.index(("contains", "Cancel", "#ECEEF2")) < pairs.index(("contains", "✕", "#FBE3E1"))  # grey wins over red
+    assert ("contains", "Still running", "#FDF0D2") in pairs  # amber
+
+
+def test_job_cells_get_neutral_pastels():  # owner choice 9: told apart, never good or bad
+    for name in ("run_table", "detail_table"):  # both run lists
+        rules = column_rules("platform_health", name, "job_name")  # the job column
+        assert [(r["condition"]["operand"]["value"], r["backgroundColor"]) for r in rules] == [  # sky and lilac
+            ("fraud-ingest", "#DFF1F7"), ("fraud-train", "#ECE8FB")], name  # in this order
+
+
+def test_cancelled_runs_are_grey_not_red():  # owner 2026-10-27: stopped on purpose is not a failure
+    assert d.MEANING["✕ Cancelled"] == d.MEANING["✕ Canceled"] != d.MEANING["✕ Error"]  # its own colour
+
+
+def test_day_and_time_formula():  # owner choice 8: hour 480 reads as day 20, 23:00
+    expression = d._day_and_time("h")  # the SQL
+    for piece in ("floor((h - 1) / 24) + 1", "(h - 1) % 24", "(hour "):  # day, time and the hour kept
+        assert piece in expression, piece  # present
+    day, time = (480 - 1) // 24 + 1, (480 - 1) % 24  # Python mirror
+    assert (day, time) == (20, 23)  # the example the dashboards give
+
+
+def test_hours_are_readable_everywhere_a_person_reads_them():  # owner choice 8
+    assert "hour 480 is day 20, 11 pm" in d.WORD_LIST["Simulated hour"].lower()  # the word list example
+    for key in d.DASHBOARDS:  # both dashboards
+        for widget, spec in specs(BUILT[key], "bar", "line"):  # charts
+            if "simulated_hour" in str(spec["encodings"]):  # an hour axis
+                assert "Hour 480 is day 20, 11 pm" in spec["frame"]["description"], widget["name"]  # said under it
+    assert "day_and_time" in dataset_sql("fraud_operations", "open_cases")  # the queue shows it
+    assert "first_day_and_time" in dataset_sql("platform_health", "rejections")  # the shelf too
+    assert "newest_day_and_time" in dataset_sql("platform_health", "freshness")  # and each stage

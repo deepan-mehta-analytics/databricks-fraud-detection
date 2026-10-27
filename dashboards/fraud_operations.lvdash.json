@@ -3,7 +3,7 @@
     {
       "name": "open_cases",
       "displayName": "Open cases",
-      "query": "SELECT step AS simulated_hour,\n       risk_score,\n       transaction_id AS payment,\n       sender_account AS paying_account,\n       receiver_account AS receiving_account,\n       date_format(opened_at, 'yyyy-MM-dd HH:mm') AS case_opened_at\nFROM workspace.fraud.alert_cases\nWHERE status = 'open'\nORDER BY step DESC, risk_score DESC"
+      "query": "SELECT step AS simulated_hour,\n       concat('Day ', CAST(floor((step - 1) / 24) + 1 AS STRING), ', ', lpad(CAST((step - 1) % 24 AS STRING), 2, '0'), ':00 (hour ', CAST(step AS STRING), ')') AS day_and_time,\n       risk_score,\n       transaction_id AS payment,\n       sender_account AS paying_account,\n       receiver_account AS receiving_account,\n       date_format(opened_at, 'yyyy-MM-dd HH:mm') AS case_opened_at\nFROM workspace.fraud.alert_cases\nWHERE status = 'open'\nORDER BY step DESC, risk_score DESC"
     },
     {
       "name": "open_case_count",
@@ -91,6 +91,10 @@
                       "expression": "`simulated_hour`"
                     },
                     {
+                      "name": "day_and_time",
+                      "expression": "`day_and_time`"
+                    },
+                    {
                       "name": "risk_score",
                       "expression": "`risk_score`"
                     },
@@ -130,22 +134,30 @@
                     "fieldName": "simulated_hour",
                     "displayName": "Simulated hour",
                     "format": {
-                      "type": "number",
+                      "type": "number-plain",
+                      "abbreviation": "none",
                       "decimalPlaces": {
                         "type": "exact",
                         "places": 0
-                      }
+                      },
+                      "hideGroupSeparator": true
                     }
+                  },
+                  {
+                    "fieldName": "day_and_time",
+                    "displayName": "Day and time (simulated)"
                   },
                   {
                     "fieldName": "risk_score",
                     "displayName": "Risk score",
                     "format": {
-                      "type": "number",
+                      "type": "number-plain",
+                      "abbreviation": "none",
                       "decimalPlaces": {
                         "type": "exact",
                         "places": 1
-                      }
+                      },
+                      "hideGroupSeparator": true
                     }
                   },
                   {
@@ -229,7 +241,7 @@
               },
               "frame": {
                 "showTitle": true,
-                "title": "Simulated hours"
+                "title": "Simulated hours (24 per day)"
               }
             }
           },
@@ -367,7 +379,7 @@
                 "showTitle": true,
                 "title": "Verdicts per simulated hour",
                 "showDescription": true,
-                "description": "How to read it: Each bar is one simulated hour: confirmed fraud in red at the base, false alarms in grey on top. Only hours whose verdicts are in have a bar; newer hours are waiting for verdicts (3 days)."
+                "description": "How to read it: Each bar is one simulated hour: confirmed fraud in red at the base, false alarms in grey on top. Only hours whose verdicts are in have a bar; newer hours are waiting for verdicts (3 days). Hour 480 is day 20, 11 pm; each day has 24 hours."
               },
               "encodings": {
                 "x": {
@@ -492,7 +504,7 @@
               },
               "frame": {
                 "showTitle": true,
-                "title": "Simulated hours"
+                "title": "Simulated hours (24 per day)"
               }
             }
           },
@@ -818,7 +830,7 @@
                 "showTitle": true,
                 "title": "Percent of flagged payments that were fraud, per simulated hour",
                 "showDescription": true,
-                "description": "How to read it: The blue line is each hour; the grey line is the average over every hour with verdicts and stays put when you move the slider. Higher is better. Newer hours are waiting for verdicts (3 days) and are not drawn yet."
+                "description": "How to read it: The blue line is each hour; the grey line is the average over every hour with verdicts and stays put when you move the slider. Higher is better. Newer hours are waiting for verdicts (3 days) and are not drawn yet. Hour 480 is day 20, 11 pm; each day has 24 hours."
               },
               "encodings": {
                 "x": {
@@ -901,7 +913,7 @@
                 "showTitle": true,
                 "title": "Fraud caught and missed, per simulated hour",
                 "showDescription": true,
-                "description": "How to read it: Each bar is all the fraud in one simulated hour: blue was flagged for review, red slipped through. Hours with no bar are waiting for verdicts (3 days), or had no fraud at all."
+                "description": "How to read it: Each bar is all the fraud in one simulated hour: blue was flagged for review, red slipped through. Hours with no bar are waiting for verdicts (3 days), or had no fraud at all. Hour 480 is day 20, 11 pm; each day has 24 hours."
               },
               "encodings": {
                 "x": {
@@ -961,7 +973,7 @@
         {
           "widget": {
             "name": "word_list",
-            "textbox_spec": "# What these words mean\n\n- **Flagged payment**: A payment the model ranked among the 50 most suspicious of its hour, so a person should look at it.\n- **Case**: The review of one flagged payment. It stays open until its verdict is recorded.\n- **Verdict**: The answer to a case: confirmed fraud or false alarm. It arrives 3 simulated days after the payment.\n- **Confirmed fraud**: A flagged payment that really was fraud.\n- **False alarm**: A flagged payment that turned out to be honest.\n- **Simulated hour**: One hour of the replayed month of payments, numbered from 1 to 743.\n- **Model version**: Which saved copy of the fraud model made the decision. Each new copy gets the next number.\n- **Champion model**: The model version currently trusted to score new payments.\n- **Risk score**: How suspicious the model found a payment. Higher is more suspicious. It ranks payments, it is not a chance.\n- **Rejected row**: A payment record that failed a basic check, such as an amount below zero, and was set aside.\n- **Job run**: One run of the scheduled work that releases, loads, cleans, scores and flags payments.\n- **Task**: One step inside a job run, such as loading or scoring.\n- **REDACTED**: Shown instead of an account name to people who may not see who paid whom."
+            "textbox_spec": "# What these words mean\n\n- **Flagged payment**: A payment the model ranked among the 50 most suspicious of its hour, so a person should look at it.\n- **Case**: The review of one flagged payment. It stays open until its verdict is recorded.\n- **Verdict**: The answer to a case: confirmed fraud or false alarm. It arrives 3 simulated days after the payment.\n- **Confirmed fraud**: A flagged payment that really was fraud.\n- **False alarm**: A flagged payment that turned out to be honest.\n- **Simulated hour**: One hour of the replayed month of payments, numbered from 1 to 743. Hour 1 is day 1, midnight to 1 am; hour 480 is day 20, 11 pm.\n- **Model version**: Which saved copy of the fraud model made the decision. Each new copy gets the next number.\n- **Champion model**: The model version currently trusted to score new payments.\n- **Risk score**: How suspicious the model found a payment. Higher is more suspicious. It ranks payments, it is not a chance.\n- **Rejected row**: A payment record that failed a basic check, such as an amount below zero, and was set aside.\n- **Job run**: One run of the scheduled work that releases, loads, cleans, scores and flags payments.\n- **Task**: One step inside a job run, such as loading or scoring.\n- **REDACTED**: Shown instead of an account name to people who may not see who paid whom."
           },
           "position": {
             "x": 0,
