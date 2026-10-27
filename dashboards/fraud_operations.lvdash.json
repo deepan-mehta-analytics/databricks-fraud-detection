@@ -65,7 +65,15 @@
               "encodings": {
                 "value": {
                   "fieldName": "open_cases",
-                  "displayName": "Open cases"
+                  "displayName": "Open cases",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 1
+                    }
+                  }
                 }
               }
             }
@@ -287,7 +295,15 @@
               "encodings": {
                 "value": {
                   "fieldName": "sum(cases)",
-                  "displayName": "Confirmed fraud"
+                  "displayName": "Confirmed fraud",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 1
+                    }
+                  }
                 }
               }
             }
@@ -334,7 +350,15 @@
               "encodings": {
                 "value": {
                   "fieldName": "sum(cases)",
-                  "displayName": "False alarms"
+                  "displayName": "False alarms",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 1
+                    }
+                  }
                 }
               }
             }
@@ -383,7 +407,7 @@
                 "showTitle": true,
                 "title": "Verdicts per simulated hour",
                 "showDescription": true,
-                "description": "How to read it: Each bar is one simulated hour: confirmed fraud in red at the base, false alarms in grey on top. Only hours whose verdicts are in have a bar; newer hours are waiting for verdicts (3 days). Hour 480 is day 20, 11 pm; each day has 24 hours."
+                "description": "How to read it: Each bar is one simulated hour, split into confirmed fraud (red) and false alarms (grey). Only hours whose verdicts are in have a bar; newer hours are waiting for verdicts (3 days). Hour 480 is day 20, 11 pm; each day has 24 hours."
               },
               "encodings": {
                 "x": {
@@ -570,7 +594,14 @@
                 },
                 "target": {
                   "fieldName": "share_flagged_that_were_fraud",
-                  "displayName": "All hours"
+                  "displayName": "All hours",
+                  "format": {
+                    "type": "number-percent",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 0
+                    }
+                  }
                 }
               }
             }
@@ -627,7 +658,14 @@
                 },
                 "target": {
                   "fieldName": "share_of_fraud_caught",
-                  "displayName": "All hours"
+                  "displayName": "All hours",
+                  "format": {
+                    "type": "number-percent",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 0
+                    }
+                  }
                 }
               }
             }
@@ -669,7 +707,15 @@
               "encodings": {
                 "value": {
                   "fieldName": "hours_waiting",
-                  "displayName": "Hours"
+                  "displayName": "Hours",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 1
+                    }
+                  }
                 }
               }
             }
@@ -711,7 +757,15 @@
               "encodings": {
                 "value": {
                   "fieldName": "confirmed_fraud",
-                  "displayName": "Payments"
+                  "displayName": "Payments",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 1
+                    }
+                  }
                 }
               }
             }
@@ -753,7 +807,15 @@
               "encodings": {
                 "value": {
                   "fieldName": "checked_cases",
-                  "displayName": "Payments"
+                  "displayName": "Payments",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 1
+                    }
+                  }
                 }
               }
             }
@@ -795,7 +857,15 @@
               "encodings": {
                 "value": {
                   "fieldName": "all_fraud",
-                  "displayName": "Payments"
+                  "displayName": "Payments",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 1
+                    }
+                  }
                 }
               }
             }

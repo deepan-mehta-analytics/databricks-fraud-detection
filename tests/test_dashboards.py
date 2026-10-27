@@ -477,3 +477,17 @@ def test_hour_charts_explain_the_axis_and_show_day_on_hover():  # D11 recheck: t
         assert [e["fieldName"] for e in encodings["extra"]] == ["day_and_time"], name  # hover shows the readable time
         assert "day_and_time" in [f["name"] for f in widget["queries"][0]["query"]["fields"]], name  # and it is queried
         assert "AS day_and_time" in dataset_sql("fraud_operations", widget["queries"][0]["query"]["datasetName"]), name  # from SQL
+
+
+def test_counters_show_whole_numbers_and_percent_comparisons():  # D11 recheck: 2.51K and a bare 0.14 confused
+    for key in d.DASHBOARDS:  # both dashboards
+        for widget, spec in specs(BUILT[key], "counter"):  # each counter
+            value = spec["encodings"]["value"]  # its number
+            if "target" in spec["encodings"]:  # a comparison
+                assert spec["encodings"]["target"]["format"] == value["format"], widget["name"]  # 14%, like the value
+            elif "formatTemplate" not in value and value.get("format", {}).get("type") != "number-percent":  # a count
+                assert value["format"]["abbreviation"] == "none", widget["name"]  # 2,511, never 2.51K
+
+
+def test_reviews_sentence_claims_no_stack_order():  # D11 recheck: grey drew at the base, not red
+    assert "at the base" not in find("fraud_operations", "outcomes_bar")["spec"]["frame"]["description"]  # no false order

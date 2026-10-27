@@ -208,11 +208,15 @@ def counter(name: str, title: str, dataset_name: str, value: tuple[str, str], ho
     if unit:  # a number with a unit
         shown["format"] = {"type": "number-plain"}  # plain number...
         shown["formatTemplate"] = "{{@formatted}} " + unit  # ...then the unit
+    if "format" not in shown:  # a plain count
+        shown["format"] = {"type": "number-plain", "abbreviation": "none",  # 2,511, never 2.51K (D11 recheck)
+                           "decimalPlaces": {"type": "max", "places": 1}}  # whole numbers stay whole
     encodings: dict[str, Any] = {"value": shown}  # what is shown
     fields = [value_field]  # what is read
     if target:  # a comparison number
         fields.append(_field(target[0], aggregate))  # read it too
-        encodings["target"] = {"fieldName": fields[-1]["name"], "displayName": target[1]}  # Databricks colours the change
+        encodings["target"] = {"fieldName": fields[-1]["name"], "displayName": target[1],  # Databricks colours the change...
+                               "format": shown["format"]}  # ...shown like the value (D11: a bare 0.14 under 17%)
     spec = {"version": 2, "widgetType": "counter", "frame": _frame(title, how), "encodings": encodings}  # the counter
     queries = _queries(dataset_name, fields, aggregate is None)  # one row, or summed rows
     if where:  # a widget query filter on a shared dataset
@@ -376,7 +380,7 @@ def operations_dashboard() -> dict[str, Any]:  # "Fraud operations": reviewers, 
                  where="`outcome` = 'False alarm'"), 3, 2),  # the other verdict
         (bar("outcomes_bar", "Verdicts per simulated hour", "review_outcomes",  # stacked bars
              ("simulated_hour", "Simulated hour"), ("cases", "Cases"),  # axes
-             "Each bar is one simulated hour: confirmed fraud in red at the base, false alarms in grey on top. "  # the sentence
+             "Each bar is one simulated hour, split into confirmed fraud (red) and false alarms (grey). "  # the sentence
              f"Only hours whose verdicts are in have a bar; newer hours are {WAITING}.",  # waiting
              color=("outcome", "Verdict"), values=("Confirmed fraud", "False alarm")), GRID_WIDTH, 6),  # by verdict
     )  # end outcomes
