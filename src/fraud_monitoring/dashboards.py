@@ -46,6 +46,32 @@ OPERATIONS_SOURCES = frozenset({"alert_cases", "alert_summary_hourly", "model_ac
                                 "hours_waiting_for_verdicts"})  # ...have grants on these
 PLATFORM_SOURCES = frozenset({"job_run_times", "pipeline_update_times", "data_freshness", "rejected_rows_by_reason"})  # engineers
 GRID_WIDTH = 6  # AI/BI dashboards lay widgets out on a 6-column grid
+THEME: dict[str, Any] = {  # spec §4.1, identical on both dashboards
+    "canvasBackgroundColor": {"light": "#EDF1F6", "dark": "#121821"},  # cool grey page
+    "widgetBackgroundColor": {"light": "#FDFDFE", "dark": "#1A2230"},  # near-white cards
+    "widgetBorderColor": {"light": "#FDFDFE", "dark": "#1A2230"},  # same as the card: borders hidden
+    "fontColor": {"light": "#13294B", "dark": "#E6ECF4"},  # navy ink, also every counter number
+    "selectionColor": {"light": "#2A78D6", "dark": "#5A9BE6"},  # filters and selections
+    "visualizationColors": ["#2A78D6", "#EB6834", "#1BAF7A", "#EDA100",  # validated palette...
+                            "#E87BA4", "#008300", "#6250D6", "#E34948"],  # ...in checked order
+    "fontFamily": "Inter",  # probe: omitted if the workspace rejects it
+    "widgetCornerRadius": 12,  # rounded cards
+    "widgetHeaderAlignment": "LEFT",  # titles on the left
+}  # end THEME
+GOOD, BAD, WAIT_AMBER = "#0CA30C", "#D03B3B", "#FAB219"  # status colours, always paired with a word or symbol
+FAILED_OUTCOMES = ("Error", "Failed", "Timed Out", "Canceled", "Cancelled", "Skipped", "Upstream Failed")  # run results shown with ✕
+MEANING: dict[str, str] = {  # spec §4.2: value -> its colour on every chart
+    "✓ Succeeded": GOOD, "Up to date": GOOD,  # good
+    "Confirmed fraud": BAD, "Missed": BAD, "Behind": BAD,  # bad
+    **{f"✕ {outcome}": BAD for outcome in FAILED_OUTCOMES},  # every failed run
+    "↻ Still running": WAIT_AMBER,  # in progress
+    "False alarm": "#B8C4D4",  # neutral grey
+    "Caught": "#2A78D6", "Each hour": "#2A78D6", "New rows only": "#2A78D6", "Slowest task": "#2A78D6",  # main blue
+    "Average, all hours": "#898781",  # reference grey
+    "Full rebuild": "#EB6834",  # orange
+    "Other tasks": "#A9C3E6",  # light blue tint
+}  # end MEANING
+TINT_GREEN, TINT_RED, TINT_BLUE_DARK, TINT_BLUE_LIGHT = "#DDF3E2", "#FBE3E1", "#B9D3F2", "#DCE9F9"  # cell-rule tints
 
 
 # ── Building blocks ───────────────────────────────────────────
@@ -68,64 +94,139 @@ def _queries(dataset_name: str, fields: list[dict[str, str]], disaggregated: boo
              "query": {"datasetName": dataset_name, "fields": fields, "disaggregated": disaggregated}}]  # what it reads
 
 
-def _frame(title: str) -> dict[str, Any]:  # a widget's visible title
-    return {"showTitle": True, "title": title}  # shown above the widget
+def _frame(title: str, description: str = "") -> dict[str, Any]:  # a widget's visible title and subtext
+    frame: dict[str, Any] = {"showTitle": True, "title": title}  # shown above the widget
+    if description:  # a sentence under the title
+        frame.update(showDescription=True, description=description)  # documented frame keys
+    return frame  # the frame
+
+
+def _how(sentence: str) -> str:  # the "How to read it" subtext of a chart (ruling R-B3)
+    return f"{HOW_TO_READ} {sentence}"  # it sits in the widget description
 
 
 def text(name: str, markdown: str) -> dict[str, Any]:  # a text box
     return {"name": name, "textbox_spec": markdown}  # Markdown text
 
 
-def how_to_read(name: str, sentence: str) -> dict[str, Any]:  # the one line under each chart
-    return text(name, f"**{HOW_TO_READ}** {sentence}")  # bold lead, plain sentence
+def header(name: str, question: str, sentence: str) -> dict[str, Any]:  # a page header
+    return text(name, f"## {question}\n\n{sentence}")  # the question, then one plain sentence
 
 
-def bar(name: str, title: str, dataset_name: str, x: tuple[str, str], y: tuple[str, str],  # chart, data, axes (column, label)
-        color: tuple[str, str] | None = None, aggregate: str = "SUM", x_scale: str = "quantitative") -> dict[str, Any]:  # options
-    y_field = _field(y[0], aggregate)  # the bar height
+def _mappings(values: tuple[str, ...]) -> list[dict[str, str]]:  # pinned meaning colours
+    return [{"value": v, "color": MEANING[v]} for v in values]  # bare hex, the honoured form
+
+
+def _axis(field: str, label: str, scale: str, sort_by_value: bool = False) -> dict[str, Any]:  # one chart axis
+    axis: dict[str, Any] = {"fieldName": field, "displayName": label, "axis": {"title": label},  # what and its label
+                            "scale": {"type": scale}}  # how it is scaled
+    if sort_by_value:  # biggest first
+        axis["scale"]["sort"] = {"by": "value"}  # documented sort
+    return axis  # the axis
+
+
+def bar(name: str, title: str, dataset_name: str, x: tuple[str, str], y: tuple[str, str], how: str,  # chart, data, axes (column, label)
+        color: tuple[str, str] | None = None, values: tuple[str, ...] = (), aggregate: str | None = "SUM",  # colour split, pins, sum
+        x_scale: str = "quantitative", horizontal: bool = False, sort_by_value: bool = False) -> dict[str, Any]:  # options
+    y_field = _field(y[0], aggregate)  # the bar length
     fields = [_field(x[0]), y_field] + ([_field(color[0])] if color else [])  # columns the chart needs
-    encodings: dict[str, Any] = {  # what goes where
-        "x": {"fieldName": x[0], "displayName": x[1], "axis": {"title": x[1]}, "scale": {"type": x_scale}},  # across
-        "y": {"fieldName": y_field["name"], "displayName": y[1], "axis": {"title": y[1]},  # up...
-              "scale": {"type": "quantitative"}},  # ...as a number
-    }  # end encodings
+    across = _axis(x[0], x[1], x_scale, sort_by_value)  # the category or time axis
+    length = _axis(y_field["name"], y[1], "quantitative")  # the number axis
+    encodings: dict[str, Any] = {"x": length, "y": across} if horizontal else {"x": across, "y": length}  # horizontal swaps
     if color:  # split each bar by a category
-        encodings["color"] = {"fieldName": color[0], "displayName": color[1], "scale": {"type": "categorical"}}  # legend
-    spec = {"version": 3, "widgetType": "bar", "frame": _frame(title), "encodings": encodings}  # the chart
-    return {"name": name, "queries": _queries(dataset_name, fields, False), "spec": spec}  # the widget
+        encodings["color"] = {"fieldName": color[0], "displayName": color[1],  # legend...
+                              "scale": {"type": "categorical", "mappings": _mappings(values)}}  # ...with meaning colours
+    spec = {"version": 3, "widgetType": "bar", "frame": _frame(title, _how(how)), "encodings": encodings}  # the chart
+    return {"name": name, "queries": _queries(dataset_name, fields, aggregate is None), "spec": spec}  # the widget
 
 
-COLUMN_FORMATS: dict[str, dict[str, str]] = {  # column type -> how it shows (keys as in Databricks' exports)
-    "string": {"displayAs": "string", "alignContent": "left"},  # text
-    "integer": {"displayAs": "number", "alignContent": "right", "numberFormat": "0"},  # whole numbers
-    "float": {"displayAs": "number", "alignContent": "right", "numberFormat": "0.0"},  # one decimal place (D3: 4.600)
-    "datetime": {"displayAs": "datetime", "alignContent": "right", "dateTimeFormat": "YYYY-MM-DD HH:mm"},  # times
-}  # end COLUMN_FORMATS
+def line(name: str, title: str, dataset_name: str, x: tuple[str, str], y: tuple[str, str], how: str,  # chart, data, axes
+         color: tuple[str, str], values: tuple[str, ...], x_scale: str = "quantitative") -> dict[str, Any]:  # one line per series
+    fields = [_field(x[0]), _field(y[0]), _field(color[0])]  # one row per point, already computed in SQL
+    encodings = {"x": _axis(x[0], x[1], x_scale), "y": _axis(y[0], y[1], "quantitative"),  # across and up
+                 "color": {"fieldName": color[0], "displayName": color[1],  # one line per series...
+                           "scale": {"type": "categorical", "mappings": _mappings(values)}}}  # ...in its meaning colour
+    spec = {"version": 3, "widgetType": "line", "frame": _frame(title, _how(how)), "encodings": encodings}  # the chart
+    return {"name": name, "queries": _queries(dataset_name, fields, True), "spec": spec}  # the widget
 
 
-def _column(field: str, label: str, kind: str, order: int) -> dict[str, Any]:  # one table column, fully specified
-    return {"fieldName": field, "displayName": label, "title": label, "type": kind,  # what and its label
-            **COLUMN_FORMATS[kind], "visible": True, "order": order,  # how it shows, in which place
-            "allowHTML": False, "allowSearch": False, "booleanValues": ["false", "true"],  # export defaults...
-            "highlightLinks": False, "useMonospaceFont": False, "preserveWhitespace": False,  # ...display
-            "imageUrlTemplate": "{{ @ }}", "imageTitleTemplate": "{{ @ }}", "imageWidth": "", "imageHeight": "",  # ...images
-            "linkUrlTemplate": "{{ @ }}", "linkTextTemplate": "{{ @ }}", "linkTitleTemplate": "{{ @ }}",  # ...links
-            "linkOpenInNewTab": True}  # D3: two-key columns showed "Invalid widget definition is imported"
+NUMBER_FORMATS: dict[str, dict[str, Any]] = {  # table number kinds -> documented format (D3: 4.600 showed)
+    "integer": {"type": "number", "decimalPlaces": {"type": "exact", "places": 0}},  # whole numbers
+    "float": {"type": "number", "decimalPlaces": {"type": "exact", "places": 1}},  # one decimal place
+}  # end NUMBER_FORMATS
 
 
-def table(name: str, title: str, dataset_name: str, columns: list[tuple[str, str, str]]) -> dict[str, Any]:  # a table
-    spec = {"version": 1, "widgetType": "table", "frame": _frame(title),  # the table...
-            "invisibleColumns": [], "allowHTMLByDefault": False, "itemsPerPage": 25,  # ...table-level export...
-            "paginationSize": "default", "condensed": True, "withRowNumber": False,  # ...defaults
-            "encodings": {"columns": [_column(c, label, kind, 100000 + i)  # every column, in order
-                                      for i, (c, label, kind) in enumerate(columns)]}}  # (field, label, type)
+def cell_rule(op: str, value: str, tint: str) -> dict[str, Any]:  # one conditional cell colour
+    return {"condition": {"operand": {"type": "data-value", "value": value}, "operator": op},  # when it applies
+            "backgroundColor": {"hex": tint}}  # the tint behind the text
+
+
+def table(name: str, title: str, dataset_name: str, columns: list[tuple[str, str, str]], how: str,  # a table
+          rules: dict[str, list[dict[str, Any]]] | None = None) -> dict[str, Any]:  # optional cell colours
+    shown = []  # the table v2 columns
+    for field, label, kind in columns:  # (field, label, kind)
+        column: dict[str, Any] = {"fieldName": field, "displayName": label}  # all v2 needs
+        if kind in NUMBER_FORMATS:  # a number
+            column["format"] = NUMBER_FORMATS[kind]  # fixed decimal places
+        if rules and field in rules:  # coloured cells
+            column["style"] = {"type": "basic", "rules": rules[field]}  # documented rule block
+        shown.append(column)  # in order
+    spec = {"version": 2, "widgetType": "table", "frame": _frame(title, _how(how)),  # the table
+            "encodings": {"columns": shown}}  # its columns
     return {"name": name, "queries": _queries(dataset_name, [_field(c) for c, _, _ in columns], True), "spec": spec}  # raw rows
 
 
-def counter(name: str, title: str, dataset_name: str, value: tuple[str, str]) -> dict[str, Any]:  # one big number
-    spec = {"version": 2, "widgetType": "counter", "frame": _frame(title),  # the counter...
-            "encodings": {"value": {"fieldName": value[0], "displayName": value[1]}}}  # ...and its value
-    return {"name": name, "queries": _queries(dataset_name, [_field(value[0])], True), "spec": spec}  # one row
+def counter(name: str, title: str, dataset_name: str, value: tuple[str, str], how: str = "",  # one big number
+            percent: bool = False, unit: str = "", target: tuple[str, str] | None = None,  # format and comparison
+            aggregate: str | None = None, where: str | None = None) -> dict[str, Any]:  # optional sum with a filter
+    value_field = _field(value[0], aggregate)  # the number
+    shown: dict[str, Any] = {"fieldName": value_field["name"], "displayName": value[1]}  # never a colour key
+    if percent:  # a share from 0 to 1
+        shown["format"] = {"type": "number-percent", "decimalPlaces": {"type": "max", "places": 0}}  # 0.139 -> 14%
+    if unit:  # a number with a unit
+        shown["format"] = {"type": "number-plain"}  # plain number...
+        shown["formatTemplate"] = "{{@formatted}} " + unit  # ...then the unit
+    encodings: dict[str, Any] = {"value": shown}  # what is shown
+    fields = [value_field]  # what is read
+    if target:  # a comparison number
+        fields.append(_field(target[0], aggregate))  # read it too
+        encodings["target"] = {"fieldName": fields[-1]["name"], "displayName": target[1]}  # Databricks colours the change
+    spec = {"version": 2, "widgetType": "counter", "frame": _frame(title, how), "encodings": encodings}  # the counter
+    queries = _queries(dataset_name, fields, aggregate is None)  # one row, or summed rows
+    if where:  # a widget query filter on a shared dataset
+        queries[0]["query"]["filters"] = [{"expression": where}]  # documented shape
+    return {"name": name, "queries": queries, "spec": spec}  # the widget
+
+
+def _filter_queries(name: str, bindings: list[tuple[str, str]],  # one query per bound dataset...
+                    fields: Callable[[str], list[dict[str, str]]]) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:  # ...and its encoding
+    queries, encoded = [], []  # built side by side
+    for dataset_name, field in bindings:  # (dataset, field)
+        query_name = f"{name}_{dataset_name}"  # unique per binding
+        queries.append({"name": query_name, "query": {"datasetName": dataset_name, "fields": fields(field),  # what it reads
+                                                      "disaggregated": False}})  # always false for filters
+        encoded.append({"fieldName": field, "queryName": query_name})  # which column it narrows
+    return queries, encoded  # both lists
+
+
+def _bounds(field: str) -> list[dict[str, str]]:  # a slider reads its lowest and highest value
+    return [{"name": f"min({field})", "expression": f"MIN(`{field}`)"},  # lowest
+            {"name": f"max({field})", "expression": f"MAX(`{field}`)"}]  # highest
+
+
+def range_slider(name: str, title: str, bindings: list[tuple[str, str]]) -> dict[str, Any]:  # a page slider on a number
+    queries, encoded = _filter_queries(name, bindings, _bounds)  # one bounds query per dataset
+    spec = {"version": 2, "widgetType": "range-slider", "encodings": {"fields": encoded}, "frame": _frame(title)}  # the slider
+    return {"name": name, "queries": queries, "spec": spec}  # the widget
+
+
+def single_select(name: str, title: str, bindings: list[tuple[str, str]]) -> dict[str, Any]:  # a page pick-one filter
+    queries, encoded = _filter_queries(name, bindings, lambda f: [_field(f)])  # the values to pick from
+    for entry in encoded:  # each binding
+        entry["displayName"] = title  # its label
+    spec = {"version": 2, "widgetType": "filter-single-select", "encodings": {"fields": encoded},  # the filter
+            "frame": _frame(title)}  # its title
+    return {"name": name, "queries": queries, "spec": spec}  # the widget
 
 
 def stack(*items: tuple[dict[str, Any], int, int]) -> list[dict[str, Any]]:  # place (widget, width, height) left to right
@@ -140,11 +241,11 @@ def stack(*items: tuple[dict[str, Any], int, int]) -> list[dict[str, Any]]:  # p
 
 
 def page(name: str, title: str, *items: tuple[dict[str, Any], int, int]) -> dict[str, Any]:  # one dashboard page
-    return {"name": name, "displayName": title, "layout": stack(*items)}  # title and widgets
+    return {"name": name, "displayName": title, "pageType": "PAGE_TYPE_CANVAS", "layout": stack(*items)}  # ruling R-B1
 
 
 def word_page(words: dict[str, str]) -> dict[str, Any]:  # the "What these words mean" page
-    lines = "\n".join(f"- **{term}** — {meaning}" for term, meaning in words.items())  # one line per term
+    lines = "\n".join(f"- **{term}**: {meaning}" for term, meaning in words.items())  # one line per term
     return page("words", "What these words mean",  # plain title
                 (text("word_list", f"# What these words mean\n\n{lines}"), GRID_WIDTH, 10))  # one text box
 
@@ -160,7 +261,7 @@ OPEN_CASES = dataset("open_cases", "Open cases", sql(  # flagged payments still 
     "       transaction_id AS payment,",  # which payment
     "       sender_account AS paying_account,",  # REDACTED for managers (mask)
     "       receiver_account AS receiving_account,",  # REDACTED for managers (mask)
-    "       opened_at AS case_opened_at",  # when the case opened
+    "       date_format(opened_at, 'yyyy-MM-dd HH:mm') AS case_opened_at",  # when the case opened, as text (R-B4)
     "FROM workspace.fraud.alert_cases",  # row filter: managers see no open cases
     "WHERE status = 'open'",  # still waiting
     "ORDER BY step DESC, risk_score DESC",  # newest hour first, most suspicious first
@@ -207,16 +308,17 @@ def operations_dashboard() -> dict[str, Any]:  # "Fraud operations": reviewers, 
         (table("open_table", "Open cases, newest hour first, most suspicious first", "open_cases", [  # the queue
             ("simulated_hour", "Simulated hour", "integer"), ("risk_score", "Risk score", "float"), ("payment", "Payment", "string"),  # what
             ("paying_account", "Paying account", "string"), ("receiving_account", "Receiving account", "string"),  # who
-            ("case_opened_at", "Case opened at (UTC)", "datetime")]), GRID_WIDTH, 8),  # when
-        (how_to_read("open_how", "Each row is one flagged payment still waiting for its verdict. Managers see 0 and an "  # the line
-                     "empty table here: open cases are shown to reviewers and engineers only. "  # row filter, explained (D8)
-                     "Anyone who may not see account names sees REDACTED."), GRID_WIDTH, 1),  # masks
+            ("case_opened_at", "Case opened at (UTC)", "string")],  # when, as SQL text (ruling R-B4)
+            "Each row is one flagged payment still waiting for its verdict. Managers see 0 and an "  # the sentence
+            "empty table here: open cases are shown to reviewers and engineers only. "  # row filter, explained (D8)
+            "Anyone who may not see account names sees REDACTED."), GRID_WIDTH, 8),  # masks
     )  # end queue
     outcomes = page("outcomes", "How did the reviews turn out?",  # page 2
         (bar("outcomes_bar", "Confirmed fraud and false alarms per simulated hour", "review_outcomes",  # stacked bars
-             ("simulated_hour", "Simulated hour"), ("cases", "Cases"), color=("outcome", "Verdict")), GRID_WIDTH, 6),  # by verdict
-        (how_to_read("outcomes_how", "Each bar is one simulated hour, split into confirmed fraud and false alarms. "  # the line
-                     f"Only hours whose verdicts are in have a bar; newer hours are {WAITING}."), GRID_WIDTH, 1),  # waiting
+             ("simulated_hour", "Simulated hour"), ("cases", "Cases"),  # axes
+             "Each bar is one simulated hour, split into confirmed fraud and false alarms. "  # the sentence
+             f"Only hours whose verdicts are in have a bar; newer hours are {WAITING}.",  # waiting
+             color=("outcome", "Verdict"), values=("Confirmed fraud", "False alarm")), GRID_WIDTH, 6),  # by verdict
     )  # end outcomes
     model = page("model", "Is the model still good?",  # page 3
         (counter("flagged_share", "Of the payments we flagged, how many were really fraud", "model_totals",  # share 1
@@ -224,26 +326,25 @@ def operations_dashboard() -> dict[str, Any]:  # "Fraud operations": reviewers, 
         (counter("caught_share", "Of all the fraud, how much we caught", "model_totals",  # share 2
                  ("share_of_fraud_caught", "Share of fraud caught")), 2, 2),  # 0.493 after run E
         (counter("hours_waiting", f"Hours still {WAITING}", "model_totals", ("hours_waiting", "Hours")), 2, 2),  # waiting
-        (how_to_read("totals_how", "The first two numbers cover every hour whose verdicts are in. "  # the line
-                     "0.14 means 14 out of every 100."), GRID_WIDTH, 1),  # reading a share
+        (text("totals_how", f"**{HOW_TO_READ}** The first two numbers cover every hour whose verdicts are in. "  # the line
+                            "0.14 means 14 out of every 100."), GRID_WIDTH, 1),  # reading a share
         (table("totals_table", "The counts behind those shares", "model_totals", [  # the counts
             ("confirmed_fraud", "Confirmed fraud", "integer"), ("checked_cases", "Flagged payments with a verdict", "integer"),  # flagged
-            ("all_fraud", "All fraud in those hours", "integer")]), GRID_WIDTH, 2),  # every fraud
-        (how_to_read("counts_how", "Confirmed fraud divided by flagged payments with a verdict gives the first share; "  # the line
-                     "divided by all fraud, the second."), GRID_WIDTH, 1),  # how the shares are made
+            ("all_fraud", "All fraud in those hours", "integer")],  # every fraud
+            "Confirmed fraud divided by flagged payments with a verdict gives the first share; "  # the sentence
+            "divided by all fraud, the second."), GRID_WIDTH, 2),  # how the shares are made
         (bar("flagged_bar", "Of the payments we flagged, how many were really fraud, per simulated hour", "model_by_hour",  # per hour
              ("simulated_hour", "Simulated hour"), ("share_flagged_that_were_fraud", "Share that were fraud"),  # axes
+             f"Each bar is one simulated hour, coloured by model version. Taller is better. Hours with no bar are {WAITING}.",  # the sentence
              color=("model_version", "Model version"), aggregate="AVG"), GRID_WIDTH, 5),  # one bar per hour
-        (how_to_read("flagged_how", "Each bar is one simulated hour, coloured by model version. Taller is better. "  # the line
-                     f"Hours with no bar are {WAITING}."), GRID_WIDTH, 1),  # waiting
         (bar("caught_bar", "Of all the fraud, how much we caught, per simulated hour", "model_by_hour",  # per hour
              ("simulated_hour", "Simulated hour"), ("share_of_fraud_caught", "Share of fraud caught"),  # axes
+             f"Each bar is one simulated hour. Taller is better. Hours with no bar are {WAITING}, or had no fraud at all.",  # the sentence
              color=("model_version", "Model version"), aggregate="AVG"), GRID_WIDTH, 5),  # one bar per hour
-        (how_to_read("caught_how", "Each bar is one simulated hour. Taller is better. Hours with no bar are "  # the line
-                     f"{WAITING}, or had no fraud at all."), GRID_WIDTH, 1),  # waiting or nothing to catch
     )  # end model
     return {"datasets": [OPEN_CASES, OPEN_CASE_COUNT, REVIEW_OUTCOMES, MODEL_BY_HOUR, MODEL_TOTALS],  # five datasets
-            "pages": [queue, outcomes, model, word_page(WORD_LIST)]}  # four pages
+            "pages": [queue, outcomes, model, word_page(WORD_LIST)],  # four pages
+            "uiSettings": {"theme": THEME}}  # spec §4.1
 
 
 # ── Platform health: datasets (engineers only) ────────────────
@@ -291,44 +392,44 @@ REJECTIONS = dataset("rejections", "Rows set aside", sql(  # one row per reason,
 def platform_dashboard() -> dict[str, Any]:  # "Platform health": engineers only
     jobs = page("jobs", "Are the jobs healthy?",  # page 1
         (bar("run_minutes", "Minutes per job run", "job_runs", ("run_started_at", "Run started (UTC)"),  # per run
-             ("minutes_taken", "Minutes"), color=("job_name", "Job"), x_scale="temporal"), GRID_WIDTH, 5),  # by job
-        (how_to_read("run_minutes_how", "Each bar is one run, placed at the time it started. Taller means slower. "  # the line
-                     "Databricks records a run up to an hour after it ends, but the job refreshes this page as it ends, "  # system table lag (R3)
-                     "so its newest run is missing until you click Refresh an hour later."), GRID_WIDTH, 1),  # D7: in-job refresh is one run behind
+             ("minutes_taken", "Minutes"),  # up
+             "Each bar is one run, placed at the time it started. Taller means slower. "  # the sentence
+             "Databricks records a run up to an hour after it ends, but the job refreshes this page as it ends, "  # system table lag (R3)
+             "so its newest run is missing until you click Refresh an hour later.",  # D7: in-job refresh is one run behind
+             color=("job_name", "Job"), x_scale="temporal"), GRID_WIDTH, 5),  # by job
         (table("run_table", "Every job run and how it ended", "job_runs", [  # the run list
-            ("job_name", "Job", "string"), ("run_started_at", "Started (UTC)", "datetime"), ("minutes_taken", "Minutes", "float"),  # what and how long
-            ("outcome", "How it ended", "string")]), GRID_WIDTH, 5),  # result
-        (how_to_read("run_table_how", "Anything other than Succeeded is a run that needs a look."), GRID_WIDTH, 1),  # failures
+            ("job_name", "Job", "string"), ("run_started_at", "Started (UTC)", "string"), ("minutes_taken", "Minutes", "float"),  # what and how long
+            ("outcome", "How it ended", "string")],  # result
+            "Anything other than Succeeded is a run that needs a look."), GRID_WIDTH, 5),  # failures
         (bar("task_minutes", "Minutes per task in each run of fraud-ingest", "task_times", ("run_started_at", "Run started (UTC)"),  # per task
-             ("task_minutes", "Minutes"), color=("task_name", "Task"), x_scale="temporal"), GRID_WIDTH, 5),  # stacked by task
-        (how_to_read("task_minutes_how", "Each bar is one run, split into its tasks. The tallest part is "  # the line
-                     "where the time goes. The two dashboard refreshes run side by side, so a bar can be "  # review M4
-                     "taller than the run itself."), GRID_WIDTH, 1),  # reading a stacked bar
+             ("task_minutes", "Minutes"),  # up
+             "Each bar is one run, split into its tasks. The tallest part is where the time goes. "  # the sentence
+             "The two dashboard refreshes run side by side, so a bar can be taller than the run itself.",  # review M4
+             color=("task_name", "Task"), x_scale="temporal"), GRID_WIDTH, 5),  # stacked by task
         (bar("pipeline_minutes", "Minutes the cleaning pipeline itself spent per update", "pipeline_updates",  # per update
              ("update_started_at", "Update started (UTC)"), ("minutes_taken", "Minutes"),  # axes
-             color=("update_kind", "Kind of update"), x_scale="temporal"), GRID_WIDTH, 5),  # by kind
-        (how_to_read("pipeline_minutes_how", "Compare with the silver task above: the difference is the time spent "  # the line
-                     "starting up and waiting, not cleaning."), GRID_WIDTH, 1),  # G-15 story
+             "Compare with the silver task above: the difference is the time spent starting up and waiting, not cleaning.",  # G-15 story
+             color=("update_kind", "Kind of update"), values=("New rows only", "Full rebuild"), x_scale="temporal"), GRID_WIDTH, 5),  # by kind
     )  # end jobs
     data = page("data", "Is the data fresh and clean?",  # page 2
         (table("freshness_table", "Newest simulated hour at each stage", "freshness", [  # four stages
-            ("stage", "Stage", "string"), ("newest_simulated_hour", "Newest simulated hour", "integer")]), GRID_WIDTH, 4),  # stage and hour (D3: height 3 clipped row 4)
-        (how_to_read("freshness_how", "After a run all four numbers should be equal. A lower number shows "  # the line
-                     "where payments are stuck."), GRID_WIDTH, 1),  # reading it
+            ("stage", "Stage", "string"), ("newest_simulated_hour", "Newest simulated hour", "integer")],  # stage and hour
+            "After a run all four numbers should be equal. A lower number shows where payments are stuck."), GRID_WIDTH, 4),  # D3: height 3 clipped row 4
         (counter("typical_wait", "Typical minutes from landing to scored", "wait",  # half waited less
                  ("typical_minutes", "Minutes")), 3, 2),  # latest run
         (counter("longest_wait", "Longest minutes from landing to scored", "wait",  # the slowest payment
                  ("longest_minutes", "Minutes")), 3, 2),  # latest run
-        (how_to_read("wait_how", "Both numbers cover the latest scoring run only. Half of its payments waited "  # the line
-                     "less than the typical number."), GRID_WIDTH, 1),  # plain words for the middle value
+        (text("wait_how", f"**{HOW_TO_READ}** Both numbers cover the latest scoring run only. Half of its payments "  # the line
+                          "waited less than the typical number."), GRID_WIDTH, 1),  # plain words for the middle value
         (table("rejections_table", "Rows set aside, by reason", "rejections", [  # the shelf
             ("reason", "Why it was set aside", "string"), ("rows_rejected", "Rows", "integer"),  # reason and count
-            ("first_hour", "First simulated hour", "integer"), ("last_hour", "Last simulated hour", "integer")]), GRID_WIDTH, 3),  # range
-        (how_to_read("rejections_how", "Each row is one reason a payment record failed a basic check. "  # the line
-                     "Set-aside rows are kept for checking, never scored."), GRID_WIDTH, 1),  # what happens to them
+            ("first_hour", "First simulated hour", "integer"), ("last_hour", "Last simulated hour", "integer")],  # range
+            "Each row is one reason a payment record failed a basic check. "  # the sentence
+            "Set-aside rows are kept for checking, never scored."), GRID_WIDTH, 3),  # what happens to them
     )  # end data
     return {"datasets": [JOB_RUNS, TASK_TIMES, PIPELINE_UPDATES, FRESHNESS, WAIT, REJECTIONS],  # six datasets
-            "pages": [jobs, data, word_page({**WORD_LIST, **PLATFORM_WORDS})]}  # three pages
+            "pages": [jobs, data, word_page({**WORD_LIST, **PLATFORM_WORDS})],  # three pages
+            "uiSettings": {"theme": THEME}}  # spec §4.1
 
 
 DASHBOARDS: dict[str, Callable[[], dict[str, Any]]] = {  # bundle resource key (and file name) -> builder

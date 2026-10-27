@@ -35,6 +35,7 @@
     {
       "name": "jobs",
       "displayName": "Are the jobs healthy?",
+      "pageType": "PAGE_TYPE_CANVAS",
       "layout": [
         {
           "widget": {
@@ -67,7 +68,9 @@
               "widgetType": "bar",
               "frame": {
                 "showTitle": true,
-                "title": "Minutes per job run"
+                "title": "Minutes per job run",
+                "showDescription": true,
+                "description": "How to read it: Each bar is one run, placed at the time it started. Taller means slower. Databricks records a run up to an hour after it ends, but the job refreshes this page as it ends, so its newest run is missing until you click Refresh an hour later."
               },
               "encodings": {
                 "x": {
@@ -94,7 +97,8 @@
                   "fieldName": "job_name",
                   "displayName": "Job",
                   "scale": {
-                    "type": "categorical"
+                    "type": "categorical",
+                    "mappings": []
                   }
                 }
               }
@@ -105,18 +109,6 @@
             "y": 0,
             "width": 6,
             "height": 5
-          }
-        },
-        {
-          "widget": {
-            "name": "run_minutes_how",
-            "textbox_spec": "**How to read it:** Each bar is one run, placed at the time it started. Taller means slower. Databricks records a run up to an hour after it ends, but the job refreshes this page as it ends, so its newest run is missing until you click Refresh an hour later."
-          },
-          "position": {
-            "x": 0,
-            "y": 5,
-            "width": 6,
-            "height": 1
           }
         },
         {
@@ -150,129 +142,38 @@
               }
             ],
             "spec": {
-              "version": 1,
+              "version": 2,
               "widgetType": "table",
               "frame": {
                 "showTitle": true,
-                "title": "Every job run and how it ended"
+                "title": "Every job run and how it ended",
+                "showDescription": true,
+                "description": "How to read it: Anything other than Succeeded is a run that needs a look."
               },
-              "invisibleColumns": [],
-              "allowHTMLByDefault": false,
-              "itemsPerPage": 25,
-              "paginationSize": "default",
-              "condensed": true,
-              "withRowNumber": false,
               "encodings": {
                 "columns": [
                   {
                     "fieldName": "job_name",
-                    "displayName": "Job",
-                    "title": "Job",
-                    "type": "string",
-                    "displayAs": "string",
-                    "alignContent": "left",
-                    "visible": true,
-                    "order": 100000,
-                    "allowHTML": false,
-                    "allowSearch": false,
-                    "booleanValues": [
-                      "false",
-                      "true"
-                    ],
-                    "highlightLinks": false,
-                    "useMonospaceFont": false,
-                    "preserveWhitespace": false,
-                    "imageUrlTemplate": "{{ @ }}",
-                    "imageTitleTemplate": "{{ @ }}",
-                    "imageWidth": "",
-                    "imageHeight": "",
-                    "linkUrlTemplate": "{{ @ }}",
-                    "linkTextTemplate": "{{ @ }}",
-                    "linkTitleTemplate": "{{ @ }}",
-                    "linkOpenInNewTab": true
+                    "displayName": "Job"
                   },
                   {
                     "fieldName": "run_started_at",
-                    "displayName": "Started (UTC)",
-                    "title": "Started (UTC)",
-                    "type": "datetime",
-                    "displayAs": "datetime",
-                    "alignContent": "right",
-                    "dateTimeFormat": "YYYY-MM-DD HH:mm",
-                    "visible": true,
-                    "order": 100001,
-                    "allowHTML": false,
-                    "allowSearch": false,
-                    "booleanValues": [
-                      "false",
-                      "true"
-                    ],
-                    "highlightLinks": false,
-                    "useMonospaceFont": false,
-                    "preserveWhitespace": false,
-                    "imageUrlTemplate": "{{ @ }}",
-                    "imageTitleTemplate": "{{ @ }}",
-                    "imageWidth": "",
-                    "imageHeight": "",
-                    "linkUrlTemplate": "{{ @ }}",
-                    "linkTextTemplate": "{{ @ }}",
-                    "linkTitleTemplate": "{{ @ }}",
-                    "linkOpenInNewTab": true
+                    "displayName": "Started (UTC)"
                   },
                   {
                     "fieldName": "minutes_taken",
                     "displayName": "Minutes",
-                    "title": "Minutes",
-                    "type": "float",
-                    "displayAs": "number",
-                    "alignContent": "right",
-                    "numberFormat": "0.0",
-                    "visible": true,
-                    "order": 100002,
-                    "allowHTML": false,
-                    "allowSearch": false,
-                    "booleanValues": [
-                      "false",
-                      "true"
-                    ],
-                    "highlightLinks": false,
-                    "useMonospaceFont": false,
-                    "preserveWhitespace": false,
-                    "imageUrlTemplate": "{{ @ }}",
-                    "imageTitleTemplate": "{{ @ }}",
-                    "imageWidth": "",
-                    "imageHeight": "",
-                    "linkUrlTemplate": "{{ @ }}",
-                    "linkTextTemplate": "{{ @ }}",
-                    "linkTitleTemplate": "{{ @ }}",
-                    "linkOpenInNewTab": true
+                    "format": {
+                      "type": "number",
+                      "decimalPlaces": {
+                        "type": "exact",
+                        "places": 1
+                      }
+                    }
                   },
                   {
                     "fieldName": "outcome",
-                    "displayName": "How it ended",
-                    "title": "How it ended",
-                    "type": "string",
-                    "displayAs": "string",
-                    "alignContent": "left",
-                    "visible": true,
-                    "order": 100003,
-                    "allowHTML": false,
-                    "allowSearch": false,
-                    "booleanValues": [
-                      "false",
-                      "true"
-                    ],
-                    "highlightLinks": false,
-                    "useMonospaceFont": false,
-                    "preserveWhitespace": false,
-                    "imageUrlTemplate": "{{ @ }}",
-                    "imageTitleTemplate": "{{ @ }}",
-                    "imageWidth": "",
-                    "imageHeight": "",
-                    "linkUrlTemplate": "{{ @ }}",
-                    "linkTextTemplate": "{{ @ }}",
-                    "linkTitleTemplate": "{{ @ }}",
-                    "linkOpenInNewTab": true
+                    "displayName": "How it ended"
                   }
                 ]
               }
@@ -280,21 +181,9 @@
           },
           "position": {
             "x": 0,
-            "y": 6,
+            "y": 5,
             "width": 6,
             "height": 5
-          }
-        },
-        {
-          "widget": {
-            "name": "run_table_how",
-            "textbox_spec": "**How to read it:** Anything other than Succeeded is a run that needs a look."
-          },
-          "position": {
-            "x": 0,
-            "y": 11,
-            "width": 6,
-            "height": 1
           }
         },
         {
@@ -328,7 +217,9 @@
               "widgetType": "bar",
               "frame": {
                 "showTitle": true,
-                "title": "Minutes per task in each run of fraud-ingest"
+                "title": "Minutes per task in each run of fraud-ingest",
+                "showDescription": true,
+                "description": "How to read it: Each bar is one run, split into its tasks. The tallest part is where the time goes. The two dashboard refreshes run side by side, so a bar can be taller than the run itself."
               },
               "encodings": {
                 "x": {
@@ -355,7 +246,8 @@
                   "fieldName": "task_name",
                   "displayName": "Task",
                   "scale": {
-                    "type": "categorical"
+                    "type": "categorical",
+                    "mappings": []
                   }
                 }
               }
@@ -363,21 +255,9 @@
           },
           "position": {
             "x": 0,
-            "y": 12,
+            "y": 10,
             "width": 6,
             "height": 5
-          }
-        },
-        {
-          "widget": {
-            "name": "task_minutes_how",
-            "textbox_spec": "**How to read it:** Each bar is one run, split into its tasks. The tallest part is where the time goes. The two dashboard refreshes run side by side, so a bar can be taller than the run itself."
-          },
-          "position": {
-            "x": 0,
-            "y": 17,
-            "width": 6,
-            "height": 1
           }
         },
         {
@@ -411,7 +291,9 @@
               "widgetType": "bar",
               "frame": {
                 "showTitle": true,
-                "title": "Minutes the cleaning pipeline itself spent per update"
+                "title": "Minutes the cleaning pipeline itself spent per update",
+                "showDescription": true,
+                "description": "How to read it: Compare with the silver task above: the difference is the time spent starting up and waiting, not cleaning."
               },
               "encodings": {
                 "x": {
@@ -438,7 +320,17 @@
                   "fieldName": "update_kind",
                   "displayName": "Kind of update",
                   "scale": {
-                    "type": "categorical"
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "New rows only",
+                        "color": "#2A78D6"
+                      },
+                      {
+                        "value": "Full rebuild",
+                        "color": "#EB6834"
+                      }
+                    ]
                   }
                 }
               }
@@ -446,21 +338,9 @@
           },
           "position": {
             "x": 0,
-            "y": 18,
+            "y": 15,
             "width": 6,
             "height": 5
-          }
-        },
-        {
-          "widget": {
-            "name": "pipeline_minutes_how",
-            "textbox_spec": "**How to read it:** Compare with the silver task above: the difference is the time spent starting up and waiting, not cleaning."
-          },
-          "position": {
-            "x": 0,
-            "y": 23,
-            "width": 6,
-            "height": 1
           }
         }
       ]
@@ -468,6 +348,7 @@
     {
       "name": "data",
       "displayName": "Is the data fresh and clean?",
+      "pageType": "PAGE_TYPE_CANVAS",
       "layout": [
         {
           "widget": {
@@ -492,74 +373,30 @@
               }
             ],
             "spec": {
-              "version": 1,
+              "version": 2,
               "widgetType": "table",
               "frame": {
                 "showTitle": true,
-                "title": "Newest simulated hour at each stage"
+                "title": "Newest simulated hour at each stage",
+                "showDescription": true,
+                "description": "How to read it: After a run all four numbers should be equal. A lower number shows where payments are stuck."
               },
-              "invisibleColumns": [],
-              "allowHTMLByDefault": false,
-              "itemsPerPage": 25,
-              "paginationSize": "default",
-              "condensed": true,
-              "withRowNumber": false,
               "encodings": {
                 "columns": [
                   {
                     "fieldName": "stage",
-                    "displayName": "Stage",
-                    "title": "Stage",
-                    "type": "string",
-                    "displayAs": "string",
-                    "alignContent": "left",
-                    "visible": true,
-                    "order": 100000,
-                    "allowHTML": false,
-                    "allowSearch": false,
-                    "booleanValues": [
-                      "false",
-                      "true"
-                    ],
-                    "highlightLinks": false,
-                    "useMonospaceFont": false,
-                    "preserveWhitespace": false,
-                    "imageUrlTemplate": "{{ @ }}",
-                    "imageTitleTemplate": "{{ @ }}",
-                    "imageWidth": "",
-                    "imageHeight": "",
-                    "linkUrlTemplate": "{{ @ }}",
-                    "linkTextTemplate": "{{ @ }}",
-                    "linkTitleTemplate": "{{ @ }}",
-                    "linkOpenInNewTab": true
+                    "displayName": "Stage"
                   },
                   {
                     "fieldName": "newest_simulated_hour",
                     "displayName": "Newest simulated hour",
-                    "title": "Newest simulated hour",
-                    "type": "integer",
-                    "displayAs": "number",
-                    "alignContent": "right",
-                    "numberFormat": "0",
-                    "visible": true,
-                    "order": 100001,
-                    "allowHTML": false,
-                    "allowSearch": false,
-                    "booleanValues": [
-                      "false",
-                      "true"
-                    ],
-                    "highlightLinks": false,
-                    "useMonospaceFont": false,
-                    "preserveWhitespace": false,
-                    "imageUrlTemplate": "{{ @ }}",
-                    "imageTitleTemplate": "{{ @ }}",
-                    "imageWidth": "",
-                    "imageHeight": "",
-                    "linkUrlTemplate": "{{ @ }}",
-                    "linkTextTemplate": "{{ @ }}",
-                    "linkTitleTemplate": "{{ @ }}",
-                    "linkOpenInNewTab": true
+                    "format": {
+                      "type": "number",
+                      "decimalPlaces": {
+                        "type": "exact",
+                        "places": 0
+                      }
+                    }
                   }
                 ]
               }
@@ -570,18 +407,6 @@
             "y": 0,
             "width": 6,
             "height": 4
-          }
-        },
-        {
-          "widget": {
-            "name": "freshness_how",
-            "textbox_spec": "**How to read it:** After a run all four numbers should be equal. A lower number shows where payments are stuck."
-          },
-          "position": {
-            "x": 0,
-            "y": 4,
-            "width": 6,
-            "height": 1
           }
         },
         {
@@ -619,7 +444,7 @@
           },
           "position": {
             "x": 0,
-            "y": 5,
+            "y": 4,
             "width": 3,
             "height": 2
           }
@@ -659,7 +484,7 @@
           },
           "position": {
             "x": 3,
-            "y": 5,
+            "y": 4,
             "width": 3,
             "height": 2
           }
@@ -671,7 +496,7 @@
           },
           "position": {
             "x": 0,
-            "y": 7,
+            "y": 6,
             "width": 6,
             "height": 1
           }
@@ -707,130 +532,52 @@
               }
             ],
             "spec": {
-              "version": 1,
+              "version": 2,
               "widgetType": "table",
               "frame": {
                 "showTitle": true,
-                "title": "Rows set aside, by reason"
+                "title": "Rows set aside, by reason",
+                "showDescription": true,
+                "description": "How to read it: Each row is one reason a payment record failed a basic check. Set-aside rows are kept for checking, never scored."
               },
-              "invisibleColumns": [],
-              "allowHTMLByDefault": false,
-              "itemsPerPage": 25,
-              "paginationSize": "default",
-              "condensed": true,
-              "withRowNumber": false,
               "encodings": {
                 "columns": [
                   {
                     "fieldName": "reason",
-                    "displayName": "Why it was set aside",
-                    "title": "Why it was set aside",
-                    "type": "string",
-                    "displayAs": "string",
-                    "alignContent": "left",
-                    "visible": true,
-                    "order": 100000,
-                    "allowHTML": false,
-                    "allowSearch": false,
-                    "booleanValues": [
-                      "false",
-                      "true"
-                    ],
-                    "highlightLinks": false,
-                    "useMonospaceFont": false,
-                    "preserveWhitespace": false,
-                    "imageUrlTemplate": "{{ @ }}",
-                    "imageTitleTemplate": "{{ @ }}",
-                    "imageWidth": "",
-                    "imageHeight": "",
-                    "linkUrlTemplate": "{{ @ }}",
-                    "linkTextTemplate": "{{ @ }}",
-                    "linkTitleTemplate": "{{ @ }}",
-                    "linkOpenInNewTab": true
+                    "displayName": "Why it was set aside"
                   },
                   {
                     "fieldName": "rows_rejected",
                     "displayName": "Rows",
-                    "title": "Rows",
-                    "type": "integer",
-                    "displayAs": "number",
-                    "alignContent": "right",
-                    "numberFormat": "0",
-                    "visible": true,
-                    "order": 100001,
-                    "allowHTML": false,
-                    "allowSearch": false,
-                    "booleanValues": [
-                      "false",
-                      "true"
-                    ],
-                    "highlightLinks": false,
-                    "useMonospaceFont": false,
-                    "preserveWhitespace": false,
-                    "imageUrlTemplate": "{{ @ }}",
-                    "imageTitleTemplate": "{{ @ }}",
-                    "imageWidth": "",
-                    "imageHeight": "",
-                    "linkUrlTemplate": "{{ @ }}",
-                    "linkTextTemplate": "{{ @ }}",
-                    "linkTitleTemplate": "{{ @ }}",
-                    "linkOpenInNewTab": true
+                    "format": {
+                      "type": "number",
+                      "decimalPlaces": {
+                        "type": "exact",
+                        "places": 0
+                      }
+                    }
                   },
                   {
                     "fieldName": "first_hour",
                     "displayName": "First simulated hour",
-                    "title": "First simulated hour",
-                    "type": "integer",
-                    "displayAs": "number",
-                    "alignContent": "right",
-                    "numberFormat": "0",
-                    "visible": true,
-                    "order": 100002,
-                    "allowHTML": false,
-                    "allowSearch": false,
-                    "booleanValues": [
-                      "false",
-                      "true"
-                    ],
-                    "highlightLinks": false,
-                    "useMonospaceFont": false,
-                    "preserveWhitespace": false,
-                    "imageUrlTemplate": "{{ @ }}",
-                    "imageTitleTemplate": "{{ @ }}",
-                    "imageWidth": "",
-                    "imageHeight": "",
-                    "linkUrlTemplate": "{{ @ }}",
-                    "linkTextTemplate": "{{ @ }}",
-                    "linkTitleTemplate": "{{ @ }}",
-                    "linkOpenInNewTab": true
+                    "format": {
+                      "type": "number",
+                      "decimalPlaces": {
+                        "type": "exact",
+                        "places": 0
+                      }
+                    }
                   },
                   {
                     "fieldName": "last_hour",
                     "displayName": "Last simulated hour",
-                    "title": "Last simulated hour",
-                    "type": "integer",
-                    "displayAs": "number",
-                    "alignContent": "right",
-                    "numberFormat": "0",
-                    "visible": true,
-                    "order": 100003,
-                    "allowHTML": false,
-                    "allowSearch": false,
-                    "booleanValues": [
-                      "false",
-                      "true"
-                    ],
-                    "highlightLinks": false,
-                    "useMonospaceFont": false,
-                    "preserveWhitespace": false,
-                    "imageUrlTemplate": "{{ @ }}",
-                    "imageTitleTemplate": "{{ @ }}",
-                    "imageWidth": "",
-                    "imageHeight": "",
-                    "linkUrlTemplate": "{{ @ }}",
-                    "linkTextTemplate": "{{ @ }}",
-                    "linkTitleTemplate": "{{ @ }}",
-                    "linkOpenInNewTab": true
+                    "format": {
+                      "type": "number",
+                      "decimalPlaces": {
+                        "type": "exact",
+                        "places": 0
+                      }
+                    }
                   }
                 ]
               }
@@ -838,21 +585,9 @@
           },
           "position": {
             "x": 0,
-            "y": 8,
+            "y": 7,
             "width": 6,
             "height": 3
-          }
-        },
-        {
-          "widget": {
-            "name": "rejections_how",
-            "textbox_spec": "**How to read it:** Each row is one reason a payment record failed a basic check. Set-aside rows are kept for checking, never scored."
-          },
-          "position": {
-            "x": 0,
-            "y": 11,
-            "width": 6,
-            "height": 1
           }
         }
       ]
@@ -860,11 +595,12 @@
     {
       "name": "words",
       "displayName": "What these words mean",
+      "pageType": "PAGE_TYPE_CANVAS",
       "layout": [
         {
           "widget": {
             "name": "word_list",
-            "textbox_spec": "# What these words mean\n\n- **Flagged payment** — A payment the model ranked among the 50 most suspicious of its hour, so a person should look at it.\n- **Case** — The review of one flagged payment. It stays open until its verdict is recorded.\n- **Verdict** — The answer to a case: confirmed fraud or false alarm. It arrives 3 simulated days after the payment.\n- **Confirmed fraud** — A flagged payment that really was fraud.\n- **False alarm** — A flagged payment that turned out to be honest.\n- **Simulated hour** — One hour of the replayed month of payments, numbered from 1 to 743.\n- **Model version** — Which saved copy of the fraud model made the decision. Each new copy gets the next number.\n- **Champion model** — The model version currently trusted to score new payments.\n- **Risk score** — How suspicious the model found a payment. Higher is more suspicious. It ranks payments, it is not a chance.\n- **Rejected row** — A payment record that failed a basic check, such as an amount below zero, and was set aside.\n- **Job run** — One run of the scheduled work that releases, loads, cleans, scores and flags payments.\n- **Task** — One step inside a job run, such as loading or scoring.\n- **REDACTED** — Shown instead of an account name to people who may not see who paid whom.\n- **Landing folder** — Where each simulated hour's file of payments arrives before it is loaded.\n- **Pipeline update** — One run of the cleaning step that turns loaded payments into clean ones.\n- **Full rebuild** — A pipeline update that redoes everything from the start instead of only the new rows."
+            "textbox_spec": "# What these words mean\n\n- **Flagged payment**: A payment the model ranked among the 50 most suspicious of its hour, so a person should look at it.\n- **Case**: The review of one flagged payment. It stays open until its verdict is recorded.\n- **Verdict**: The answer to a case: confirmed fraud or false alarm. It arrives 3 simulated days after the payment.\n- **Confirmed fraud**: A flagged payment that really was fraud.\n- **False alarm**: A flagged payment that turned out to be honest.\n- **Simulated hour**: One hour of the replayed month of payments, numbered from 1 to 743.\n- **Model version**: Which saved copy of the fraud model made the decision. Each new copy gets the next number.\n- **Champion model**: The model version currently trusted to score new payments.\n- **Risk score**: How suspicious the model found a payment. Higher is more suspicious. It ranks payments, it is not a chance.\n- **Rejected row**: A payment record that failed a basic check, such as an amount below zero, and was set aside.\n- **Job run**: One run of the scheduled work that releases, loads, cleans, scores and flags payments.\n- **Task**: One step inside a job run, such as loading or scoring.\n- **REDACTED**: Shown instead of an account name to people who may not see who paid whom.\n- **Landing folder**: Where each simulated hour's file of payments arrives before it is loaded.\n- **Pipeline update**: One run of the cleaning step that turns loaded payments into clean ones.\n- **Full rebuild**: A pipeline update that redoes everything from the start instead of only the new rows."
           },
           "position": {
             "x": 0,
@@ -875,5 +611,42 @@
         }
       ]
     }
-  ]
+  ],
+  "uiSettings": {
+    "theme": {
+      "canvasBackgroundColor": {
+        "light": "#EDF1F6",
+        "dark": "#121821"
+      },
+      "widgetBackgroundColor": {
+        "light": "#FDFDFE",
+        "dark": "#1A2230"
+      },
+      "widgetBorderColor": {
+        "light": "#FDFDFE",
+        "dark": "#1A2230"
+      },
+      "fontColor": {
+        "light": "#13294B",
+        "dark": "#E6ECF4"
+      },
+      "selectionColor": {
+        "light": "#2A78D6",
+        "dark": "#5A9BE6"
+      },
+      "visualizationColors": [
+        "#2A78D6",
+        "#EB6834",
+        "#1BAF7A",
+        "#EDA100",
+        "#E87BA4",
+        "#008300",
+        "#6250D6",
+        "#E34948"
+      ],
+      "fontFamily": "Inter",
+      "widgetCornerRadius": 12,
+      "widgetHeaderAlignment": "LEFT"
+    }
+  }
 }

@@ -3,7 +3,7 @@
     {
       "name": "open_cases",
       "displayName": "Open cases",
-      "query": "SELECT step AS simulated_hour,\n       risk_score,\n       transaction_id AS payment,\n       sender_account AS paying_account,\n       receiver_account AS receiving_account,\n       opened_at AS case_opened_at\nFROM workspace.fraud.alert_cases\nWHERE status = 'open'\nORDER BY step DESC, risk_score DESC"
+      "query": "SELECT step AS simulated_hour,\n       risk_score,\n       transaction_id AS payment,\n       sender_account AS paying_account,\n       receiver_account AS receiving_account,\n       date_format(opened_at, 'yyyy-MM-dd HH:mm') AS case_opened_at\nFROM workspace.fraud.alert_cases\nWHERE status = 'open'\nORDER BY step DESC, risk_score DESC"
     },
     {
       "name": "open_case_count",
@@ -30,6 +30,7 @@
     {
       "name": "queue",
       "displayName": "What is waiting for review?",
+      "pageType": "PAGE_TYPE_CANVAS",
       "layout": [
         {
           "widget": {
@@ -110,184 +111,53 @@
               }
             ],
             "spec": {
-              "version": 1,
+              "version": 2,
               "widgetType": "table",
               "frame": {
                 "showTitle": true,
-                "title": "Open cases, newest hour first, most suspicious first"
+                "title": "Open cases, newest hour first, most suspicious first",
+                "showDescription": true,
+                "description": "How to read it: Each row is one flagged payment still waiting for its verdict. Managers see 0 and an empty table here: open cases are shown to reviewers and engineers only. Anyone who may not see account names sees REDACTED."
               },
-              "invisibleColumns": [],
-              "allowHTMLByDefault": false,
-              "itemsPerPage": 25,
-              "paginationSize": "default",
-              "condensed": true,
-              "withRowNumber": false,
               "encodings": {
                 "columns": [
                   {
                     "fieldName": "simulated_hour",
                     "displayName": "Simulated hour",
-                    "title": "Simulated hour",
-                    "type": "integer",
-                    "displayAs": "number",
-                    "alignContent": "right",
-                    "numberFormat": "0",
-                    "visible": true,
-                    "order": 100000,
-                    "allowHTML": false,
-                    "allowSearch": false,
-                    "booleanValues": [
-                      "false",
-                      "true"
-                    ],
-                    "highlightLinks": false,
-                    "useMonospaceFont": false,
-                    "preserveWhitespace": false,
-                    "imageUrlTemplate": "{{ @ }}",
-                    "imageTitleTemplate": "{{ @ }}",
-                    "imageWidth": "",
-                    "imageHeight": "",
-                    "linkUrlTemplate": "{{ @ }}",
-                    "linkTextTemplate": "{{ @ }}",
-                    "linkTitleTemplate": "{{ @ }}",
-                    "linkOpenInNewTab": true
+                    "format": {
+                      "type": "number",
+                      "decimalPlaces": {
+                        "type": "exact",
+                        "places": 0
+                      }
+                    }
                   },
                   {
                     "fieldName": "risk_score",
                     "displayName": "Risk score",
-                    "title": "Risk score",
-                    "type": "float",
-                    "displayAs": "number",
-                    "alignContent": "right",
-                    "numberFormat": "0.0",
-                    "visible": true,
-                    "order": 100001,
-                    "allowHTML": false,
-                    "allowSearch": false,
-                    "booleanValues": [
-                      "false",
-                      "true"
-                    ],
-                    "highlightLinks": false,
-                    "useMonospaceFont": false,
-                    "preserveWhitespace": false,
-                    "imageUrlTemplate": "{{ @ }}",
-                    "imageTitleTemplate": "{{ @ }}",
-                    "imageWidth": "",
-                    "imageHeight": "",
-                    "linkUrlTemplate": "{{ @ }}",
-                    "linkTextTemplate": "{{ @ }}",
-                    "linkTitleTemplate": "{{ @ }}",
-                    "linkOpenInNewTab": true
+                    "format": {
+                      "type": "number",
+                      "decimalPlaces": {
+                        "type": "exact",
+                        "places": 1
+                      }
+                    }
                   },
                   {
                     "fieldName": "payment",
-                    "displayName": "Payment",
-                    "title": "Payment",
-                    "type": "string",
-                    "displayAs": "string",
-                    "alignContent": "left",
-                    "visible": true,
-                    "order": 100002,
-                    "allowHTML": false,
-                    "allowSearch": false,
-                    "booleanValues": [
-                      "false",
-                      "true"
-                    ],
-                    "highlightLinks": false,
-                    "useMonospaceFont": false,
-                    "preserveWhitespace": false,
-                    "imageUrlTemplate": "{{ @ }}",
-                    "imageTitleTemplate": "{{ @ }}",
-                    "imageWidth": "",
-                    "imageHeight": "",
-                    "linkUrlTemplate": "{{ @ }}",
-                    "linkTextTemplate": "{{ @ }}",
-                    "linkTitleTemplate": "{{ @ }}",
-                    "linkOpenInNewTab": true
+                    "displayName": "Payment"
                   },
                   {
                     "fieldName": "paying_account",
-                    "displayName": "Paying account",
-                    "title": "Paying account",
-                    "type": "string",
-                    "displayAs": "string",
-                    "alignContent": "left",
-                    "visible": true,
-                    "order": 100003,
-                    "allowHTML": false,
-                    "allowSearch": false,
-                    "booleanValues": [
-                      "false",
-                      "true"
-                    ],
-                    "highlightLinks": false,
-                    "useMonospaceFont": false,
-                    "preserveWhitespace": false,
-                    "imageUrlTemplate": "{{ @ }}",
-                    "imageTitleTemplate": "{{ @ }}",
-                    "imageWidth": "",
-                    "imageHeight": "",
-                    "linkUrlTemplate": "{{ @ }}",
-                    "linkTextTemplate": "{{ @ }}",
-                    "linkTitleTemplate": "{{ @ }}",
-                    "linkOpenInNewTab": true
+                    "displayName": "Paying account"
                   },
                   {
                     "fieldName": "receiving_account",
-                    "displayName": "Receiving account",
-                    "title": "Receiving account",
-                    "type": "string",
-                    "displayAs": "string",
-                    "alignContent": "left",
-                    "visible": true,
-                    "order": 100004,
-                    "allowHTML": false,
-                    "allowSearch": false,
-                    "booleanValues": [
-                      "false",
-                      "true"
-                    ],
-                    "highlightLinks": false,
-                    "useMonospaceFont": false,
-                    "preserveWhitespace": false,
-                    "imageUrlTemplate": "{{ @ }}",
-                    "imageTitleTemplate": "{{ @ }}",
-                    "imageWidth": "",
-                    "imageHeight": "",
-                    "linkUrlTemplate": "{{ @ }}",
-                    "linkTextTemplate": "{{ @ }}",
-                    "linkTitleTemplate": "{{ @ }}",
-                    "linkOpenInNewTab": true
+                    "displayName": "Receiving account"
                   },
                   {
                     "fieldName": "case_opened_at",
-                    "displayName": "Case opened at (UTC)",
-                    "title": "Case opened at (UTC)",
-                    "type": "datetime",
-                    "displayAs": "datetime",
-                    "alignContent": "right",
-                    "dateTimeFormat": "YYYY-MM-DD HH:mm",
-                    "visible": true,
-                    "order": 100005,
-                    "allowHTML": false,
-                    "allowSearch": false,
-                    "booleanValues": [
-                      "false",
-                      "true"
-                    ],
-                    "highlightLinks": false,
-                    "useMonospaceFont": false,
-                    "preserveWhitespace": false,
-                    "imageUrlTemplate": "{{ @ }}",
-                    "imageTitleTemplate": "{{ @ }}",
-                    "imageWidth": "",
-                    "imageHeight": "",
-                    "linkUrlTemplate": "{{ @ }}",
-                    "linkTextTemplate": "{{ @ }}",
-                    "linkTitleTemplate": "{{ @ }}",
-                    "linkOpenInNewTab": true
+                    "displayName": "Case opened at (UTC)"
                   }
                 ]
               }
@@ -299,24 +169,13 @@
             "width": 6,
             "height": 8
           }
-        },
-        {
-          "widget": {
-            "name": "open_how",
-            "textbox_spec": "**How to read it:** Each row is one flagged payment still waiting for its verdict. Managers see 0 and an empty table here: open cases are shown to reviewers and engineers only. Anyone who may not see account names sees REDACTED."
-          },
-          "position": {
-            "x": 0,
-            "y": 10,
-            "width": 6,
-            "height": 1
-          }
         }
       ]
     },
     {
       "name": "outcomes",
       "displayName": "How did the reviews turn out?",
+      "pageType": "PAGE_TYPE_CANVAS",
       "layout": [
         {
           "widget": {
@@ -349,7 +208,9 @@
               "widgetType": "bar",
               "frame": {
                 "showTitle": true,
-                "title": "Confirmed fraud and false alarms per simulated hour"
+                "title": "Confirmed fraud and false alarms per simulated hour",
+                "showDescription": true,
+                "description": "How to read it: Each bar is one simulated hour, split into confirmed fraud and false alarms. Only hours whose verdicts are in have a bar; newer hours are waiting for verdicts (3 days)."
               },
               "encodings": {
                 "x": {
@@ -376,7 +237,17 @@
                   "fieldName": "outcome",
                   "displayName": "Verdict",
                   "scale": {
-                    "type": "categorical"
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "Confirmed fraud",
+                        "color": "#D03B3B"
+                      },
+                      {
+                        "value": "False alarm",
+                        "color": "#B8C4D4"
+                      }
+                    ]
                   }
                 }
               }
@@ -388,24 +259,13 @@
             "width": 6,
             "height": 6
           }
-        },
-        {
-          "widget": {
-            "name": "outcomes_how",
-            "textbox_spec": "**How to read it:** Each bar is one simulated hour, split into confirmed fraud and false alarms. Only hours whose verdicts are in have a bar; newer hours are waiting for verdicts (3 days)."
-          },
-          "position": {
-            "x": 0,
-            "y": 6,
-            "width": 6,
-            "height": 1
-          }
         }
       ]
     },
     {
       "name": "model",
       "displayName": "Is the model still good?",
+      "pageType": "PAGE_TYPE_CANVAS",
       "layout": [
         {
           "widget": {
@@ -566,103 +426,48 @@
               }
             ],
             "spec": {
-              "version": 1,
+              "version": 2,
               "widgetType": "table",
               "frame": {
                 "showTitle": true,
-                "title": "The counts behind those shares"
+                "title": "The counts behind those shares",
+                "showDescription": true,
+                "description": "How to read it: Confirmed fraud divided by flagged payments with a verdict gives the first share; divided by all fraud, the second."
               },
-              "invisibleColumns": [],
-              "allowHTMLByDefault": false,
-              "itemsPerPage": 25,
-              "paginationSize": "default",
-              "condensed": true,
-              "withRowNumber": false,
               "encodings": {
                 "columns": [
                   {
                     "fieldName": "confirmed_fraud",
                     "displayName": "Confirmed fraud",
-                    "title": "Confirmed fraud",
-                    "type": "integer",
-                    "displayAs": "number",
-                    "alignContent": "right",
-                    "numberFormat": "0",
-                    "visible": true,
-                    "order": 100000,
-                    "allowHTML": false,
-                    "allowSearch": false,
-                    "booleanValues": [
-                      "false",
-                      "true"
-                    ],
-                    "highlightLinks": false,
-                    "useMonospaceFont": false,
-                    "preserveWhitespace": false,
-                    "imageUrlTemplate": "{{ @ }}",
-                    "imageTitleTemplate": "{{ @ }}",
-                    "imageWidth": "",
-                    "imageHeight": "",
-                    "linkUrlTemplate": "{{ @ }}",
-                    "linkTextTemplate": "{{ @ }}",
-                    "linkTitleTemplate": "{{ @ }}",
-                    "linkOpenInNewTab": true
+                    "format": {
+                      "type": "number",
+                      "decimalPlaces": {
+                        "type": "exact",
+                        "places": 0
+                      }
+                    }
                   },
                   {
                     "fieldName": "checked_cases",
                     "displayName": "Flagged payments with a verdict",
-                    "title": "Flagged payments with a verdict",
-                    "type": "integer",
-                    "displayAs": "number",
-                    "alignContent": "right",
-                    "numberFormat": "0",
-                    "visible": true,
-                    "order": 100001,
-                    "allowHTML": false,
-                    "allowSearch": false,
-                    "booleanValues": [
-                      "false",
-                      "true"
-                    ],
-                    "highlightLinks": false,
-                    "useMonospaceFont": false,
-                    "preserveWhitespace": false,
-                    "imageUrlTemplate": "{{ @ }}",
-                    "imageTitleTemplate": "{{ @ }}",
-                    "imageWidth": "",
-                    "imageHeight": "",
-                    "linkUrlTemplate": "{{ @ }}",
-                    "linkTextTemplate": "{{ @ }}",
-                    "linkTitleTemplate": "{{ @ }}",
-                    "linkOpenInNewTab": true
+                    "format": {
+                      "type": "number",
+                      "decimalPlaces": {
+                        "type": "exact",
+                        "places": 0
+                      }
+                    }
                   },
                   {
                     "fieldName": "all_fraud",
                     "displayName": "All fraud in those hours",
-                    "title": "All fraud in those hours",
-                    "type": "integer",
-                    "displayAs": "number",
-                    "alignContent": "right",
-                    "numberFormat": "0",
-                    "visible": true,
-                    "order": 100002,
-                    "allowHTML": false,
-                    "allowSearch": false,
-                    "booleanValues": [
-                      "false",
-                      "true"
-                    ],
-                    "highlightLinks": false,
-                    "useMonospaceFont": false,
-                    "preserveWhitespace": false,
-                    "imageUrlTemplate": "{{ @ }}",
-                    "imageTitleTemplate": "{{ @ }}",
-                    "imageWidth": "",
-                    "imageHeight": "",
-                    "linkUrlTemplate": "{{ @ }}",
-                    "linkTextTemplate": "{{ @ }}",
-                    "linkTitleTemplate": "{{ @ }}",
-                    "linkOpenInNewTab": true
+                    "format": {
+                      "type": "number",
+                      "decimalPlaces": {
+                        "type": "exact",
+                        "places": 0
+                      }
+                    }
                   }
                 ]
               }
@@ -673,18 +478,6 @@
             "y": 3,
             "width": 6,
             "height": 2
-          }
-        },
-        {
-          "widget": {
-            "name": "counts_how",
-            "textbox_spec": "**How to read it:** Confirmed fraud divided by flagged payments with a verdict gives the first share; divided by all fraud, the second."
-          },
-          "position": {
-            "x": 0,
-            "y": 5,
-            "width": 6,
-            "height": 1
           }
         },
         {
@@ -718,7 +511,9 @@
               "widgetType": "bar",
               "frame": {
                 "showTitle": true,
-                "title": "Of the payments we flagged, how many were really fraud, per simulated hour"
+                "title": "Of the payments we flagged, how many were really fraud, per simulated hour",
+                "showDescription": true,
+                "description": "How to read it: Each bar is one simulated hour, coloured by model version. Taller is better. Hours with no bar are waiting for verdicts (3 days)."
               },
               "encodings": {
                 "x": {
@@ -745,7 +540,8 @@
                   "fieldName": "model_version",
                   "displayName": "Model version",
                   "scale": {
-                    "type": "categorical"
+                    "type": "categorical",
+                    "mappings": []
                   }
                 }
               }
@@ -753,21 +549,9 @@
           },
           "position": {
             "x": 0,
-            "y": 6,
+            "y": 5,
             "width": 6,
             "height": 5
-          }
-        },
-        {
-          "widget": {
-            "name": "flagged_how",
-            "textbox_spec": "**How to read it:** Each bar is one simulated hour, coloured by model version. Taller is better. Hours with no bar are waiting for verdicts (3 days)."
-          },
-          "position": {
-            "x": 0,
-            "y": 11,
-            "width": 6,
-            "height": 1
           }
         },
         {
@@ -801,7 +585,9 @@
               "widgetType": "bar",
               "frame": {
                 "showTitle": true,
-                "title": "Of all the fraud, how much we caught, per simulated hour"
+                "title": "Of all the fraud, how much we caught, per simulated hour",
+                "showDescription": true,
+                "description": "How to read it: Each bar is one simulated hour. Taller is better. Hours with no bar are waiting for verdicts (3 days), or had no fraud at all."
               },
               "encodings": {
                 "x": {
@@ -828,7 +614,8 @@
                   "fieldName": "model_version",
                   "displayName": "Model version",
                   "scale": {
-                    "type": "categorical"
+                    "type": "categorical",
+                    "mappings": []
                   }
                 }
               }
@@ -836,21 +623,9 @@
           },
           "position": {
             "x": 0,
-            "y": 12,
+            "y": 10,
             "width": 6,
             "height": 5
-          }
-        },
-        {
-          "widget": {
-            "name": "caught_how",
-            "textbox_spec": "**How to read it:** Each bar is one simulated hour. Taller is better. Hours with no bar are waiting for verdicts (3 days), or had no fraud at all."
-          },
-          "position": {
-            "x": 0,
-            "y": 17,
-            "width": 6,
-            "height": 1
           }
         }
       ]
@@ -858,11 +633,12 @@
     {
       "name": "words",
       "displayName": "What these words mean",
+      "pageType": "PAGE_TYPE_CANVAS",
       "layout": [
         {
           "widget": {
             "name": "word_list",
-            "textbox_spec": "# What these words mean\n\n- **Flagged payment** — A payment the model ranked among the 50 most suspicious of its hour, so a person should look at it.\n- **Case** — The review of one flagged payment. It stays open until its verdict is recorded.\n- **Verdict** — The answer to a case: confirmed fraud or false alarm. It arrives 3 simulated days after the payment.\n- **Confirmed fraud** — A flagged payment that really was fraud.\n- **False alarm** — A flagged payment that turned out to be honest.\n- **Simulated hour** — One hour of the replayed month of payments, numbered from 1 to 743.\n- **Model version** — Which saved copy of the fraud model made the decision. Each new copy gets the next number.\n- **Champion model** — The model version currently trusted to score new payments.\n- **Risk score** — How suspicious the model found a payment. Higher is more suspicious. It ranks payments, it is not a chance.\n- **Rejected row** — A payment record that failed a basic check, such as an amount below zero, and was set aside.\n- **Job run** — One run of the scheduled work that releases, loads, cleans, scores and flags payments.\n- **Task** — One step inside a job run, such as loading or scoring.\n- **REDACTED** — Shown instead of an account name to people who may not see who paid whom."
+            "textbox_spec": "# What these words mean\n\n- **Flagged payment**: A payment the model ranked among the 50 most suspicious of its hour, so a person should look at it.\n- **Case**: The review of one flagged payment. It stays open until its verdict is recorded.\n- **Verdict**: The answer to a case: confirmed fraud or false alarm. It arrives 3 simulated days after the payment.\n- **Confirmed fraud**: A flagged payment that really was fraud.\n- **False alarm**: A flagged payment that turned out to be honest.\n- **Simulated hour**: One hour of the replayed month of payments, numbered from 1 to 743.\n- **Model version**: Which saved copy of the fraud model made the decision. Each new copy gets the next number.\n- **Champion model**: The model version currently trusted to score new payments.\n- **Risk score**: How suspicious the model found a payment. Higher is more suspicious. It ranks payments, it is not a chance.\n- **Rejected row**: A payment record that failed a basic check, such as an amount below zero, and was set aside.\n- **Job run**: One run of the scheduled work that releases, loads, cleans, scores and flags payments.\n- **Task**: One step inside a job run, such as loading or scoring.\n- **REDACTED**: Shown instead of an account name to people who may not see who paid whom."
           },
           "position": {
             "x": 0,
@@ -873,5 +649,42 @@
         }
       ]
     }
-  ]
+  ],
+  "uiSettings": {
+    "theme": {
+      "canvasBackgroundColor": {
+        "light": "#EDF1F6",
+        "dark": "#121821"
+      },
+      "widgetBackgroundColor": {
+        "light": "#FDFDFE",
+        "dark": "#1A2230"
+      },
+      "widgetBorderColor": {
+        "light": "#FDFDFE",
+        "dark": "#1A2230"
+      },
+      "fontColor": {
+        "light": "#13294B",
+        "dark": "#E6ECF4"
+      },
+      "selectionColor": {
+        "light": "#2A78D6",
+        "dark": "#5A9BE6"
+      },
+      "visualizationColors": [
+        "#2A78D6",
+        "#EB6834",
+        "#1BAF7A",
+        "#EDA100",
+        "#E87BA4",
+        "#008300",
+        "#6250D6",
+        "#E34948"
+      ],
+      "fontFamily": "Inter",
+      "widgetCornerRadius": 12,
+      "widgetHeaderAlignment": "LEFT"
+    }
+  }
 }

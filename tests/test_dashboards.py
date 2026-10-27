@@ -36,6 +36,7 @@ def visible_text(dashboard: dict) -> list[str]:  # every string a viewer reads
         for encoding in spec.get("encodings", {}).values():  # axes, colours, columns, values
             for entry in encoding if isinstance(encoding, list) else [encoding]:  # table columns are a list
                 out += [entry.get("displayName", ""), entry.get("axis", {}).get("title", "")]  # labels
+                out += [f.get("displayName", "") for f in entry.get("fields", [])]  # multi-series labels
     return [t for t in out if t]  # non-empty only
 
 
@@ -56,14 +57,17 @@ def test_each_dashboard_reads_only_its_allowed_views(key):  # Review Focus 1: go
         assert "fraud_label" not in sql and "system." not in sql, dataset["name"]  # label and system tables stay in the views
 
 
+def specs(dashboard: dict, *kinds: str) -> list[tuple[dict, dict]]:  # (widget, spec) pairs of the given types
+    return [(w, w["spec"]) for w in widgets(dashboard) if w.get("spec", {}).get("widgetType") in kinds]  # filtered
+
+
 @pytest.mark.parametrize("key", list(d.DASHBOARDS))  # both dashboards
-def test_every_chart_has_a_how_to_read_line(key):  # owner plain-language rule
-    for page in BUILT[key]["pages"][:-1]:  # every page but the word list
-        items = [item["widget"] for item in page["layout"]]  # its widgets
-        charts = [w for w in items if w.get("spec", {}).get("widgetType") in ("bar", "table")]  # charts and tables
-        lines = [w for w in items if d.HOW_TO_READ in widget_text(w)]  # explanation lines
-        assert charts or any(w.get("spec", {}).get("widgetType") == "counter" for w in items), page["name"]  # page shows data
-        assert len(lines) >= max(len(charts), 1), page["name"]  # one line per chart, at least one per page
+def test_every_chart_has_a_how_to_read_description(key):  # owner plain-language rule; ruling R-B3
+    charts = specs(BUILT[key], "bar", "line", "table")  # charts and tables
+    assert charts  # each dashboard has some
+    for widget, spec in charts:  # each
+        assert spec["frame"].get("showDescription") is True, widget["name"]  # the sentence is shown
+        assert spec["frame"].get("description", "").startswith(d.HOW_TO_READ), widget["name"]  # and reads as one
 
 
 @pytest.mark.parametrize("key", list(d.DASHBOARDS))  # both dashboards
@@ -72,7 +76,85 @@ def test_each_dashboard_ends_with_the_word_list(key):  # owner plain-language ru
     assert last["displayName"] == "What these words mean"  # plain title
     text = "\n".join(widget_text(item["widget"]) for item in last["layout"])  # its text
     for term, meaning in WORDS[key].items():  # every term
-        assert f"**{term}** — {meaning}" in text, term  # term and its plain sentence
+        assert f"**{term}**: {meaning}" in text, term  # term, colon, plain sentence (no em-dash)
+
+
+@pytest.mark.parametrize("key", list(d.DASHBOARDS))  # both dashboards
+def test_both_dashboards_carry_the_theme(key):  # spec §4.1
+    assert BUILT[key]["uiSettings"]["theme"] == d.THEME  # the same theme on both
+    assert d.THEME["fontColor"]["light"] == "#13294B"  # navy ink
+
+
+WIDGET_VERSIONS = {"counter": 2, "table": 2, "bar": 3, "line": 3, "range-slider": 2, "filter-single-select": 2}  # reference table
+
+
+@pytest.mark.parametrize("key", list(d.DASHBOARDS))  # both dashboards
+def test_widget_versions_match_the_reference(key):  # Global Constraints: documented versions only
+    for widget in widgets(BUILT[key]):  # each widget
+        spec = widget.get("spec")  # text boxes have none
+        if spec is None:  # a text box
+            continue  # nothing to check
+        assert WIDGET_VERSIONS.get(spec["widgetType"]) == spec["version"], widget["name"]  # known type, right version
+        assert "secondary" not in str(spec["encodings"].get("y", {})), widget["name"]  # no second y-axis
+
+
+@pytest.mark.parametrize("key", list(d.DASHBOARDS))  # both dashboards
+def test_every_page_is_a_canvas_page(key):  # ruling R-B1
+    assert all(p["pageType"] == "PAGE_TYPE_CANVAS" for p in BUILT[key]["pages"])  # every page
+    assert all("layoutVersion" not in p for p in BUILT[key]["pages"])  # 6-column grid kept
+
+
+def colour_mappings(dashboard: dict) -> list[dict]:  # every pinned colour on every chart
+    out = []  # found mappings
+    for _, spec in specs(dashboard, "bar", "line"):  # charts
+        out += spec["encodings"].get("color", {}).get("scale", {}).get("mappings", [])  # by a colour column
+        out += [f["color"] for e in spec["encodings"].values() if isinstance(e, dict)  # by a y series
+                for f in e.get("fields", []) if "color" in f]  # (multi-field charts)
+    return out  # all of them
+
+
+@pytest.mark.parametrize("key", list(d.DASHBOARDS))  # both dashboards
+def test_colour_mappings_use_bare_hex_meaning_colours(key):  # spec §4.2: bare hex is the honoured form
+    for entry in colour_mappings(BUILT[key]):  # each pin
+        if "value" in entry:  # a value -> colour mapping
+            assert re.fullmatch(r"#[0-9A-F]{6}", entry["color"]), entry  # bare hex string
+            assert entry["color"] == d.MEANING[entry["value"]], entry  # the meaning colour
+
+
+@pytest.mark.parametrize("key", list(d.DASHBOARDS))  # both dashboards
+def test_counters_never_carry_a_colour(key):  # reference: a counter colour renders "unsupported widget definition"
+    for widget, spec in specs(BUILT[key], "counter"):  # each counter
+        for part in ("value", "target"):  # both encodings
+            assert "color" not in spec["encodings"].get(part, {}), widget["name"]  # never coloured
+
+
+COLUMN_KEYS = {"fieldName", "displayName", "format", "style"}  # documented table v2 column keys used here
+
+
+@pytest.mark.parametrize("key", list(d.DASHBOARDS))  # both dashboards
+def test_tables_use_version_2_with_documented_keys(key):  # reference: table v2 needs only fieldName + displayName
+    tables = specs(BUILT[key], "table")  # every table
+    assert tables  # each dashboard has tables
+    for widget, spec in tables:  # each
+        fields = [f["name"] for f in widget["queries"][0]["query"]["fields"]]  # queried columns
+        columns = spec["encodings"]["columns"]  # shown columns
+        assert [c["fieldName"] for c in columns] == fields, widget["name"]  # one per field, in order
+        for column in columns:  # each column
+            assert set(column) <= COLUMN_KEYS, (widget["name"], column["fieldName"])  # documented keys only
+            if "format" in column:  # a number column
+                assert column["format"] in d.NUMBER_FORMATS.values(), column["fieldName"]  # exact 0 or 1 places
+    queue = next(s for w, s in specs(BUILT["fraud_operations"], "table") if w["name"] == "open_table")  # the queue
+    formats = {c["fieldName"]: c.get("format") for c in queue["encodings"]["columns"]}  # its formats
+    assert formats["risk_score"] == d.NUMBER_FORMATS["float"]  # D3: 4.600 shows as 4.6
+    assert formats["simulated_hour"] == d.NUMBER_FORMATS["integer"]  # whole hours
+    assert formats["payment"] is None  # text has no number format
+
+
+@pytest.mark.parametrize("key", list(d.DASHBOARDS))  # both dashboards
+def test_no_visible_text_has_emoji_or_long_dashes(key):  # spec §2 anti-goals
+    for line in visible_text(BUILT[key]):  # each string
+        assert "—" not in line and "–" not in line, line  # no em or en dash
+        assert {c for c in line if ord(c) > 127} <= set("✓✕↻←→"), line  # only the allowed symbols
 
 
 @pytest.mark.parametrize("key", list(d.DASHBOARDS))  # both dashboards
@@ -133,36 +215,6 @@ def test_dashboards_use_viewer_credentials_and_group_permissions():  # Review Fo
 def test_dashboard_resources_hold_no_identifiers():  # public repo
     text = DASHBOARD_FILE.read_text(encoding="utf-8")  # the YAML
     assert not re.search(r"[0-9a-f]{16}|[0-9a-f]{8}-[0-9a-f]{4}|@", text)  # no IDs, no emails
-
-
-TABLE_COLUMN_KEYS = {  # every key Databricks' own table exports carry per column (bundle-examples, 2026-10-15)
-    "fieldName", "displayName", "title", "type", "displayAs", "visible", "order", "alignContent", "allowHTML",  # basics
-    "allowSearch", "booleanValues", "highlightLinks", "useMonospaceFont", "preserveWhitespace", "imageUrlTemplate",  # display
-    "imageTitleTemplate", "imageWidth", "imageHeight", "linkUrlTemplate", "linkTextTemplate", "linkTitleTemplate",  # links
-    "linkOpenInNewTab"}  # end TABLE_COLUMN_KEYS
-DISPLAY_AS = {"string": "string", "integer": "number", "float": "number", "datetime": "datetime"}  # type -> displayAs
-
-
-@pytest.mark.parametrize("key", list(d.DASHBOARDS))  # both dashboards
-def test_tables_carry_the_full_exported_column_settings(key):  # D3: minimal columns showed "Invalid widget definition"
-    tables = [w for w in widgets(BUILT[key]) if w.get("spec", {}).get("widgetType") == "table"]  # every table
-    assert tables  # each dashboard has tables
-    for widget in tables:  # each
-        spec = widget["spec"]  # its settings
-        assert spec["version"] == 1  # as Databricks exports tables
-        assert {"invisibleColumns", "allowHTMLByDefault", "itemsPerPage", "paginationSize", "condensed",  # table-level...
-                "withRowNumber"} <= set(spec), widget["name"]  # ...settings present
-        fields = [f["name"] for f in widget["queries"][0]["query"]["fields"]]  # queried columns
-        columns = spec["encodings"]["columns"]  # shown columns
-        assert [c["fieldName"] for c in columns] == fields, widget["name"]  # one per field, in order
-        for column in columns:  # each column
-            assert TABLE_COLUMN_KEYS <= set(column), (widget["name"], column["fieldName"])  # full settings
-            assert column["displayAs"] == DISPLAY_AS[column["type"]], column["fieldName"]  # matching display
-            if column["type"] in ("integer", "float"):  # numbers need a format
-                assert column["numberFormat"] == {"integer": "0", "float": "0.0"}[column["type"]], column["fieldName"]  # D3: 4.600
-            if column["type"] == "datetime":  # times need a format
-                assert "dateTimeFormat" in column, column["fieldName"]  # e.g. "YYYY-MM-DD HH:mm"
-                assert column["displayName"].endswith("(UTC)"), column["fieldName"]  # D3: 04:53 read as local time
 
 
 def test_every_time_axis_says_utc():  # D3: the system tables and Delta store UTC; the owner's clock is IST
