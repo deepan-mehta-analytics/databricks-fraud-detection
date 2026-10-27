@@ -3,22 +3,32 @@
     {
       "name": "job_runs",
       "displayName": "Job runs",
-      "query": "SELECT DISTINCT job_name, run_started_at, minutes_taken, coalesce(initcap(replace(outcome, '_', ' ')), 'Still running') AS outcome\nFROM workspace.fraud.job_run_times\nORDER BY run_started_at DESC"
+      "query": "SELECT DISTINCT concat(date_format(run_started_at, 'MM-dd HH:mm'), ' ', replace(job_name, 'fraud-', '')) AS run_label,\n       job_name,\n       date_format(run_started_at, 'yyyy-MM-dd HH:mm') AS started,\n       minutes_taken, CASE WHEN outcome IN ('SUCCEEDED', 'COMPLETED') THEN '✓ Succeeded' WHEN outcome IS NULL THEN '↻ Still running' ELSE concat('✕ ', initcap(replace(outcome, '_', ' '))) END AS outcome\nFROM workspace.fraud.job_run_times\nORDER BY started"
+    },
+    {
+      "name": "newest_run",
+      "displayName": "Newest fraud-ingest run",
+      "query": "SELECT DISTINCT date_format(run_started_at, 'yyyy-MM-dd HH:mm') AS started, minutes_taken, CASE WHEN outcome IN ('SUCCEEDED', 'COMPLETED') THEN '✓ Succeeded' WHEN outcome IS NULL THEN '↻ Still running' ELSE concat('✕ ', initcap(replace(outcome, '_', ' '))) END AS outcome\nFROM workspace.fraud.job_run_times\nWHERE job_name = 'fraud-ingest'\n  AND run_started_at = (SELECT MAX(run_started_at) FROM workspace.fraud.job_run_times WHERE job_name = 'fraud-ingest')"
     },
     {
       "name": "task_times",
       "displayName": "Task minutes",
-      "query": "SELECT run_started_at, task_name, task_minutes, coalesce(initcap(replace(task_outcome, '_', ' ')), 'Still running') AS task_outcome\nFROM workspace.fraud.job_run_times\nWHERE job_name = 'fraud-ingest' AND task_name IS NOT NULL"
+      "query": "SELECT concat(date_format(run_started_at, 'MM-dd HH:mm'), ' ', replace(job_name, 'fraud-', '')) AS run_label, task_name, task_minutes\nFROM workspace.fraud.job_run_times\nWHERE job_name = 'fraud-ingest' AND task_name IS NOT NULL"
+    },
+    {
+      "name": "newest_run_tasks",
+      "displayName": "Tasks of the newest run",
+      "query": "WITH tasks AS (SELECT task_name, task_minutes FROM workspace.fraud.job_run_times\n               WHERE job_name = 'fraud-ingest' AND task_name IS NOT NULL\n                 AND run_started_at = (SELECT MAX(run_started_at) FROM workspace.fraud.job_run_times WHERE job_name = 'fraud-ingest'))\nSELECT task_name, task_minutes,\n       CASE WHEN task_minutes = MAX(task_minutes) OVER () THEN 'Slowest task' ELSE 'Other tasks' END AS task_kind\nFROM tasks"
     },
     {
       "name": "pipeline_updates",
       "displayName": "Pipeline updates",
-      "query": "SELECT update_started_at, minutes_taken, coalesce(initcap(replace(outcome, '_', ' ')), 'Still running') AS outcome,\n       CASE WHEN full_rebuild THEN 'Full rebuild' ELSE 'New rows only' END AS update_kind\nFROM workspace.fraud.pipeline_update_times\nORDER BY update_started_at DESC"
+      "query": "SELECT date_format(update_started_at, 'MM-dd HH:mm') AS update_label,\n       minutes_taken, CASE WHEN outcome IN ('SUCCEEDED', 'COMPLETED') THEN '✓ Succeeded' WHEN outcome IS NULL THEN '↻ Still running' ELSE concat('✕ ', initcap(replace(outcome, '_', ' '))) END AS outcome,\n       CASE WHEN full_rebuild THEN 'Full rebuild' ELSE 'New rows only' END AS update_kind\nFROM workspace.fraud.pipeline_update_times\nORDER BY update_started_at"
     },
     {
       "name": "freshness",
       "displayName": "Newest hour at each stage",
-      "query": "SELECT '1. Copied to the landing folder' AS stage, newest_hour_released AS newest_simulated_hour FROM workspace.fraud.data_freshness\nUNION ALL SELECT '2. Loaded', newest_hour_ingested FROM workspace.fraud.data_freshness\nUNION ALL SELECT '3. Scored by the model', newest_hour_scored FROM workspace.fraud.data_freshness\nUNION ALL SELECT '4. Flagged for review', newest_hour_flagged FROM workspace.fraud.data_freshness"
+      "query": "WITH stages AS (\n  SELECT '1. Copied to the landing folder' AS stage, newest_hour_released AS hour, newest_hour_released AS released FROM workspace.fraud.data_freshness\n  UNION ALL SELECT '2. Loaded', newest_hour_ingested, newest_hour_released FROM workspace.fraud.data_freshness\n  UNION ALL SELECT '3. Scored by the model', newest_hour_scored, newest_hour_released FROM workspace.fraud.data_freshness\n  UNION ALL SELECT '4. Flagged for review', newest_hour_flagged, newest_hour_released FROM workspace.fraud.data_freshness)\nSELECT stage, hour AS newest_simulated_hour, released - hour AS hours_behind,\n       CASE WHEN released - hour = 0 THEN 'Up to date' ELSE 'Behind' END AS stage_status\nFROM stages\nORDER BY stage"
     },
     {
       "name": "wait",
@@ -39,94 +49,28 @@
       "layout": [
         {
           "widget": {
-            "name": "run_minutes",
-            "queries": [
-              {
-                "name": "main_query",
-                "query": {
-                  "datasetName": "job_runs",
-                  "fields": [
-                    {
-                      "name": "run_started_at",
-                      "expression": "`run_started_at`"
-                    },
-                    {
-                      "name": "sum(minutes_taken)",
-                      "expression": "SUM(`minutes_taken`)"
-                    },
-                    {
-                      "name": "job_name",
-                      "expression": "`job_name`"
-                    }
-                  ],
-                  "disaggregated": false
-                }
-              }
-            ],
-            "spec": {
-              "version": 3,
-              "widgetType": "bar",
-              "frame": {
-                "showTitle": true,
-                "title": "Minutes per job run",
-                "showDescription": true,
-                "description": "How to read it: Each bar is one run, placed at the time it started. Taller means slower. Databricks records a run up to an hour after it ends, but the job refreshes this page as it ends, so its newest run is missing until you click Refresh an hour later."
-              },
-              "encodings": {
-                "x": {
-                  "fieldName": "run_started_at",
-                  "displayName": "Run started (UTC)",
-                  "axis": {
-                    "title": "Run started (UTC)"
-                  },
-                  "scale": {
-                    "type": "temporal"
-                  }
-                },
-                "y": {
-                  "fieldName": "sum(minutes_taken)",
-                  "displayName": "Minutes",
-                  "axis": {
-                    "title": "Minutes"
-                  },
-                  "scale": {
-                    "type": "quantitative"
-                  }
-                },
-                "color": {
-                  "fieldName": "job_name",
-                  "displayName": "Job",
-                  "scale": {
-                    "type": "categorical",
-                    "mappings": []
-                  }
-                }
-              }
-            }
+            "name": "jobs_header",
+            "textbox_spec": "## Are the jobs healthy?\n\nGreen runs succeeded, red ones need a look. Click a run or a legend entry to narrow the table below; right-click a run, then Drill to, to open it on the Run detail page."
           },
           "position": {
             "x": 0,
             "y": 0,
             "width": 6,
-            "height": 5
+            "height": 2
           }
         },
         {
           "widget": {
-            "name": "run_table",
+            "name": "newest_run_table",
             "queries": [
               {
                 "name": "main_query",
                 "query": {
-                  "datasetName": "job_runs",
+                  "datasetName": "newest_run",
                   "fields": [
                     {
-                      "name": "job_name",
-                      "expression": "`job_name`"
-                    },
-                    {
-                      "name": "run_started_at",
-                      "expression": "`run_started_at`"
+                      "name": "started",
+                      "expression": "`started`"
                     },
                     {
                       "name": "minutes_taken",
@@ -146,18 +90,14 @@
               "widgetType": "table",
               "frame": {
                 "showTitle": true,
-                "title": "Every job run and how it ended",
+                "title": "Newest fraud-ingest run",
                 "showDescription": true,
-                "description": "How to read it: Anything other than Succeeded is a run that needs a look."
+                "description": "How to read it: The loading job's latest run: when it started, how long it took and how it ended."
               },
               "encodings": {
                 "columns": [
                   {
-                    "fieldName": "job_name",
-                    "displayName": "Job"
-                  },
-                  {
-                    "fieldName": "run_started_at",
+                    "fieldName": "started",
                     "displayName": "Started (UTC)"
                   },
                   {
@@ -169,6 +109,35 @@
                         "type": "exact",
                         "places": 1
                       }
+                    },
+                    "style": {
+                      "type": "basic",
+                      "rules": [
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "10"
+                            },
+                            "operator": ">="
+                          },
+                          "backgroundColor": {
+                            "hex": "#B9D3F2"
+                          }
+                        },
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "5"
+                            },
+                            "operator": ">="
+                          },
+                          "backgroundColor": {
+                            "hex": "#DCE9F9"
+                          }
+                        }
+                      ]
                     }
                   },
                   {
@@ -181,31 +150,31 @@
           },
           "position": {
             "x": 0,
-            "y": 5,
+            "y": 2,
             "width": 6,
-            "height": 5
+            "height": 3
           }
         },
         {
           "widget": {
-            "name": "task_minutes",
+            "name": "run_minutes",
             "queries": [
               {
                 "name": "main_query",
                 "query": {
-                  "datasetName": "task_times",
+                  "datasetName": "job_runs",
                   "fields": [
                     {
-                      "name": "run_started_at",
-                      "expression": "`run_started_at`"
+                      "name": "run_label",
+                      "expression": "`run_label`"
                     },
                     {
-                      "name": "sum(task_minutes)",
-                      "expression": "SUM(`task_minutes`)"
+                      "name": "sum(minutes_taken)",
+                      "expression": "SUM(`minutes_taken`)"
                     },
                     {
-                      "name": "task_name",
-                      "expression": "`task_name`"
+                      "name": "outcome",
+                      "expression": "`outcome`"
                     }
                   ],
                   "disaggregated": false
@@ -217,23 +186,23 @@
               "widgetType": "bar",
               "frame": {
                 "showTitle": true,
-                "title": "Minutes per task in each run of fraud-ingest",
+                "title": "Minutes per job run, oldest to newest",
                 "showDescription": true,
-                "description": "How to read it: Each bar is one run, split into its tasks. The tallest part is where the time goes. The two dashboard refreshes run side by side, so a bar can be taller than the run itself."
+                "description": "How to read it: Each bar is one run, labelled with its start time and job. Taller means slower. Databricks records a run up to an hour after it ends, but the job refreshes this page as it ends, so its newest run is missing until you click Refresh an hour later."
               },
               "encodings": {
                 "x": {
-                  "fieldName": "run_started_at",
-                  "displayName": "Run started (UTC)",
+                  "fieldName": "run_label",
+                  "displayName": "Run, by start time (UTC)",
                   "axis": {
-                    "title": "Run started (UTC)"
+                    "title": "Run, by start time (UTC)"
                   },
                   "scale": {
-                    "type": "temporal"
+                    "type": "categorical"
                   }
                 },
                 "y": {
-                  "fieldName": "sum(task_minutes)",
+                  "fieldName": "sum(minutes_taken)",
                   "displayName": "Minutes",
                   "axis": {
                     "title": "Minutes"
@@ -243,11 +212,48 @@
                   }
                 },
                 "color": {
-                  "fieldName": "task_name",
-                  "displayName": "Task",
+                  "fieldName": "outcome",
+                  "displayName": "How it ended",
                   "scale": {
                     "type": "categorical",
-                    "mappings": []
+                    "mappings": [
+                      {
+                        "value": "✓ Succeeded",
+                        "color": "#0CA30C"
+                      },
+                      {
+                        "value": "↻ Still running",
+                        "color": "#FAB219"
+                      },
+                      {
+                        "value": "✕ Error",
+                        "color": "#D03B3B"
+                      },
+                      {
+                        "value": "✕ Failed",
+                        "color": "#D03B3B"
+                      },
+                      {
+                        "value": "✕ Timed Out",
+                        "color": "#D03B3B"
+                      },
+                      {
+                        "value": "✕ Canceled",
+                        "color": "#D03B3B"
+                      },
+                      {
+                        "value": "✕ Cancelled",
+                        "color": "#D03B3B"
+                      },
+                      {
+                        "value": "✕ Skipped",
+                        "color": "#D03B3B"
+                      },
+                      {
+                        "value": "✕ Upstream Failed",
+                        "color": "#D03B3B"
+                      }
+                    ]
                   }
                 }
               }
@@ -255,7 +261,93 @@
           },
           "position": {
             "x": 0,
-            "y": 10,
+            "y": 5,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "newest_tasks",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "newest_run_tasks",
+                  "fields": [
+                    {
+                      "name": "task_name",
+                      "expression": "`task_name`"
+                    },
+                    {
+                      "name": "sum(task_minutes)",
+                      "expression": "SUM(`task_minutes`)"
+                    },
+                    {
+                      "name": "task_kind",
+                      "expression": "`task_kind`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "frame": {
+                "showTitle": true,
+                "title": "Where the time went in the newest run",
+                "showDescription": true,
+                "description": "How to read it: Each bar is one task of the newest run, longest first. The slowest task is in full blue. The two dashboard refreshes run side by side, so the tasks can add up to more than the run."
+              },
+              "encodings": {
+                "x": {
+                  "fieldName": "sum(task_minutes)",
+                  "displayName": "Minutes",
+                  "axis": {
+                    "title": "Minutes"
+                  },
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "fieldName": "task_name",
+                  "displayName": "Task",
+                  "axis": {
+                    "title": "Task"
+                  },
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "value"
+                    }
+                  }
+                },
+                "color": {
+                  "fieldName": "task_kind",
+                  "displayName": "Task",
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "Slowest task",
+                        "color": "#2A78D6"
+                      },
+                      {
+                        "value": "Other tasks",
+                        "color": "#A9C3E6"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 11,
             "width": 6,
             "height": 5
           }
@@ -270,8 +362,8 @@
                   "datasetName": "pipeline_updates",
                   "fields": [
                     {
-                      "name": "update_started_at",
-                      "expression": "`update_started_at`"
+                      "name": "update_label",
+                      "expression": "`update_label`"
                     },
                     {
                       "name": "sum(minutes_taken)",
@@ -297,13 +389,13 @@
               },
               "encodings": {
                 "x": {
-                  "fieldName": "update_started_at",
+                  "fieldName": "update_label",
                   "displayName": "Update started (UTC)",
                   "axis": {
                     "title": "Update started (UTC)"
                   },
                   "scale": {
-                    "type": "temporal"
+                    "type": "categorical"
                   }
                 },
                 "y": {
@@ -338,34 +430,35 @@
           },
           "position": {
             "x": 0,
-            "y": 15,
+            "y": 16,
             "width": 6,
             "height": 5
           }
-        }
-      ]
-    },
-    {
-      "name": "data",
-      "displayName": "Is the data fresh and clean?",
-      "pageType": "PAGE_TYPE_CANVAS",
-      "layout": [
+        },
         {
           "widget": {
-            "name": "freshness_table",
+            "name": "run_table",
             "queries": [
               {
                 "name": "main_query",
                 "query": {
-                  "datasetName": "freshness",
+                  "datasetName": "job_runs",
                   "fields": [
                     {
-                      "name": "stage",
-                      "expression": "`stage`"
+                      "name": "run_label",
+                      "expression": "`run_label`"
                     },
                     {
-                      "name": "newest_simulated_hour",
-                      "expression": "`newest_simulated_hour`"
+                      "name": "job_name",
+                      "expression": "`job_name`"
+                    },
+                    {
+                      "name": "minutes_taken",
+                      "expression": "`minutes_taken`"
+                    },
+                    {
+                      "name": "outcome",
+                      "expression": "`outcome`"
                     }
                   ],
                   "disaggregated": true
@@ -377,26 +470,63 @@
               "widgetType": "table",
               "frame": {
                 "showTitle": true,
-                "title": "Newest simulated hour at each stage",
+                "title": "Every job run and how it ended",
                 "showDescription": true,
-                "description": "How to read it: After a run all four numbers should be equal. A lower number shows where payments are stuck."
+                "description": "How to read it: Anything other than ✓ Succeeded is a run that needs a look. Darker blue minutes are slower runs."
               },
               "encodings": {
                 "columns": [
                   {
-                    "fieldName": "stage",
-                    "displayName": "Stage"
+                    "fieldName": "run_label",
+                    "displayName": "Run (UTC)"
                   },
                   {
-                    "fieldName": "newest_simulated_hour",
-                    "displayName": "Newest simulated hour",
+                    "fieldName": "job_name",
+                    "displayName": "Job"
+                  },
+                  {
+                    "fieldName": "minutes_taken",
+                    "displayName": "Minutes",
                     "format": {
                       "type": "number",
                       "decimalPlaces": {
                         "type": "exact",
-                        "places": 0
+                        "places": 1
                       }
+                    },
+                    "style": {
+                      "type": "basic",
+                      "rules": [
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "10"
+                            },
+                            "operator": ">="
+                          },
+                          "backgroundColor": {
+                            "hex": "#B9D3F2"
+                          }
+                        },
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "5"
+                            },
+                            "operator": ">="
+                          },
+                          "backgroundColor": {
+                            "hex": "#DCE9F9"
+                          }
+                        }
+                      ]
                     }
+                  },
+                  {
+                    "fieldName": "outcome",
+                    "displayName": "How it ended"
                   }
                 ]
               }
@@ -404,9 +534,28 @@
           },
           "position": {
             "x": 0,
+            "y": 21,
+            "width": 6,
+            "height": 6
+          }
+        }
+      ]
+    },
+    {
+      "name": "data",
+      "displayName": "Is the data fresh and clean?",
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layout": [
+        {
+          "widget": {
+            "name": "data_header",
+            "textbox_spec": "## Is the data fresh and clean?\n\nAfter a run every stage should show the same simulated hour, and no rows should be set aside."
+          },
+          "position": {
+            "x": 0,
             "y": 0,
             "width": 6,
-            "height": 4
+            "height": 2
           }
         },
         {
@@ -432,19 +581,25 @@
               "widgetType": "counter",
               "frame": {
                 "showTitle": true,
-                "title": "Typical minutes from landing to scored"
+                "title": "Typical wait from landing to scored",
+                "showDescription": true,
+                "description": "Latest scoring run only. Half of its payments waited less than this."
               },
               "encodings": {
                 "value": {
                   "fieldName": "typical_minutes",
-                  "displayName": "Minutes"
+                  "displayName": "Minutes",
+                  "format": {
+                    "type": "number-plain"
+                  },
+                  "formatTemplate": "{{@formatted}} min"
                 }
               }
             }
           },
           "position": {
             "x": 0,
-            "y": 4,
+            "y": 2,
             "width": 3,
             "height": 2
           }
@@ -472,33 +627,198 @@
               "widgetType": "counter",
               "frame": {
                 "showTitle": true,
-                "title": "Longest minutes from landing to scored"
+                "title": "Longest wait from landing to scored",
+                "showDescription": true,
+                "description": "Latest scoring run only: the slowest payment."
               },
               "encodings": {
                 "value": {
                   "fieldName": "longest_minutes",
-                  "displayName": "Minutes"
+                  "displayName": "Minutes",
+                  "format": {
+                    "type": "number-plain"
+                  },
+                  "formatTemplate": "{{@formatted}} min"
                 }
               }
             }
           },
           "position": {
             "x": 3,
-            "y": 4,
+            "y": 2,
             "width": 3,
             "height": 2
           }
         },
         {
           "widget": {
-            "name": "wait_how",
-            "textbox_spec": "**How to read it:** Both numbers cover the latest scoring run only. Half of its payments waited less than the typical number."
+            "name": "freshness_bar",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "freshness",
+                  "fields": [
+                    {
+                      "name": "stage",
+                      "expression": "`stage`"
+                    },
+                    {
+                      "name": "max(newest_simulated_hour)",
+                      "expression": "MAX(`newest_simulated_hour`)"
+                    },
+                    {
+                      "name": "stage_status",
+                      "expression": "`stage_status`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "frame": {
+                "showTitle": true,
+                "title": "Newest simulated hour at each stage",
+                "showDescription": true,
+                "description": "How to read it: Each bar is one stage, in pipeline order. Green stages are up to date; a red, shorter bar shows where payments are stuck."
+              },
+              "encodings": {
+                "x": {
+                  "fieldName": "max(newest_simulated_hour)",
+                  "displayName": "Newest simulated hour",
+                  "axis": {
+                    "title": "Newest simulated hour"
+                  },
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "fieldName": "stage",
+                  "displayName": "Stage",
+                  "axis": {
+                    "title": "Stage"
+                  },
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "color": {
+                  "fieldName": "stage_status",
+                  "displayName": "Status",
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "Up to date",
+                        "color": "#0CA30C"
+                      },
+                      {
+                        "value": "Behind",
+                        "color": "#D03B3B"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
           },
           "position": {
             "x": 0,
-            "y": 6,
+            "y": 4,
             "width": 6,
-            "height": 1
+            "height": 4
+          }
+        },
+        {
+          "widget": {
+            "name": "behind_table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "freshness",
+                  "fields": [
+                    {
+                      "name": "stage",
+                      "expression": "`stage`"
+                    },
+                    {
+                      "name": "hours_behind",
+                      "expression": "`hours_behind`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "frame": {
+                "showTitle": true,
+                "title": "Hours behind the landing folder",
+                "showDescription": true,
+                "description": "How to read it: 0 on a green cell means the stage has caught up; a red cell shows how many hours it lags."
+              },
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "stage",
+                    "displayName": "Stage"
+                  },
+                  {
+                    "fieldName": "hours_behind",
+                    "displayName": "Hours behind",
+                    "format": {
+                      "type": "number",
+                      "decimalPlaces": {
+                        "type": "exact",
+                        "places": 0
+                      }
+                    },
+                    "style": {
+                      "type": "basic",
+                      "rules": [
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "0"
+                            },
+                            "operator": "="
+                          },
+                          "backgroundColor": {
+                            "hex": "#DDF3E2"
+                          }
+                        },
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "0"
+                            },
+                            "operator": ">"
+                          },
+                          "backgroundColor": {
+                            "hex": "#FBE3E1"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 8,
+            "width": 6,
+            "height": 4
           }
         },
         {
@@ -555,6 +875,23 @@
                         "type": "exact",
                         "places": 0
                       }
+                    },
+                    "style": {
+                      "type": "basic",
+                      "rules": [
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "0"
+                            },
+                            "operator": ">"
+                          },
+                          "backgroundColor": {
+                            "hex": "#FBE3E1"
+                          }
+                        }
+                      ]
                     }
                   },
                   {
@@ -585,9 +922,258 @@
           },
           "position": {
             "x": 0,
-            "y": 7,
+            "y": 12,
             "width": 6,
             "height": 3
+          }
+        }
+      ]
+    },
+    {
+      "name": "run_detail",
+      "displayName": "Run detail",
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layout": [
+        {
+          "widget": {
+            "name": "detail_header",
+            "textbox_spec": "## Run detail\n\nPick a run, or open one from a run's bar on the first page: right-click, then Drill to."
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 4,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "detail_run",
+            "queries": [
+              {
+                "name": "detail_run_job_runs",
+                "query": {
+                  "datasetName": "job_runs",
+                  "fields": [
+                    {
+                      "name": "run_label",
+                      "expression": "`run_label`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "detail_run_task_times",
+                "query": {
+                  "datasetName": "task_times",
+                  "fields": [
+                    {
+                      "name": "run_label",
+                      "expression": "`run_label`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "run_label",
+                    "queryName": "detail_run_job_runs",
+                    "displayName": "Job run (UTC)"
+                  },
+                  {
+                    "fieldName": "run_label",
+                    "queryName": "detail_run_task_times",
+                    "displayName": "Job run (UTC)"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Job run (UTC)"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 0,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "detail_table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "job_runs",
+                  "fields": [
+                    {
+                      "name": "run_label",
+                      "expression": "`run_label`"
+                    },
+                    {
+                      "name": "job_name",
+                      "expression": "`job_name`"
+                    },
+                    {
+                      "name": "minutes_taken",
+                      "expression": "`minutes_taken`"
+                    },
+                    {
+                      "name": "outcome",
+                      "expression": "`outcome`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "frame": {
+                "showTitle": true,
+                "title": "The picked run",
+                "showDescription": true,
+                "description": "How to read it: One row for the picked run; every run while none is picked."
+              },
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "run_label",
+                    "displayName": "Run (UTC)"
+                  },
+                  {
+                    "fieldName": "job_name",
+                    "displayName": "Job"
+                  },
+                  {
+                    "fieldName": "minutes_taken",
+                    "displayName": "Minutes",
+                    "format": {
+                      "type": "number",
+                      "decimalPlaces": {
+                        "type": "exact",
+                        "places": 1
+                      }
+                    },
+                    "style": {
+                      "type": "basic",
+                      "rules": [
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "10"
+                            },
+                            "operator": ">="
+                          },
+                          "backgroundColor": {
+                            "hex": "#B9D3F2"
+                          }
+                        },
+                        {
+                          "condition": {
+                            "operand": {
+                              "type": "data-value",
+                              "value": "5"
+                            },
+                            "operator": ">="
+                          },
+                          "backgroundColor": {
+                            "hex": "#DCE9F9"
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "fieldName": "outcome",
+                    "displayName": "How it ended"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 6,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "detail_tasks",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "task_times",
+                  "fields": [
+                    {
+                      "name": "task_name",
+                      "expression": "`task_name`"
+                    },
+                    {
+                      "name": "avg(task_minutes)",
+                      "expression": "AVG(`task_minutes`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "frame": {
+                "showTitle": true,
+                "title": "Where the time went in this run",
+                "showDescription": true,
+                "description": "How to read it: Each bar is one task of the picked run, longest first. With no run picked it shows each task's average over all runs."
+              },
+              "encodings": {
+                "x": {
+                  "fieldName": "avg(task_minutes)",
+                  "displayName": "Minutes",
+                  "axis": {
+                    "title": "Minutes"
+                  },
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "fieldName": "task_name",
+                  "displayName": "Task",
+                  "axis": {
+                    "title": "Task"
+                  },
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "value"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 5,
+            "width": 6,
+            "height": 5
           }
         }
       ]
@@ -600,7 +1186,7 @@
         {
           "widget": {
             "name": "word_list",
-            "textbox_spec": "# What these words mean\n\n- **Flagged payment**: A payment the model ranked among the 50 most suspicious of its hour, so a person should look at it.\n- **Case**: The review of one flagged payment. It stays open until its verdict is recorded.\n- **Verdict**: The answer to a case: confirmed fraud or false alarm. It arrives 3 simulated days after the payment.\n- **Confirmed fraud**: A flagged payment that really was fraud.\n- **False alarm**: A flagged payment that turned out to be honest.\n- **Simulated hour**: One hour of the replayed month of payments, numbered from 1 to 743.\n- **Model version**: Which saved copy of the fraud model made the decision. Each new copy gets the next number.\n- **Champion model**: The model version currently trusted to score new payments.\n- **Risk score**: How suspicious the model found a payment. Higher is more suspicious. It ranks payments, it is not a chance.\n- **Rejected row**: A payment record that failed a basic check, such as an amount below zero, and was set aside.\n- **Job run**: One run of the scheduled work that releases, loads, cleans, scores and flags payments.\n- **Task**: One step inside a job run, such as loading or scoring.\n- **REDACTED**: Shown instead of an account name to people who may not see who paid whom.\n- **Landing folder**: Where each simulated hour's file of payments arrives before it is loaded.\n- **Pipeline update**: One run of the cleaning step that turns loaded payments into clean ones.\n- **Full rebuild**: A pipeline update that redoes everything from the start instead of only the new rows."
+            "textbox_spec": "# What these words mean\n\n- **Flagged payment**: A payment the model ranked among the 50 most suspicious of its hour, so a person should look at it.\n- **Case**: The review of one flagged payment. It stays open until its verdict is recorded.\n- **Verdict**: The answer to a case: confirmed fraud or false alarm. It arrives 3 simulated days after the payment.\n- **Confirmed fraud**: A flagged payment that really was fraud.\n- **False alarm**: A flagged payment that turned out to be honest.\n- **Simulated hour**: One hour of the replayed month of payments, numbered from 1 to 743.\n- **Model version**: Which saved copy of the fraud model made the decision. Each new copy gets the next number.\n- **Champion model**: The model version currently trusted to score new payments.\n- **Risk score**: How suspicious the model found a payment. Higher is more suspicious. It ranks payments, it is not a chance.\n- **Rejected row**: A payment record that failed a basic check, such as an amount below zero, and was set aside.\n- **Job run**: One run of the scheduled work that releases, loads, cleans, scores and flags payments.\n- **Task**: One step inside a job run, such as loading or scoring.\n- **REDACTED**: Shown instead of an account name to people who may not see who paid whom.\n- **Landing folder**: Where each simulated hour's file of payments arrives before it is loaded.\n- **Pipeline update**: One run of the cleaning step that turns loaded payments into clean ones.\n- **Full rebuild**: A pipeline update that redoes everything from the start instead of only the new rows.\n- **Run detail**: A page showing one job run task by task. Open it from a run's bar: right-click, then Drill to."
           },
           "position": {
             "x": 0,

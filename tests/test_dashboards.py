@@ -169,7 +169,7 @@ def test_page_titles_are_the_plain_questions():  # spec §5.2
     assert titles["fraud_operations"] == ["What is waiting for review?", "How did the reviews turn out?",  # operations
                                           "Is the model still good?", "What these words mean"]  # pages
     assert titles["platform_health"] == ["Are the jobs healthy?", "Is the data fresh and clean?",  # platform
-                                         "What these words mean"]  # pages
+                                         "Run detail", "What these words mean"]  # pages, Run detail third
 
 
 @pytest.mark.parametrize("key", list(d.DASHBOARDS))  # both dashboards
@@ -217,18 +217,19 @@ def test_dashboard_resources_hold_no_identifiers():  # public repo
     assert not re.search(r"[0-9a-f]{16}|[0-9a-f]{8}-[0-9a-f]{4}|@", text)  # no IDs, no emails
 
 
+TIME_FIELDS = {"run_label", "update_label", "started"}  # fields that show a time
+
+
 def test_every_time_axis_says_utc():  # D3: the system tables and Delta store UTC; the owner's clock is IST
     for key, dashboard in BUILT.items():  # both dashboards
         for widget in widgets(dashboard):  # each widget
-            x = widget.get("spec", {}).get("encodings", {}).get("x", {})  # the across axis, if any
-            if x.get("scale", {}).get("type") == "temporal":  # a time axis
-                assert x["displayName"].endswith("(UTC)"), (key, widget["name"])  # labelled
-                assert x["axis"]["title"].endswith("(UTC)"), (key, widget["name"])  # on screen too
-
-
-def test_freshness_table_is_tall_enough_for_all_four_stages():  # D3: height 3 clipped "4. Flagged for review"
-    item = next(i for p in BUILT["platform_health"]["pages"] for i in p["layout"] if i["widget"]["name"] == "freshness_table")
-    assert item["position"]["height"] >= 4  # title, header and four rows
+            encodings = widget.get("spec", {}).get("encodings", {})  # its encodings
+            entries = [e for e in encodings.values() if isinstance(e, dict)]  # axes, colours, values
+            entries += [c for e in encodings.values() if isinstance(e, list) for c in e]  # table columns
+            entries += encodings.get("fields", []) if isinstance(encodings.get("fields"), list) else []  # filter fields
+            for entry in entries:  # each
+                if entry.get("fieldName") in TIME_FIELDS or entry.get("scale", {}).get("type") == "temporal":  # a time
+                    assert entry.get("displayName", "").endswith("(UTC)"), (key, widget["name"])  # labelled
 
 
 def test_model_page_counts_waiting_hours_from_the_waiting_view():  # review I1: managers' rows hide waiting hours
@@ -332,3 +333,72 @@ def test_model_counters_compare_newest_24h_with_all_hours():  # spec §4.3 count
 
 def test_model_page_says_big_numbers_cover_every_hour():  # spec §4.3: the slider narrows the charts only
     assert "The big numbers always cover every hour" in page_text("fraud_operations", "Is the model still good?")  # said
+
+
+# ── Platform health restyle and Run detail (dashboard beautify Task 3) ──
+KNOWN_STATES = ("SUCCEEDED", "COMPLETED", "ERROR", "FAILED", "TIMED_OUT", "CANCELED", "SKIPPED", "UPSTREAM_FAILED")  # run/update results
+
+
+def plain(state: str | None) -> str:  # what _plain_outcome's SQL gives for one state (Python mirror)
+    if state in ("SUCCEEDED", "COMPLETED"):  # finished well
+        return "✓ Succeeded"  # green
+    if state is None:  # no result yet
+        return "↻ Still running"  # amber
+    return "✕ " + state.replace("_", " ").title()  # initcap(replace(x, '_', ' ')) with the cross
+
+
+def test_outcomes_carry_a_symbol():  # Review Focus 1: a running run is amber, never blank or unmapped
+    expression = d._plain_outcome("x")  # the SQL
+    for piece in ("'✓ Succeeded'", "'↻ Still running'", "concat('✕ '", "initcap(replace(x, '_', ' '))"):  # its parts
+        assert piece in expression, piece  # present
+    for state in KNOWN_STATES + (None,):  # every result Databricks records, and none
+        assert plain(state) in d.MEANING, state  # each has its meaning colour
+
+
+def test_run_bars_and_run_table_share_a_dataset():  # spec §4.4 cross-filter
+    bar_widget, run_table = find("platform_health", "run_minutes"), find("platform_health", "run_table")  # the pair
+    assert {w["queries"][0]["query"]["datasetName"] for w in (bar_widget, run_table)} == {"job_runs"}  # one dataset
+    x = bar_widget["spec"]["encodings"]["x"]  # the run axis
+    assert x["fieldName"] == "run_label" and x["scale"]["type"] == "categorical"  # one bar per run, no empty time
+    assert x["displayName"].endswith("(UTC)")  # times are UTC
+    assert bar_widget["spec"]["encodings"]["color"]["fieldName"] == "outcome"  # coloured by how it ended
+
+
+def test_run_labels_keep_the_job_name():  # Review Focus 5: two jobs starting in the same minute stay apart
+    runs = dataset_sql("platform_health", "job_runs")  # the runs SQL
+    label = runs[runs.index("concat("):runs.index("AS run_label")]  # the label expression
+    assert "replace(job_name, 'fraud-', '')" in label  # short job name in the label
+    assert "replace(job_name, 'fraud-', '')" in dataset_sql("platform_health", "task_times")  # same label for the picker
+
+
+def test_run_detail_page_filters_both_datasets():  # Review Focus 4: engineers only
+    assert "Run detail" not in [p["displayName"] for p in BUILT["fraud_operations"]["pages"]]  # not for managers
+    pickers = [w for w in page_widgets("platform_health", "Run detail")  # the page's filters
+               if w.get("spec", {}).get("widgetType") == "filter-single-select"]  # pick one run
+    assert len(pickers) == 1  # one picker
+    assert bindings(pickers[0]) == {("job_runs", "run_label"), ("task_times", "run_label")}  # narrows both
+
+
+def column_rules(key: str, widget_name: str, field: str) -> list[dict]:  # one table column's cell rules
+    columns = find(key, widget_name)["spec"]["encodings"]["columns"]  # the table's columns
+    return next(c for c in columns if c["fieldName"] == field)["style"]["rules"]  # its rules
+
+
+def test_freshness_marks_a_stage_behind():  # Review Focus 2
+    sql_text = dataset_sql("platform_health", "freshness")  # the stages SQL
+    assert re.search(r"CASE WHEN .* = 0 THEN 'Up to date' ELSE 'Behind'", sql_text)  # equal hours are up to date
+    assert column_rules("platform_health", "behind_table", "hours_behind") == [  # green when 0, red when behind
+        d.cell_rule("=", "0", "#DDF3E2"), d.cell_rule(">", "0", "#FBE3E1")]  # tints
+    colour = find("platform_health", "freshness_bar")["spec"]["encodings"]["color"]  # the stage bars
+    assert colour["fieldName"] == "stage_status"  # coloured by status
+
+
+def test_cell_rules_on_minutes_and_rows():  # spec §4.2 table cell rules
+    assert column_rules("platform_health", "run_table", "minutes_taken") == [  # slow runs stand out
+        d.cell_rule(">=", "10", "#B9D3F2"), d.cell_rule(">=", "5", "#DCE9F9")]  # darker first
+    assert column_rules("platform_health", "rejections_table", "rows_rejected") == [d.cell_rule(">", "0", "#FBE3E1")]  # any set-aside row
+
+
+def test_wait_counters_show_minutes():  # spec §4.4: unit on the number
+    for name in ("typical_wait", "longest_wait"):  # both waits
+        assert find("platform_health", name)["spec"]["encodings"]["value"]["formatTemplate"] == "{{@formatted}} min", name  # "4.6 min"

@@ -26,6 +26,7 @@ PLATFORM_WORDS: dict[str, str] = {  # extra terms on the engineers' dashboard
     "Landing folder": "Where each simulated hour's file of payments arrives before it is loaded.",  # landing volume
     "Pipeline update": "One run of the cleaning step that turns loaded payments into clean ones.",  # pipeline update
     "Full rebuild": "A pipeline update that redoes everything from the start instead of only the new rows.",  # full refresh
+    "Run detail": "A page showing one job run task by task. Open it from a run's bar: right-click, then Drill to.",  # drill-through page
 }  # end PLATFORM_WORDS
 JARGON = ("precision", "recall", "latency", "p95", "drift", "sla", "throughput", "f1", "auc",  # model and operations jargon
           "percentile", "median", "idempotent", "cardinality", "etl")  # data jargon (CI guard on all visible text)
@@ -391,31 +392,60 @@ def operations_dashboard() -> dict[str, Any]:  # "Fraud operations": reviewers, 
 
 
 # ── Platform health: datasets (engineers only) ────────────────
-def _plain_outcome(column: str) -> str:  # SUCCEEDED -> Succeeded, TIMED_OUT -> Timed Out, empty -> Still running
-    return f"coalesce(initcap(replace({column}, '_', ' ')), 'Still running')"  # SQL expression
+def _plain_outcome(column: str) -> str:  # SUCCEEDED -> ✓ Succeeded, TIMED_OUT -> ✕ Timed Out, empty -> ↻ Still running
+    return (f"CASE WHEN {column} IN ('SUCCEEDED', 'COMPLETED') THEN '✓ Succeeded'"  # jobs say SUCCEEDED, pipelines COMPLETED
+            f" WHEN {column} IS NULL THEN '↻ Still running'"  # no result yet (Review Focus 1)
+            f" ELSE concat('✕ ', initcap(replace({column}, '_', ' '))) END")  # every other result needs a look
 
 
-JOB_RUNS = dataset("job_runs", "Job runs", sql(  # one row per run
-    f"SELECT DISTINCT job_name, run_started_at, minutes_taken, {_plain_outcome('outcome')} AS outcome",  # run columns
-    "FROM workspace.fraud.job_run_times",  # the jobs view
-    "ORDER BY run_started_at DESC",  # newest first
+def _run_label(started: str) -> str:  # "10-19 04:53 ingest": start time plus short job name (Review Focus 5)
+    return f"concat(date_format({started}, 'MM-dd HH:mm'), ' ', replace(job_name, 'fraud-', ''))"  # SQL expression
+
+
+JOB_RUNS = dataset("job_runs", "Job runs", sql(  # one row per run, oldest first
+    f"SELECT DISTINCT {_run_label('run_started_at')} AS run_label,",  # one bar per run, alphabetical = by time
+    "       job_name,",  # which job
+    "       date_format(run_started_at, 'yyyy-MM-dd HH:mm') AS started,",  # as text (ruling R-B4)
+    f"       minutes_taken, {_plain_outcome('outcome')} AS outcome",  # how long and how it ended
+    "FROM workspace.fraud.job_run_times",  # the jobs view (one row per task, hence DISTINCT)
+    "ORDER BY started",  # oldest to newest
 ))  # end JOB_RUNS
+NEWEST_RUN = dataset("newest_run", "Newest fraud-ingest run", sql(  # one row (ruling R-B5)
+    f"SELECT DISTINCT date_format(run_started_at, 'yyyy-MM-dd HH:mm') AS started, minutes_taken, {_plain_outcome('outcome')} AS outcome",  # its columns
+    "FROM workspace.fraud.job_run_times",  # the jobs view
+    "WHERE job_name = 'fraud-ingest'",  # the loading job...
+    "  AND run_started_at = (SELECT MAX(run_started_at) FROM workspace.fraud.job_run_times WHERE job_name = 'fraud-ingest')",  # ...newest run
+))  # end NEWEST_RUN
 TASK_TIMES = dataset("task_times", "Task minutes", sql(  # one row per task of each fraud-ingest run
-    f"SELECT run_started_at, task_name, task_minutes, {_plain_outcome('task_outcome')} AS task_outcome",  # task columns
+    f"SELECT {_run_label('run_started_at')} AS run_label, task_name, task_minutes",  # same label as job_runs, for the picker
     "FROM workspace.fraud.job_run_times",  # the jobs view
     "WHERE job_name = 'fraud-ingest' AND task_name IS NOT NULL",  # the loading job's tasks
 ))  # end TASK_TIMES
-PIPELINE_UPDATES = dataset("pipeline_updates", "Pipeline updates", sql(  # one row per update
-    f"SELECT update_started_at, minutes_taken, {_plain_outcome('outcome')} AS outcome,",  # update columns
+NEWEST_RUN_TASKS = dataset("newest_run_tasks", "Tasks of the newest run", sql(  # where the newest run spent its time
+    "WITH tasks AS (SELECT task_name, task_minutes FROM workspace.fraud.job_run_times",  # the jobs view
+    "               WHERE job_name = 'fraud-ingest' AND task_name IS NOT NULL",  # the loading job's tasks...
+    "                 AND run_started_at = (SELECT MAX(run_started_at) FROM workspace.fraud.job_run_times WHERE job_name = 'fraud-ingest'))",  # ...newest run
+    "SELECT task_name, task_minutes,",  # each task
+    "       CASE WHEN task_minutes = MAX(task_minutes) OVER () THEN 'Slowest task' ELSE 'Other tasks' END AS task_kind",  # highlight one
+    "FROM tasks",  # the newest run's tasks
+))  # end NEWEST_RUN_TASKS
+PIPELINE_UPDATES = dataset("pipeline_updates", "Pipeline updates", sql(  # one row per update, oldest first
+    "SELECT date_format(update_started_at, 'MM-dd HH:mm') AS update_label,",  # one bar per update
+    f"       minutes_taken, {_plain_outcome('outcome')} AS outcome,",  # how long and how it ended
     "       CASE WHEN full_rebuild THEN 'Full rebuild' ELSE 'New rows only' END AS update_kind",  # plain kind
     "FROM workspace.fraud.pipeline_update_times",  # the pipeline view
-    "ORDER BY update_started_at DESC",  # newest first
+    "ORDER BY update_started_at",  # oldest to newest
 ))  # end PIPELINE_UPDATES
 FRESHNESS = dataset("freshness", "Newest hour at each stage", sql(  # one row per stage
-    "SELECT '1. Copied to the landing folder' AS stage, newest_hour_released AS newest_simulated_hour FROM workspace.fraud.data_freshness",  # release
-    "UNION ALL SELECT '2. Loaded', newest_hour_ingested FROM workspace.fraud.data_freshness",  # Bronze
-    "UNION ALL SELECT '3. Scored by the model', newest_hour_scored FROM workspace.fraud.data_freshness",  # scoring
-    "UNION ALL SELECT '4. Flagged for review', newest_hour_flagged FROM workspace.fraud.data_freshness",  # Gold
+    "WITH stages AS (",  # each stage beside the landing folder's hour
+    "  SELECT '1. Copied to the landing folder' AS stage, newest_hour_released AS hour, newest_hour_released AS released FROM workspace.fraud.data_freshness",  # release
+    "  UNION ALL SELECT '2. Loaded', newest_hour_ingested, newest_hour_released FROM workspace.fraud.data_freshness",  # Bronze
+    "  UNION ALL SELECT '3. Scored by the model', newest_hour_scored, newest_hour_released FROM workspace.fraud.data_freshness",  # scoring
+    "  UNION ALL SELECT '4. Flagged for review', newest_hour_flagged, newest_hour_released FROM workspace.fraud.data_freshness)",  # Gold
+    "SELECT stage, hour AS newest_simulated_hour, released - hour AS hours_behind,",  # how far each stage lags
+    "       CASE WHEN released - hour = 0 THEN 'Up to date' ELSE 'Behind' END AS stage_status",  # Review Focus 2
+    "FROM stages",  # four rows
+    "ORDER BY stage",  # in pipeline order
 ))  # end FRESHNESS
 WAIT = dataset("wait", "Wait from landing to scored", sql(  # the latest run's waits
     "SELECT median_minutes_landing_to_scored AS typical_minutes,",  # half waited less
@@ -429,49 +459,77 @@ REJECTIONS = dataset("rejections", "Rows set aside", sql(  # one row per reason,
     "FROM workspace.fraud.rejected_rows_by_reason",  # the shelf summary
     "ORDER BY rows_rejected DESC",  # biggest first
 ))  # end REJECTIONS
+OUTCOMES = ("✓ Succeeded", "↻ Still running", *(f"✕ {o}" for o in FAILED_OUTCOMES))  # every outcome pin
+RUN_COLUMNS = [("run_label", "Run (UTC)", "string"), ("job_name", "Job", "string"),  # which run
+               ("minutes_taken", "Minutes", "float"), ("outcome", "How it ended", "string")]  # how long, how it ended
+SLOW_RUN = {"minutes_taken": [cell_rule(">=", "10", TINT_BLUE_DARK), cell_rule(">=", "5", TINT_BLUE_LIGHT)]}  # slow runs stand out
 
 
 # ── Platform health: pages ────────────────────────────────────
 def platform_dashboard() -> dict[str, Any]:  # "Platform health": engineers only
     jobs = page("jobs", "Are the jobs healthy?",  # page 1
-        (bar("run_minutes", "Minutes per job run", "job_runs", ("run_started_at", "Run started (UTC)"),  # per run
+        (header("jobs_header", "Are the jobs healthy?",  # the question...
+                "Green runs succeeded, red ones need a look. Click a run or a legend entry to narrow the table below; "  # ...and how
+                "right-click a run, then Drill to, to open it on the Run detail page."), GRID_WIDTH, 2),  # to use it
+        (table("newest_run_table", "Newest fraud-ingest run", "newest_run", [  # one row (ruling R-B5)
+            ("started", "Started (UTC)", "string"), ("minutes_taken", "Minutes", "float"), ("outcome", "How it ended", "string")],  # its columns
+            "The loading job's latest run: when it started, how long it took and how it ended.", SLOW_RUN), GRID_WIDTH, 3),  # what it shows
+        (bar("run_minutes", "Minutes per job run, oldest to newest", "job_runs", ("run_label", "Run, by start time (UTC)"),  # per run
              ("minutes_taken", "Minutes"),  # up
-             "Each bar is one run, placed at the time it started. Taller means slower. "  # the sentence
+             "Each bar is one run, labelled with its start time and job. Taller means slower. "  # the sentence
              "Databricks records a run up to an hour after it ends, but the job refreshes this page as it ends, "  # system table lag (R3)
              "so its newest run is missing until you click Refresh an hour later.",  # D7: in-job refresh is one run behind
-             color=("job_name", "Job"), x_scale="temporal"), GRID_WIDTH, 5),  # by job
-        (table("run_table", "Every job run and how it ended", "job_runs", [  # the run list
-            ("job_name", "Job", "string"), ("run_started_at", "Started (UTC)", "string"), ("minutes_taken", "Minutes", "float"),  # what and how long
-            ("outcome", "How it ended", "string")],  # result
-            "Anything other than Succeeded is a run that needs a look."), GRID_WIDTH, 5),  # failures
-        (bar("task_minutes", "Minutes per task in each run of fraud-ingest", "task_times", ("run_started_at", "Run started (UTC)"),  # per task
-             ("task_minutes", "Minutes"),  # up
-             "Each bar is one run, split into its tasks. The tallest part is where the time goes. "  # the sentence
-             "The two dashboard refreshes run side by side, so a bar can be taller than the run itself.",  # review M4
-             color=("task_name", "Task"), x_scale="temporal"), GRID_WIDTH, 5),  # stacked by task
+             color=("outcome", "How it ended"), values=OUTCOMES, x_scale="categorical"), GRID_WIDTH, 6),  # by result
+        (bar("newest_tasks", "Where the time went in the newest run", "newest_run_tasks", ("task_name", "Task"),  # per task
+             ("task_minutes", "Minutes"),  # across
+             "Each bar is one task of the newest run, longest first. The slowest task is in full blue. "  # the sentence
+             "The two dashboard refreshes run side by side, so the tasks can add up to more than the run.",  # review M4
+             color=("task_kind", "Task"), values=("Slowest task", "Other tasks"), x_scale="categorical",  # highlight one
+             horizontal=True, sort_by_value=True), GRID_WIDTH, 5),  # sorted bars
         (bar("pipeline_minutes", "Minutes the cleaning pipeline itself spent per update", "pipeline_updates",  # per update
-             ("update_started_at", "Update started (UTC)"), ("minutes_taken", "Minutes"),  # axes
+             ("update_label", "Update started (UTC)"), ("minutes_taken", "Minutes"),  # axes
              "Compare with the silver task above: the difference is the time spent starting up and waiting, not cleaning.",  # G-15 story
-             color=("update_kind", "Kind of update"), values=("New rows only", "Full rebuild"), x_scale="temporal"), GRID_WIDTH, 5),  # by kind
+             color=("update_kind", "Kind of update"), values=("New rows only", "Full rebuild"), x_scale="categorical"), GRID_WIDTH, 5),  # by kind
+        (table("run_table", "Every job run and how it ended", "job_runs", RUN_COLUMNS,  # the run list
+               "Anything other than ✓ Succeeded is a run that needs a look. Darker blue minutes are slower runs.",  # failures
+               SLOW_RUN), GRID_WIDTH, 6),  # minutes tint
     )  # end jobs
     data = page("data", "Is the data fresh and clean?",  # page 2
-        (table("freshness_table", "Newest simulated hour at each stage", "freshness", [  # four stages
-            ("stage", "Stage", "string"), ("newest_simulated_hour", "Newest simulated hour", "integer")],  # stage and hour
-            "After a run all four numbers should be equal. A lower number shows where payments are stuck."), GRID_WIDTH, 4),  # D3: height 3 clipped row 4
-        (counter("typical_wait", "Typical minutes from landing to scored", "wait",  # half waited less
-                 ("typical_minutes", "Minutes")), 3, 2),  # latest run
-        (counter("longest_wait", "Longest minutes from landing to scored", "wait",  # the slowest payment
-                 ("longest_minutes", "Minutes")), 3, 2),  # latest run
-        (text("wait_how", f"**{HOW_TO_READ}** Both numbers cover the latest scoring run only. Half of its payments "  # the line
-                          "waited less than the typical number."), GRID_WIDTH, 1),  # plain words for the middle value
+        (header("data_header", "Is the data fresh and clean?",  # the question...
+                "After a run every stage should show the same simulated hour, and no rows should be set aside."), GRID_WIDTH, 2),  # ...what good looks like
+        (counter("typical_wait", "Typical wait from landing to scored", "wait", ("typical_minutes", "Minutes"),  # half waited less
+                 "Latest scoring run only. Half of its payments waited less than this.", unit="min"), 3, 2),  # plain words for the middle value
+        (counter("longest_wait", "Longest wait from landing to scored", "wait", ("longest_minutes", "Minutes"),  # the slowest payment
+                 "Latest scoring run only: the slowest payment.", unit="min"), 3, 2),  # latest run
+        (bar("freshness_bar", "Newest simulated hour at each stage", "freshness", ("stage", "Stage"),  # per stage
+             ("newest_simulated_hour", "Newest simulated hour"),  # across
+             "Each bar is one stage, in pipeline order. Green stages are up to date; a red, shorter bar shows where "  # the sentence
+             "payments are stuck.", color=("stage_status", "Status"), values=("Up to date", "Behind"),  # by status
+             aggregate="MAX", x_scale="categorical", horizontal=True), GRID_WIDTH, 4),  # one value per stage
+        (table("behind_table", "Hours behind the landing folder", "freshness", [  # the gap per stage
+            ("stage", "Stage", "string"), ("hours_behind", "Hours behind", "integer")],  # stage and gap
+            "0 on a green cell means the stage has caught up; a red cell shows how many hours it lags.",  # the sentence
+            {"hours_behind": [cell_rule("=", "0", TINT_GREEN), cell_rule(">", "0", TINT_RED)]}), GRID_WIDTH, 4),  # green or red
         (table("rejections_table", "Rows set aside, by reason", "rejections", [  # the shelf
             ("reason", "Why it was set aside", "string"), ("rows_rejected", "Rows", "integer"),  # reason and count
             ("first_hour", "First simulated hour", "integer"), ("last_hour", "Last simulated hour", "integer")],  # range
             "Each row is one reason a payment record failed a basic check. "  # the sentence
-            "Set-aside rows are kept for checking, never scored."), GRID_WIDTH, 3),  # what happens to them
+            "Set-aside rows are kept for checking, never scored.",  # what happens to them
+            {"rows_rejected": [cell_rule(">", "0", TINT_RED)]}), GRID_WIDTH, 3),  # any set-aside row is red
     )  # end data
-    return {"datasets": [JOB_RUNS, TASK_TIMES, PIPELINE_UPDATES, FRESHNESS, WAIT, REJECTIONS],  # six datasets
-            "pages": [jobs, data, word_page({**WORD_LIST, **PLATFORM_WORDS})],  # three pages
+    detail = page("run_detail", "Run detail",  # page 3, drill-through target
+        (header("detail_header", "Run detail",  # the title...
+                "Pick a run, or open one from a run's bar on the first page: right-click, then Drill to."), 4, 2),  # ...how to get here
+        (single_select("detail_run", "Job run (UTC)", [("job_runs", "run_label"), ("task_times", "run_label")]), 2, 2),  # narrows both
+        (table("detail_table", "The picked run", "job_runs", RUN_COLUMNS,  # its summary (ruling R-B5)
+               "One row for the picked run; every run while none is picked.", SLOW_RUN), GRID_WIDTH, 3),  # what it shows
+        (bar("detail_tasks", "Where the time went in this run", "task_times", ("task_name", "Task"),  # per task
+             ("task_minutes", "Minutes"),  # across
+             "Each bar is one task of the picked run, longest first. With no run picked it shows each task's "  # the sentence
+             "average over all runs.", aggregate="AVG", x_scale="categorical", horizontal=True, sort_by_value=True), GRID_WIDTH, 5),  # sorted bars
+    )  # end detail
+    return {"datasets": [JOB_RUNS, NEWEST_RUN, TASK_TIMES, NEWEST_RUN_TASKS, PIPELINE_UPDATES, FRESHNESS, WAIT, REJECTIONS],  # eight datasets
+            "pages": [jobs, data, detail, word_page({**WORD_LIST, **PLATFORM_WORDS})],  # four pages
             "uiSettings": {"theme": THEME}}  # spec §4.1
 
 
