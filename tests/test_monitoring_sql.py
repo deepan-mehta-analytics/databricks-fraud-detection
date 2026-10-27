@@ -119,8 +119,9 @@ def test_fraud_is_summed_once_per_hour():  # review I2: fraud_in_hour repeats on
         text = " ".join(raw.split())  # whitespace collapsed
         sums = re.findall(r"SUM\(fraud_in_hour\) FROM (\w+)", text, re.I)  # what each sum reads
         assert sums, path.name  # there are sums to check
-        assert set(sums) == {"hours"}, path.name  # always the one-row-per-hour CTE...
-        assert "hours AS (SELECT DISTINCT step, fraud_in_hour FROM" in text, path.name  # ...made once per hour
+        assert set(sums) <= {"hours", "recent_hours"} and "hours" in sums, path.name  # always a one-row-per-hour CTE...
+        for name in set(sums):  # each one used
+            assert f" {name} AS (SELECT DISTINCT step, fraud_in_hour FROM" in text, (path.name, name)  # ...made once per hour
         assert not re.search(r"SUM\(\s*IF\([^)]*fraud_in_hour", text, re.I), path.name  # no per-row sum in disguise
 
 

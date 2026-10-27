@@ -237,11 +237,13 @@ def test_model_page_counts_waiting_hours_from_the_waiting_view():  # review I1: 
     assert "NOT verdicts_ready" not in query_text(totals)  # never from the reader's case rows
 
 
-def test_model_bars_have_one_row_per_hour():  # review I2: shares made from counts, whatever the versions
-    by_hour = " ".join(query_text(next(ds for ds in BUILT["fraud_operations"]["datasets"] if ds["name"] == "model_by_hour")).split())
+@pytest.mark.parametrize("name", ["model_by_hour", "fraud_caught_by_hour"])  # both per-hour datasets
+def test_model_bars_have_one_row_per_hour(name):  # review I2: shares made from counts, whatever the versions
+    by_hour = " ".join(query_text(next(ds for ds in BUILT["fraud_operations"]["datasets"] if ds["name"] == name)).split())
     assert "GROUP BY step" in by_hour  # one row per hour
-    assert "try_divide(SUM(confirmed_fraud), SUM(closed_cases))" in by_hour  # share 1 from counts
-    assert "try_divide(SUM(confirmed_fraud), MAX(fraud_in_hour))" in by_hour  # share 2: fraud counted once
+    assert "SUM(confirmed_fraud)" in by_hour and "MAX(fraud_in_hour)" in by_hour  # fraud counted once per hour
+    if name == "model_by_hour":  # the share line
+        assert "try_divide(SUM(confirmed_fraud), SUM(closed_cases))" in by_hour  # share 1 from counts
 
 
 def page_text(key: str, title: str) -> str:  # every string a viewer reads on one page
@@ -259,3 +261,74 @@ def test_job_page_says_the_job_refresh_misses_its_own_run():  # D7: the in-job r
     text = page_text("platform_health", "Are the jobs healthy?")  # the jobs page
     assert "up to an hour after it finishes." not in text  # the old line was only true after a manual refresh
     assert "click Refresh" in text  # how to see the newest run
+
+
+# ── Fraud operations restyle (dashboard beautify Task 2) ──────
+def find(key: str, name: str) -> dict:  # one widget by name
+    return next(w for w in widgets(BUILT[key]) if w["name"] == name)  # it must exist
+
+
+def dataset_sql(key: str, name: str) -> str:  # one dataset's SQL, whitespace collapsed
+    return " ".join(query_text(next(ds for ds in BUILT[key]["datasets"] if ds["name"] == name)).split())  # one line
+
+
+def page_widgets(key: str, title: str) -> list[dict]:  # the widgets on one page
+    page = next(p for p in BUILT[key]["pages"] if p["displayName"] == title)  # the page
+    return [item["widget"] for item in page["layout"]]  # its widgets
+
+
+def bindings(widget: dict) -> set[tuple[str, str]]:  # (dataset, field) pairs a filter widget narrows
+    names = {q["name"]: q["query"]["datasetName"] for q in widget["queries"]}  # query -> dataset
+    return {(names[f["queryName"]], f["fieldName"]) for f in widget["spec"]["encodings"]["fields"]}  # pairs
+
+
+def test_reviews_page_totals_share_the_chart_dataset():  # spec §4.3: slider and cross-filter narrow both
+    items = page_widgets("fraud_operations", "How did the reviews turn out?")  # the page
+    counters = [w for w in items if w.get("spec", {}).get("widgetType") == "counter"]  # its totals
+    assert {c["queries"][0]["query"]["datasetName"] for c in counters} == {"review_outcomes"}  # shared dataset
+    wheres = {c["queries"][0]["query"]["filters"][0]["expression"] for c in counters}  # widget query filters
+    assert wheres == {"`outcome` = 'Confirmed fraud'", "`outcome` = 'False alarm'"}  # one per verdict
+    bars = [w for w in items if w.get("spec", {}).get("widgetType") == "bar"]  # the chart
+    assert [b["queries"][0]["query"]["datasetName"] for b in bars] == ["review_outcomes"]  # same dataset
+
+
+def test_hour_sliders_bind_to_the_charts_datasets():  # spec §4.3: sliders narrow the charts
+    for title, expected in (("How did the reviews turn out?", {("review_outcomes", "simulated_hour")}),  # reviews
+                            ("Is the model still good?", {("model_by_hour", "simulated_hour"),  # model line...
+                                                          ("fraud_caught_by_hour", "simulated_hour")})):  # ...and bars
+        sliders = [w for w in page_widgets("fraud_operations", title) if w.get("spec", {}).get("widgetType") == "range-slider"]  # the slider
+        assert len(sliders) == 1 and bindings(sliders[0]) == expected, title  # bound to the chart datasets
+        for dataset_name, _ in expected:  # each bound dataset
+            assert "simulated_hour" in dataset_sql("fraud_operations", dataset_name), dataset_name  # has the column
+
+
+def test_model_page_uses_single_axis_charts():  # spec §2 anti-goal: never two y-axes
+    line = find("fraud_operations", "flagged_line")["spec"]  # the share line
+    assert line["widgetType"] == "line" and line["encodings"]["color"]["fieldName"] == "series"  # one line per series
+    assert [m["value"] for m in line["encodings"]["color"]["scale"]["mappings"]] == ["Each hour", "Average, all hours"]  # blue, grey
+    bars = find("fraud_operations", "caught_bar")["spec"]  # the caught/missed bars
+    assert bars["widgetType"] == "bar" and bars["encodings"]["color"]["fieldName"] == "result"  # stacked by result
+    assert [m["value"] for m in bars["encodings"]["color"]["scale"]["mappings"]] == ["Caught", "Missed"]  # blue, red
+
+
+def test_model_average_is_fixed_over_all_hours():  # spec §4.3: the average does not move with the slider
+    assert "OVER ()" in dataset_sql("fraud_operations", "model_by_hour")  # a window over every ready hour
+
+
+def test_newest_24h_window_counts_only_ready_hours():  # Review Focus 3
+    totals = dataset_sql("fraud_operations", "model_totals")  # the counters' SQL
+    assert "FROM ready WHERE step > (SELECT MAX(step) FROM ready) - 24" in totals  # newest ready hour, never newest scored
+    assert "transaction_risk_scores" not in totals  # not from the scored hours
+
+
+def test_model_counters_compare_newest_24h_with_all_hours():  # spec §4.3 counter comparison
+    for name in ("flagged_share", "caught_share"):  # the two shares
+        spec = find("fraud_operations", name)["spec"]  # its settings
+        assert spec["encodings"]["value"]["format"]["type"] == "number-percent", name  # 0.139 -> 14%
+        assert spec["encodings"]["value"]["fieldName"].startswith("newest_24h_share_"), name  # newest 24 hours
+        assert spec["encodings"]["target"]["fieldName"].startswith("share_"), name  # compared with all hours
+        assert "compared with all hours" in spec["frame"]["description"], name  # said in words
+
+
+def test_model_page_says_big_numbers_cover_every_hour():  # spec §4.3: the slider narrows the charts only
+    assert "The big numbers always cover every hour" in page_text("fraud_operations", "Is the model still good?")  # said

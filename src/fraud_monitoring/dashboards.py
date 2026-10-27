@@ -278,25 +278,47 @@ REVIEW_OUTCOMES = dataset("review_outcomes", "Review outcomes per hour", sql(  #
     "SELECT step, 'False alarm', false_alarms",  # honest payments
     "FROM workspace.fraud.alert_summary_hourly WHERE closed_cases > 0",  # hours with verdicts
 ))  # end REVIEW_OUTCOMES
-MODEL_BY_HOUR = dataset("model_by_hour", "Model results per hour", sql(  # the two shares per hour (review I2)
-    "SELECT step AS simulated_hour,",  # the hour
-    "       array_join(sort_array(collect_set(CAST(model_version AS STRING))), ' and ') AS model_version,",  # e.g. "3 and 4"
-    "       try_divide(SUM(confirmed_fraud), SUM(closed_cases)) AS share_flagged_that_were_fraud,",  # from counts
-    "       try_divide(SUM(confirmed_fraud), MAX(fraud_in_hour)) AS share_of_fraud_caught",  # fraud counted once
-    "FROM workspace.fraud.model_accuracy_by_hour",  # the model view
-    "WHERE verdicts_ready",  # waiting hours have no bar, never a zero
-    "GROUP BY step",  # one row per hour, however many model versions
+PER_HOUR = (  # one row per hour with verdicts, shares made from counts (review I2)
+    "WITH per_hour AS (SELECT step,",  # the hour
+    "                         SUM(confirmed_fraud) AS caught,",  # real fraud we flagged
+    "                         SUM(closed_cases) AS flagged_with_verdict,",  # flagged payments with a verdict
+    "                         MAX(fraud_in_hour) AS fraud_in_hour,",  # every fraud that hour, counted once
+    "                         try_divide(SUM(confirmed_fraud), SUM(closed_cases)) AS share_flagged",  # share 1
+    "                  FROM workspace.fraud.model_accuracy_by_hour",  # the model view
+    "                  WHERE verdicts_ready",  # waiting hours have no point, never a zero
+    "                  GROUP BY step)",  # one row per hour, however many model versions
+)  # end PER_HOUR
+MODEL_BY_HOUR = dataset("model_by_hour", "Percent flagged that were fraud, per hour", sql(*PER_HOUR,  # the share line
+    "SELECT step AS simulated_hour, 'Each hour' AS series,",  # one point per hour
+    "       ROUND(100 * share_flagged, 1) AS percent_flagged_that_were_fraud",  # 0.139 -> 13.9
+    "FROM per_hour",  # every ready hour
+    "UNION ALL",  # with the flat reference line
+    "SELECT step, 'Average, all hours',",  # same hours
+    "       ROUND(100 * try_divide(SUM(caught) OVER (), SUM(flagged_with_verdict) OVER ()), 1)",  # fixed: every ready hour
+    "FROM per_hour",  # the same rows
 ))  # end MODEL_BY_HOUR
+FRAUD_CAUGHT_BY_HOUR = dataset("fraud_caught_by_hour", "Fraud caught and missed, per hour", sql(*PER_HOUR,  # the stacked bars
+    "SELECT step AS simulated_hour, 'Caught' AS result, caught AS payments FROM per_hour",  # flagged and fraud
+    "UNION ALL",  # stacked on
+    "SELECT step, 'Missed', fraud_in_hour - caught FROM per_hour",  # fraud we did not flag
+))  # end FRAUD_CAUGHT_BY_HOUR
 MODEL_TOTALS = dataset("model_totals", "Model results so far", sql(  # every hour with verdicts, together (ruling R8)
     "WITH ready AS (SELECT * FROM workspace.fraud.model_accuracy_by_hour WHERE verdicts_ready),",  # hours with verdicts
     "     hours AS (SELECT DISTINCT step, fraud_in_hour FROM ready),",  # fraud once per hour
+    "     recent AS (SELECT * FROM ready WHERE step > (SELECT MAX(step) FROM ready) - 24),",  # newest 24 ready hours (Review Focus 3)
+    "     recent_hours AS (SELECT DISTINCT step, fraud_in_hour FROM recent),",  # their fraud, once per hour
     "     totals AS (SELECT (SELECT SUM(confirmed_fraud) FROM ready) AS confirmed_fraud,",  # real fraud flagged
     "                       (SELECT SUM(closed_cases) FROM ready) AS checked_cases,",  # flagged with a verdict
     "                       (SELECT SUM(fraud_in_hour) FROM hours) AS all_fraud,",  # every fraud in those hours
+    "                       (SELECT SUM(confirmed_fraud) FROM recent) AS recent_fraud,",  # newest 24 hours: fraud flagged
+    "                       (SELECT SUM(closed_cases) FROM recent) AS recent_checked,",  # ...flagged with a verdict
+    "                       (SELECT SUM(fraud_in_hour) FROM recent_hours) AS recent_all_fraud,",  # ...every fraud
     "                       (SELECT hours_waiting FROM workspace.fraud.hours_waiting_for_verdicts) AS hours_waiting)",  # review I1
     "SELECT confirmed_fraud, checked_cases, all_fraud, hours_waiting,",  # the counts
     "       ROUND(try_divide(confirmed_fraud, checked_cases), 3) AS share_flagged_that_were_fraud,",  # 0.139 after run E
-    "       ROUND(try_divide(confirmed_fraud, all_fraud), 3) AS share_of_fraud_caught",  # 0.493 after run E
+    "       ROUND(try_divide(confirmed_fraud, all_fraud), 3) AS share_of_fraud_caught,",  # 0.493 after run E
+    "       ROUND(try_divide(recent_fraud, recent_checked), 3) AS newest_24h_share_flagged_that_were_fraud,",  # newest 24 hours
+    "       ROUND(try_divide(recent_fraud, recent_all_fraud), 3) AS newest_24h_share_of_fraud_caught",  # newest 24 hours
     "FROM totals",  # one row
 ))  # end MODEL_TOTALS
 
@@ -314,35 +336,56 @@ def operations_dashboard() -> dict[str, Any]:  # "Fraud operations": reviewers, 
             "Anyone who may not see account names sees REDACTED."), GRID_WIDTH, 8),  # masks
     )  # end queue
     outcomes = page("outcomes", "How did the reviews turn out?",  # page 2
-        (bar("outcomes_bar", "Confirmed fraud and false alarms per simulated hour", "review_outcomes",  # stacked bars
+        (header("outcomes_header", "How did the reviews turn out?",  # the question...
+                "Every flagged payment gets a verdict 3 simulated days later. Drag the slider or click a bar to "  # ...and
+                "narrow the totals and the chart together."), 4, 2),  # how to use the page
+        (range_slider("outcomes_hours", "Simulated hours", [("review_outcomes", "simulated_hour")]), 2, 2),  # narrows the page
+        (counter("fraud_total", "Confirmed fraud", "review_outcomes", ("cases", "Confirmed fraud"),  # 405 on all hours
+                 "Flagged payments that really were fraud, in the hours shown.", aggregate="SUM",  # what it counts
+                 where="`outcome` = 'Confirmed fraud'"), 3, 2),  # one verdict
+        (counter("false_alarm_total", "False alarms", "review_outcomes", ("cases", "False alarms"),  # 2,511 on all hours
+                 "Flagged payments that turned out to be honest, in the hours shown.", aggregate="SUM",  # what it counts
+                 where="`outcome` = 'False alarm'"), 3, 2),  # the other verdict
+        (bar("outcomes_bar", "Verdicts per simulated hour", "review_outcomes",  # stacked bars
              ("simulated_hour", "Simulated hour"), ("cases", "Cases"),  # axes
-             "Each bar is one simulated hour, split into confirmed fraud and false alarms. "  # the sentence
+             "Each bar is one simulated hour: confirmed fraud in red at the base, false alarms in grey on top. "  # the sentence
              f"Only hours whose verdicts are in have a bar; newer hours are {WAITING}.",  # waiting
              color=("outcome", "Verdict"), values=("Confirmed fraud", "False alarm")), GRID_WIDTH, 6),  # by verdict
     )  # end outcomes
     model = page("model", "Is the model still good?",  # page 3
-        (counter("flagged_share", "Of the payments we flagged, how many were really fraud", "model_totals",  # share 1
-                 ("share_flagged_that_were_fraud", "Share that were fraud")), 2, 2),  # 0.139 after run E
-        (counter("caught_share", "Of all the fraud, how much we caught", "model_totals",  # share 2
-                 ("share_of_fraud_caught", "Share of fraud caught")), 2, 2),  # 0.493 after run E
-        (counter("hours_waiting", f"Hours still {WAITING}", "model_totals", ("hours_waiting", "Hours")), 2, 2),  # waiting
-        (text("totals_how", f"**{HOW_TO_READ}** The first two numbers cover every hour whose verdicts are in. "  # the line
-                            "0.14 means 14 out of every 100."), GRID_WIDTH, 1),  # reading a share
-        (table("totals_table", "The counts behind those shares", "model_totals", [  # the counts
-            ("confirmed_fraud", "Confirmed fraud", "integer"), ("checked_cases", "Flagged payments with a verdict", "integer"),  # flagged
-            ("all_fraud", "All fraud in those hours", "integer")],  # every fraud
-            "Confirmed fraud divided by flagged payments with a verdict gives the first share; "  # the sentence
-            "divided by all fraud, the second."), GRID_WIDTH, 2),  # how the shares are made
-        (bar("flagged_bar", "Of the payments we flagged, how many were really fraud, per simulated hour", "model_by_hour",  # per hour
-             ("simulated_hour", "Simulated hour"), ("share_flagged_that_were_fraud", "Share that were fraud"),  # axes
-             f"Each bar is one simulated hour, coloured by model version. Taller is better. Hours with no bar are {WAITING}.",  # the sentence
-             color=("model_version", "Model version"), aggregate="AVG"), GRID_WIDTH, 5),  # one bar per hour
-        (bar("caught_bar", "Of all the fraud, how much we caught, per simulated hour", "model_by_hour",  # per hour
-             ("simulated_hour", "Simulated hour"), ("share_of_fraud_caught", "Share of fraud caught"),  # axes
-             f"Each bar is one simulated hour. Taller is better. Hours with no bar are {WAITING}, or had no fraud at all.",  # the sentence
-             color=("model_version", "Model version"), aggregate="AVG"), GRID_WIDTH, 5),  # one bar per hour
+        (header("model_header", "Is the model still good?",  # the question...
+                "The slider narrows the two charts. The big numbers always cover every hour whose verdicts are in, "  # ...what moves
+                "and the shares compare the newest 24 of those hours with all of them."), 4, 2),  # ...and what the shares mean
+        (range_slider("model_hours", "Simulated hours", [("model_by_hour", "simulated_hour"),  # narrows the line...
+                                                         ("fraud_caught_by_hour", "simulated_hour")]), 2, 2),  # ...and the bars
+        (counter("flagged_share", "Flagged payments that were fraud, newest 24 hours with verdicts", "model_totals",  # share 1
+                 ("newest_24h_share_flagged_that_were_fraud", "Newest 24 hours"),  # the value
+                 "Of the payments we flagged, how many were really fraud, compared with all hours.",  # the comparison
+                 percent=True, target=("share_flagged_that_were_fraud", "All hours")), 2, 3),  # 14% after run E
+        (counter("caught_share", "Fraud we caught, newest 24 hours with verdicts", "model_totals",  # share 2
+                 ("newest_24h_share_of_fraud_caught", "Newest 24 hours"),  # the value
+                 "Of all the fraud, how much we flagged, compared with all hours.",  # the comparison
+                 percent=True, target=("share_of_fraud_caught", "All hours")), 2, 3),  # 49% after run E
+        (counter("hours_waiting", f"Hours still {WAITING}", "model_totals", ("hours_waiting", "Hours"),  # 72 after run E
+                 "Scored hours whose verdicts have not arrived yet."), 2, 3),  # review I1
+        (counter("confirmed_count", "Confirmed fraud, all hours", "model_totals", ("confirmed_fraud", "Payments"),  # 405
+                 "Flagged payments that really were fraud."), 2, 2),  # count 1
+        (counter("checked_count", "Flagged payments with a verdict, all hours", "model_totals",  # 2,916
+                 ("checked_cases", "Payments"), "The first share divides confirmed fraud by this."), 2, 2),  # count 2
+        (counter("fraud_count", "All fraud in those hours", "model_totals", ("all_fraud", "Payments"),  # 822
+                 "The second share divides confirmed fraud by this."), 2, 2),  # count 3
+        (line("flagged_line", "Percent of flagged payments that were fraud, per simulated hour", "model_by_hour",  # the share line
+              ("simulated_hour", "Simulated hour"), ("percent_flagged_that_were_fraud", "Percent that were fraud"),  # axes
+              "The blue line is each hour; the grey line is the average over every hour with verdicts and stays put "  # the sentence
+              f"when you move the slider. Higher is better. Gaps are hours {WAITING}.",  # waiting
+              color=("series", "Line"), values=("Each hour", "Average, all hours")), GRID_WIDTH, 6),  # blue and grey
+        (bar("caught_bar", "Fraud caught and missed, per simulated hour", "fraud_caught_by_hour",  # stacked bars
+             ("simulated_hour", "Simulated hour"), ("payments", "Fraud payments"),  # axes
+             "Each bar is all the fraud in one simulated hour: blue was flagged for review, red slipped through. "  # the sentence
+             f"Hours with no bar are {WAITING}, or had no fraud at all.",  # waiting or nothing to catch
+             color=("result", "Result"), values=("Caught", "Missed")), GRID_WIDTH, 6),  # blue and red
     )  # end model
-    return {"datasets": [OPEN_CASES, OPEN_CASE_COUNT, REVIEW_OUTCOMES, MODEL_BY_HOUR, MODEL_TOTALS],  # five datasets
+    return {"datasets": [OPEN_CASES, OPEN_CASE_COUNT, REVIEW_OUTCOMES, MODEL_BY_HOUR, FRAUD_CAUGHT_BY_HOUR, MODEL_TOTALS],  # six datasets
             "pages": [queue, outcomes, model, word_page(WORD_LIST)],  # four pages
             "uiSettings": {"theme": THEME}}  # spec §4.1
 

@@ -17,13 +17,18 @@
     },
     {
       "name": "model_by_hour",
-      "displayName": "Model results per hour",
-      "query": "SELECT step AS simulated_hour,\n       array_join(sort_array(collect_set(CAST(model_version AS STRING))), ' and ') AS model_version,\n       try_divide(SUM(confirmed_fraud), SUM(closed_cases)) AS share_flagged_that_were_fraud,\n       try_divide(SUM(confirmed_fraud), MAX(fraud_in_hour)) AS share_of_fraud_caught\nFROM workspace.fraud.model_accuracy_by_hour\nWHERE verdicts_ready\nGROUP BY step"
+      "displayName": "Percent flagged that were fraud, per hour",
+      "query": "WITH per_hour AS (SELECT step,\n                         SUM(confirmed_fraud) AS caught,\n                         SUM(closed_cases) AS flagged_with_verdict,\n                         MAX(fraud_in_hour) AS fraud_in_hour,\n                         try_divide(SUM(confirmed_fraud), SUM(closed_cases)) AS share_flagged\n                  FROM workspace.fraud.model_accuracy_by_hour\n                  WHERE verdicts_ready\n                  GROUP BY step)\nSELECT step AS simulated_hour, 'Each hour' AS series,\n       ROUND(100 * share_flagged, 1) AS percent_flagged_that_were_fraud\nFROM per_hour\nUNION ALL\nSELECT step, 'Average, all hours',\n       ROUND(100 * try_divide(SUM(caught) OVER (), SUM(flagged_with_verdict) OVER ()), 1)\nFROM per_hour"
+    },
+    {
+      "name": "fraud_caught_by_hour",
+      "displayName": "Fraud caught and missed, per hour",
+      "query": "WITH per_hour AS (SELECT step,\n                         SUM(confirmed_fraud) AS caught,\n                         SUM(closed_cases) AS flagged_with_verdict,\n                         MAX(fraud_in_hour) AS fraud_in_hour,\n                         try_divide(SUM(confirmed_fraud), SUM(closed_cases)) AS share_flagged\n                  FROM workspace.fraud.model_accuracy_by_hour\n                  WHERE verdicts_ready\n                  GROUP BY step)\nSELECT step AS simulated_hour, 'Caught' AS result, caught AS payments FROM per_hour\nUNION ALL\nSELECT step, 'Missed', fraud_in_hour - caught FROM per_hour"
     },
     {
       "name": "model_totals",
       "displayName": "Model results so far",
-      "query": "WITH ready AS (SELECT * FROM workspace.fraud.model_accuracy_by_hour WHERE verdicts_ready),\n     hours AS (SELECT DISTINCT step, fraud_in_hour FROM ready),\n     totals AS (SELECT (SELECT SUM(confirmed_fraud) FROM ready) AS confirmed_fraud,\n                       (SELECT SUM(closed_cases) FROM ready) AS checked_cases,\n                       (SELECT SUM(fraud_in_hour) FROM hours) AS all_fraud,\n                       (SELECT hours_waiting FROM workspace.fraud.hours_waiting_for_verdicts) AS hours_waiting)\nSELECT confirmed_fraud, checked_cases, all_fraud, hours_waiting,\n       ROUND(try_divide(confirmed_fraud, checked_cases), 3) AS share_flagged_that_were_fraud,\n       ROUND(try_divide(confirmed_fraud, all_fraud), 3) AS share_of_fraud_caught\nFROM totals"
+      "query": "WITH ready AS (SELECT * FROM workspace.fraud.model_accuracy_by_hour WHERE verdicts_ready),\n     hours AS (SELECT DISTINCT step, fraud_in_hour FROM ready),\n     recent AS (SELECT * FROM ready WHERE step > (SELECT MAX(step) FROM ready) - 24),\n     recent_hours AS (SELECT DISTINCT step, fraud_in_hour FROM recent),\n     totals AS (SELECT (SELECT SUM(confirmed_fraud) FROM ready) AS confirmed_fraud,\n                       (SELECT SUM(closed_cases) FROM ready) AS checked_cases,\n                       (SELECT SUM(fraud_in_hour) FROM hours) AS all_fraud,\n                       (SELECT SUM(confirmed_fraud) FROM recent) AS recent_fraud,\n                       (SELECT SUM(closed_cases) FROM recent) AS recent_checked,\n                       (SELECT SUM(fraud_in_hour) FROM recent_hours) AS recent_all_fraud,\n                       (SELECT hours_waiting FROM workspace.fraud.hours_waiting_for_verdicts) AS hours_waiting)\nSELECT confirmed_fraud, checked_cases, all_fraud, hours_waiting,\n       ROUND(try_divide(confirmed_fraud, checked_cases), 3) AS share_flagged_that_were_fraud,\n       ROUND(try_divide(confirmed_fraud, all_fraud), 3) AS share_of_fraud_caught,\n       ROUND(try_divide(recent_fraud, recent_checked), 3) AS newest_24h_share_flagged_that_were_fraud,\n       ROUND(try_divide(recent_fraud, recent_all_fraud), 3) AS newest_24h_share_of_fraud_caught\nFROM totals"
     }
   ],
   "pages": [
@@ -179,6 +184,158 @@
       "layout": [
         {
           "widget": {
+            "name": "outcomes_header",
+            "textbox_spec": "## How did the reviews turn out?\n\nEvery flagged payment gets a verdict 3 simulated days later. Drag the slider or click a bar to narrow the totals and the chart together."
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 4,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "outcomes_hours",
+            "queries": [
+              {
+                "name": "outcomes_hours_review_outcomes",
+                "query": {
+                  "datasetName": "review_outcomes",
+                  "fields": [
+                    {
+                      "name": "min(simulated_hour)",
+                      "expression": "MIN(`simulated_hour`)"
+                    },
+                    {
+                      "name": "max(simulated_hour)",
+                      "expression": "MAX(`simulated_hour`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "range-slider",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "simulated_hour",
+                    "queryName": "outcomes_hours_review_outcomes"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Simulated hours"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 0,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "fraud_total",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "review_outcomes",
+                  "fields": [
+                    {
+                      "name": "sum(cases)",
+                      "expression": "SUM(`cases`)"
+                    }
+                  ],
+                  "disaggregated": false,
+                  "filters": [
+                    {
+                      "expression": "`outcome` = 'Confirmed fraud'"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "frame": {
+                "showTitle": true,
+                "title": "Confirmed fraud",
+                "showDescription": true,
+                "description": "Flagged payments that really were fraud, in the hours shown."
+              },
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(cases)",
+                  "displayName": "Confirmed fraud"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 3,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "false_alarm_total",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "review_outcomes",
+                  "fields": [
+                    {
+                      "name": "sum(cases)",
+                      "expression": "SUM(`cases`)"
+                    }
+                  ],
+                  "disaggregated": false,
+                  "filters": [
+                    {
+                      "expression": "`outcome` = 'False alarm'"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "frame": {
+                "showTitle": true,
+                "title": "False alarms",
+                "showDescription": true,
+                "description": "Flagged payments that turned out to be honest, in the hours shown."
+              },
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(cases)",
+                  "displayName": "False alarms"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 2,
+            "width": 3,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
             "name": "outcomes_bar",
             "queries": [
               {
@@ -208,9 +365,9 @@
               "widgetType": "bar",
               "frame": {
                 "showTitle": true,
-                "title": "Confirmed fraud and false alarms per simulated hour",
+                "title": "Verdicts per simulated hour",
                 "showDescription": true,
-                "description": "How to read it: Each bar is one simulated hour, split into confirmed fraud and false alarms. Only hours whose verdicts are in have a bar; newer hours are waiting for verdicts (3 days)."
+                "description": "How to read it: Each bar is one simulated hour: confirmed fraud in red at the base, false alarms in grey on top. Only hours whose verdicts are in have a bar; newer hours are waiting for verdicts (3 days)."
               },
               "encodings": {
                 "x": {
@@ -255,7 +412,7 @@
           },
           "position": {
             "x": 0,
-            "y": 0,
+            "y": 4,
             "width": 6,
             "height": 6
           }
@@ -269,6 +426,85 @@
       "layout": [
         {
           "widget": {
+            "name": "model_header",
+            "textbox_spec": "## Is the model still good?\n\nThe slider narrows the two charts. The big numbers always cover every hour whose verdicts are in, and the shares compare the newest 24 of those hours with all of them."
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 4,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "model_hours",
+            "queries": [
+              {
+                "name": "model_hours_model_by_hour",
+                "query": {
+                  "datasetName": "model_by_hour",
+                  "fields": [
+                    {
+                      "name": "min(simulated_hour)",
+                      "expression": "MIN(`simulated_hour`)"
+                    },
+                    {
+                      "name": "max(simulated_hour)",
+                      "expression": "MAX(`simulated_hour`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "model_hours_fraud_caught_by_hour",
+                "query": {
+                  "datasetName": "fraud_caught_by_hour",
+                  "fields": [
+                    {
+                      "name": "min(simulated_hour)",
+                      "expression": "MIN(`simulated_hour`)"
+                    },
+                    {
+                      "name": "max(simulated_hour)",
+                      "expression": "MAX(`simulated_hour`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "range-slider",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "simulated_hour",
+                    "queryName": "model_hours_model_by_hour"
+                  },
+                  {
+                    "fieldName": "simulated_hour",
+                    "queryName": "model_hours_fraud_caught_by_hour"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Simulated hours"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 0,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
             "name": "flagged_share",
             "queries": [
               {
@@ -276,6 +512,10 @@
                 "query": {
                   "datasetName": "model_totals",
                   "fields": [
+                    {
+                      "name": "newest_24h_share_flagged_that_were_fraud",
+                      "expression": "`newest_24h_share_flagged_that_were_fraud`"
+                    },
                     {
                       "name": "share_flagged_that_were_fraud",
                       "expression": "`share_flagged_that_were_fraud`"
@@ -290,21 +530,34 @@
               "widgetType": "counter",
               "frame": {
                 "showTitle": true,
-                "title": "Of the payments we flagged, how many were really fraud"
+                "title": "Flagged payments that were fraud, newest 24 hours with verdicts",
+                "showDescription": true,
+                "description": "Of the payments we flagged, how many were really fraud, compared with all hours."
               },
               "encodings": {
                 "value": {
+                  "fieldName": "newest_24h_share_flagged_that_were_fraud",
+                  "displayName": "Newest 24 hours",
+                  "format": {
+                    "type": "number-percent",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 0
+                    }
+                  }
+                },
+                "target": {
                   "fieldName": "share_flagged_that_were_fraud",
-                  "displayName": "Share that were fraud"
+                  "displayName": "All hours"
                 }
               }
             }
           },
           "position": {
             "x": 0,
-            "y": 0,
+            "y": 2,
             "width": 2,
-            "height": 2
+            "height": 3
           }
         },
         {
@@ -316,6 +569,10 @@
                 "query": {
                   "datasetName": "model_totals",
                   "fields": [
+                    {
+                      "name": "newest_24h_share_of_fraud_caught",
+                      "expression": "`newest_24h_share_of_fraud_caught`"
+                    },
                     {
                       "name": "share_of_fraud_caught",
                       "expression": "`share_of_fraud_caught`"
@@ -330,21 +587,34 @@
               "widgetType": "counter",
               "frame": {
                 "showTitle": true,
-                "title": "Of all the fraud, how much we caught"
+                "title": "Fraud we caught, newest 24 hours with verdicts",
+                "showDescription": true,
+                "description": "Of all the fraud, how much we flagged, compared with all hours."
               },
               "encodings": {
                 "value": {
+                  "fieldName": "newest_24h_share_of_fraud_caught",
+                  "displayName": "Newest 24 hours",
+                  "format": {
+                    "type": "number-percent",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 0
+                    }
+                  }
+                },
+                "target": {
                   "fieldName": "share_of_fraud_caught",
-                  "displayName": "Share of fraud caught"
+                  "displayName": "All hours"
                 }
               }
             }
           },
           "position": {
             "x": 2,
-            "y": 0,
+            "y": 2,
             "width": 2,
-            "height": 2
+            "height": 3
           }
         },
         {
@@ -370,7 +640,9 @@
               "widgetType": "counter",
               "frame": {
                 "showTitle": true,
-                "title": "Hours still waiting for verdicts (3 days)"
+                "title": "Hours still waiting for verdicts (3 days)",
+                "showDescription": true,
+                "description": "Scored hours whose verdicts have not arrived yet."
               },
               "encodings": {
                 "value": {
@@ -382,26 +654,14 @@
           },
           "position": {
             "x": 4,
-            "y": 0,
-            "width": 2,
-            "height": 2
-          }
-        },
-        {
-          "widget": {
-            "name": "totals_how",
-            "textbox_spec": "**How to read it:** The first two numbers cover every hour whose verdicts are in. 0.14 means 14 out of every 100."
-          },
-          "position": {
-            "x": 0,
             "y": 2,
-            "width": 6,
-            "height": 1
+            "width": 2,
+            "height": 3
           }
         },
         {
           "widget": {
-            "name": "totals_table",
+            "name": "confirmed_count",
             "queries": [
               {
                 "name": "main_query",
@@ -411,11 +671,87 @@
                     {
                       "name": "confirmed_fraud",
                       "expression": "`confirmed_fraud`"
-                    },
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "frame": {
+                "showTitle": true,
+                "title": "Confirmed fraud, all hours",
+                "showDescription": true,
+                "description": "Flagged payments that really were fraud."
+              },
+              "encodings": {
+                "value": {
+                  "fieldName": "confirmed_fraud",
+                  "displayName": "Payments"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 5,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "checked_count",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "model_totals",
+                  "fields": [
                     {
                       "name": "checked_cases",
                       "expression": "`checked_cases`"
-                    },
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "frame": {
+                "showTitle": true,
+                "title": "Flagged payments with a verdict, all hours",
+                "showDescription": true,
+                "description": "The first share divides confirmed fraud by this."
+              },
+              "encodings": {
+                "value": {
+                  "fieldName": "checked_cases",
+                  "displayName": "Payments"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 5,
+            "width": 2,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "fraud_count",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "model_totals",
+                  "fields": [
                     {
                       "name": "all_fraud",
                       "expression": "`all_fraud`"
@@ -427,62 +763,31 @@
             ],
             "spec": {
               "version": 2,
-              "widgetType": "table",
+              "widgetType": "counter",
               "frame": {
                 "showTitle": true,
-                "title": "The counts behind those shares",
+                "title": "All fraud in those hours",
                 "showDescription": true,
-                "description": "How to read it: Confirmed fraud divided by flagged payments with a verdict gives the first share; divided by all fraud, the second."
+                "description": "The second share divides confirmed fraud by this."
               },
               "encodings": {
-                "columns": [
-                  {
-                    "fieldName": "confirmed_fraud",
-                    "displayName": "Confirmed fraud",
-                    "format": {
-                      "type": "number",
-                      "decimalPlaces": {
-                        "type": "exact",
-                        "places": 0
-                      }
-                    }
-                  },
-                  {
-                    "fieldName": "checked_cases",
-                    "displayName": "Flagged payments with a verdict",
-                    "format": {
-                      "type": "number",
-                      "decimalPlaces": {
-                        "type": "exact",
-                        "places": 0
-                      }
-                    }
-                  },
-                  {
-                    "fieldName": "all_fraud",
-                    "displayName": "All fraud in those hours",
-                    "format": {
-                      "type": "number",
-                      "decimalPlaces": {
-                        "type": "exact",
-                        "places": 0
-                      }
-                    }
-                  }
-                ]
+                "value": {
+                  "fieldName": "all_fraud",
+                  "displayName": "Payments"
+                }
               }
             }
           },
           "position": {
-            "x": 0,
-            "y": 3,
-            "width": 6,
+            "x": 4,
+            "y": 5,
+            "width": 2,
             "height": 2
           }
         },
         {
           "widget": {
-            "name": "flagged_bar",
+            "name": "flagged_line",
             "queries": [
               {
                 "name": "main_query",
@@ -494,26 +799,26 @@
                       "expression": "`simulated_hour`"
                     },
                     {
-                      "name": "avg(share_flagged_that_were_fraud)",
-                      "expression": "AVG(`share_flagged_that_were_fraud`)"
+                      "name": "percent_flagged_that_were_fraud",
+                      "expression": "`percent_flagged_that_were_fraud`"
                     },
                     {
-                      "name": "model_version",
-                      "expression": "`model_version`"
+                      "name": "series",
+                      "expression": "`series`"
                     }
                   ],
-                  "disaggregated": false
+                  "disaggregated": true
                 }
               }
             ],
             "spec": {
               "version": 3,
-              "widgetType": "bar",
+              "widgetType": "line",
               "frame": {
                 "showTitle": true,
-                "title": "Of the payments we flagged, how many were really fraud, per simulated hour",
+                "title": "Percent of flagged payments that were fraud, per simulated hour",
                 "showDescription": true,
-                "description": "How to read it: Each bar is one simulated hour, coloured by model version. Taller is better. Hours with no bar are waiting for verdicts (3 days)."
+                "description": "How to read it: The blue line is each hour; the grey line is the average over every hour with verdicts and stays put when you move the slider. Higher is better. Gaps are hours waiting for verdicts (3 days)."
               },
               "encodings": {
                 "x": {
@@ -527,21 +832,30 @@
                   }
                 },
                 "y": {
-                  "fieldName": "avg(share_flagged_that_were_fraud)",
-                  "displayName": "Share that were fraud",
+                  "fieldName": "percent_flagged_that_were_fraud",
+                  "displayName": "Percent that were fraud",
                   "axis": {
-                    "title": "Share that were fraud"
+                    "title": "Percent that were fraud"
                   },
                   "scale": {
                     "type": "quantitative"
                   }
                 },
                 "color": {
-                  "fieldName": "model_version",
-                  "displayName": "Model version",
+                  "fieldName": "series",
+                  "displayName": "Line",
                   "scale": {
                     "type": "categorical",
-                    "mappings": []
+                    "mappings": [
+                      {
+                        "value": "Each hour",
+                        "color": "#2A78D6"
+                      },
+                      {
+                        "value": "Average, all hours",
+                        "color": "#898781"
+                      }
+                    ]
                   }
                 }
               }
@@ -549,9 +863,9 @@
           },
           "position": {
             "x": 0,
-            "y": 5,
+            "y": 7,
             "width": 6,
-            "height": 5
+            "height": 6
           }
         },
         {
@@ -561,19 +875,19 @@
               {
                 "name": "main_query",
                 "query": {
-                  "datasetName": "model_by_hour",
+                  "datasetName": "fraud_caught_by_hour",
                   "fields": [
                     {
                       "name": "simulated_hour",
                       "expression": "`simulated_hour`"
                     },
                     {
-                      "name": "avg(share_of_fraud_caught)",
-                      "expression": "AVG(`share_of_fraud_caught`)"
+                      "name": "sum(payments)",
+                      "expression": "SUM(`payments`)"
                     },
                     {
-                      "name": "model_version",
-                      "expression": "`model_version`"
+                      "name": "result",
+                      "expression": "`result`"
                     }
                   ],
                   "disaggregated": false
@@ -585,9 +899,9 @@
               "widgetType": "bar",
               "frame": {
                 "showTitle": true,
-                "title": "Of all the fraud, how much we caught, per simulated hour",
+                "title": "Fraud caught and missed, per simulated hour",
                 "showDescription": true,
-                "description": "How to read it: Each bar is one simulated hour. Taller is better. Hours with no bar are waiting for verdicts (3 days), or had no fraud at all."
+                "description": "How to read it: Each bar is all the fraud in one simulated hour: blue was flagged for review, red slipped through. Hours with no bar are waiting for verdicts (3 days), or had no fraud at all."
               },
               "encodings": {
                 "x": {
@@ -601,21 +915,30 @@
                   }
                 },
                 "y": {
-                  "fieldName": "avg(share_of_fraud_caught)",
-                  "displayName": "Share of fraud caught",
+                  "fieldName": "sum(payments)",
+                  "displayName": "Fraud payments",
                   "axis": {
-                    "title": "Share of fraud caught"
+                    "title": "Fraud payments"
                   },
                   "scale": {
                     "type": "quantitative"
                   }
                 },
                 "color": {
-                  "fieldName": "model_version",
-                  "displayName": "Model version",
+                  "fieldName": "result",
+                  "displayName": "Result",
                   "scale": {
                     "type": "categorical",
-                    "mappings": []
+                    "mappings": [
+                      {
+                        "value": "Caught",
+                        "color": "#2A78D6"
+                      },
+                      {
+                        "value": "Missed",
+                        "color": "#D03B3B"
+                      }
+                    ]
                   }
                 }
               }
@@ -623,9 +946,9 @@
           },
           "position": {
             "x": 0,
-            "y": 10,
+            "y": 13,
             "width": 6,
-            "height": 5
+            "height": 6
           }
         }
       ]
