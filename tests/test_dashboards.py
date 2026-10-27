@@ -470,7 +470,10 @@ def test_task_charts_promise_no_order():  # D11: Databricks ignored the value so
 
 
 def test_hour_charts_explain_the_axis_and_show_day_on_hover():  # D11 recheck: the axis itself must say what 480 means
-    for name in ("outcomes_bar", "flagged_line", "caught_bar"):  # every per-hour chart
+    line_chart = find("fraud_operations", "flagged_line")["spec"]["encodings"]  # the share line
+    assert "day 20, 23:00" in line_chart["x"]["axis"]["title"]  # its axis explains the numbering too...
+    assert "extra" not in line_chart  # ...but no hover field: it split the line into dots (D11 recheck)
+    for name in ("outcomes_bar", "caught_bar"):  # the per-hour bar charts
         widget = find("fraud_operations", name)  # the chart
         encodings = widget["spec"]["encodings"]  # its encodings
         assert "day 20, 23:00" in encodings["x"]["axis"]["title"], name  # the axis title explains the numbering
@@ -491,3 +494,8 @@ def test_counters_show_whole_numbers_and_percent_comparisons():  # D11 recheck: 
 
 def test_reviews_sentence_claims_no_stack_order():  # D11 recheck: grey drew at the base, not red
     assert "at the base" not in find("fraud_operations", "outcomes_bar")["spec"]["frame"]["description"]  # no false order
+
+
+def test_run_detail_table_shows_more_than_one_row():  # D11 recheck: height 3 cut the second row in half
+    item = next(i for p in BUILT["platform_health"]["pages"] for i in p["layout"] if i["widget"]["name"] == "detail_table")  # placed
+    assert item["position"]["height"] >= 5  # title, sentence, header and a few rows

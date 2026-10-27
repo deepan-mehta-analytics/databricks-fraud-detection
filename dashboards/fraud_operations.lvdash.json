@@ -897,10 +897,6 @@
                     {
                       "name": "series",
                       "expression": "`series`"
-                    },
-                    {
-                      "name": "day_and_time",
-                      "expression": "`day_and_time`"
                     }
                   ],
                   "disaggregated": true
@@ -953,13 +949,7 @@
                       }
                     ]
                   }
-                },
-                "extra": [
-                  {
-                    "fieldName": "day_and_time",
-                    "displayName": "Day and time (simulated)"
-                  }
-                ]
+                }
               }
             }
           },

@@ -133,10 +133,13 @@ def _axis(field: str, label: str, scale: str, sort_by_value: bool = False) -> di
 HOUR_AXIS_TITLE = "Simulated hour (24 per day: hour 480 = day 20, 23:00)"  # D11 recheck: the axis explains itself
 
 
-def _readable_hours(x_field: str, encodings: dict[str, Any], fields: list[dict[str, str]]) -> None:  # an hour axis people can read
+def _readable_hours(x_field: str, encodings: dict[str, Any], fields: list[dict[str, str]],  # an hour axis people can read
+                    hover: bool = True) -> None:  # lines skip the hover field: it split the line into dots
     if x_field != "simulated_hour":  # only per-hour charts
         return  # nothing to add
     encodings["x"]["axis"]["title"] = HOUR_AXIS_TITLE  # the numbering, on the axis
+    if not hover:  # a line chart
+        return  # axis title only
     encodings["extra"] = [{"fieldName": "day_and_time", "displayName": "Day and time (simulated)"}]  # hover shows "Day 20, 23:00"
     fields.append(_field("day_and_time"))  # read it too (same grain: one value per hour)
 
@@ -165,7 +168,7 @@ def line(name: str, title: str, dataset_name: str, x: tuple[str, str], y: tuple[
     encodings = {"x": _axis(x[0], x[1], x_scale), "y": _axis(y[0], y[1], "quantitative"),  # across and up
                  "color": {"fieldName": color[0], "displayName": color[1],  # one line per series...
                            "scale": {"type": "categorical", "mappings": _mappings(values)}}}  # ...in its meaning colour
-    _readable_hours(x[0], encodings, fields)  # owner choice 8 on the axis itself
+    _readable_hours(x[0], encodings, fields, hover=False)  # owner choice 8 on the axis itself
     spec = {"version": 3, "widgetType": "line", "frame": _frame(title, _how(how)), "encodings": encodings}  # the chart
     return {"name": name, "queries": _queries(dataset_name, fields, True), "spec": spec}  # the widget
 
@@ -563,7 +566,7 @@ def platform_dashboard() -> dict[str, Any]:  # "Platform health": engineers only
                 "Pick a run, or open one from a run's bar on the first page: right-click, then Drill to."), 4, 2),  # ...how to get here
         (single_select("detail_run", "Job run (UTC)", [("job_runs", "run_label"), ("task_times", "run_label")]), 2, 2),  # narrows both
         (table("detail_table", "The picked run", "job_runs", RUN_COLUMNS,  # its summary (ruling R-B5)
-               "One row for the picked run; every run while none is picked.", RUN_RULES), GRID_WIDTH, 3),  # what it shows
+               "One row for the picked run; every run while none is picked.", RUN_RULES), GRID_WIDTH, 5),  # what it shows
         (bar("detail_tasks", "Where the time went in this run", "task_times", ("task_name", "Task"),  # per task
              ("task_minutes", "Minutes"),  # across
              "Each bar is one task of the picked run; the longest bar is where the time went. With no run picked it shows each task's "  # the sentence
