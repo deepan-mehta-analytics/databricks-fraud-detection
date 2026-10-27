@@ -467,3 +467,13 @@ def test_task_charts_promise_no_order():  # D11: Databricks ignored the value so
     for name in ("newest_tasks", "detail_tasks"):  # both task charts
         description = find("platform_health", name)["spec"]["frame"]["description"]  # its sentence
         assert "longest first" not in description, name  # no claim the chart cannot keep
+
+
+def test_hour_charts_explain_the_axis_and_show_day_on_hover():  # D11 recheck: the axis itself must say what 480 means
+    for name in ("outcomes_bar", "flagged_line", "caught_bar"):  # every per-hour chart
+        widget = find("fraud_operations", name)  # the chart
+        encodings = widget["spec"]["encodings"]  # its encodings
+        assert "day 20, 23:00" in encodings["x"]["axis"]["title"], name  # the axis title explains the numbering
+        assert [e["fieldName"] for e in encodings["extra"]] == ["day_and_time"], name  # hover shows the readable time
+        assert "day_and_time" in [f["name"] for f in widget["queries"][0]["query"]["fields"]], name  # and it is queried
+        assert "AS day_and_time" in dataset_sql("fraud_operations", widget["queries"][0]["query"]["datasetName"]), name  # from SQL

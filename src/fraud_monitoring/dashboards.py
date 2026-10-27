@@ -130,6 +130,17 @@ def _axis(field: str, label: str, scale: str, sort_by_value: bool = False) -> di
     return axis  # the axis
 
 
+HOUR_AXIS_TITLE = "Simulated hour (24 per day: hour 480 = day 20, 23:00)"  # D11 recheck: the axis explains itself
+
+
+def _readable_hours(x_field: str, encodings: dict[str, Any], fields: list[dict[str, str]]) -> None:  # an hour axis people can read
+    if x_field != "simulated_hour":  # only per-hour charts
+        return  # nothing to add
+    encodings["x"]["axis"]["title"] = HOUR_AXIS_TITLE  # the numbering, on the axis
+    encodings["extra"] = [{"fieldName": "day_and_time", "displayName": "Day and time (simulated)"}]  # hover shows "Day 20, 23:00"
+    fields.append(_field("day_and_time"))  # read it too (same grain: one value per hour)
+
+
 def bar(name: str, title: str, dataset_name: str, x: tuple[str, str], y: tuple[str, str], how: str,  # chart, data, axes (column, label)
         color: tuple[str, str] | None = None, values: tuple[str, ...] = (), aggregate: str | None = "SUM",  # colour split, pins, sum
         x_scale: str = "quantitative", horizontal: bool = False, sort_by_value: bool = False) -> dict[str, Any]:  # options
@@ -142,6 +153,7 @@ def bar(name: str, title: str, dataset_name: str, x: tuple[str, str], y: tuple[s
     if color:  # split each bar by a category
         encodings["color"] = {"fieldName": color[0], "displayName": color[1],  # legend...
                               "scale": {"type": "categorical", "mappings": _mappings(values)}}  # ...with meaning colours
+    _readable_hours(x[0], encodings, fields)  # owner choice 8 on the axis itself
     spec = {"version": 3, "widgetType": "bar", "frame": _frame(title, _how(how)), "encodings": encodings}  # the chart
     return {"name": name, "queries": _queries(dataset_name, fields, aggregate is None), "spec": spec}  # the widget
 
@@ -153,6 +165,7 @@ def line(name: str, title: str, dataset_name: str, x: tuple[str, str], y: tuple[
     encodings = {"x": _axis(x[0], x[1], x_scale), "y": _axis(y[0], y[1], "quantitative"),  # across and up
                  "color": {"fieldName": color[0], "displayName": color[1],  # one line per series...
                            "scale": {"type": "categorical", "mappings": _mappings(values)}}}  # ...in its meaning colour
+    _readable_hours(x[0], encodings, fields)  # owner choice 8 on the axis itself
     spec = {"version": 3, "widgetType": "line", "frame": _frame(title, _how(how)), "encodings": encodings}  # the chart
     return {"name": name, "queries": _queries(dataset_name, fields, True), "spec": spec}  # the widget
 
@@ -287,10 +300,10 @@ OPEN_CASE_COUNT = dataset("open_case_count", "Open case count", sql(  # how many
     "WHERE status = 'open'",  # still waiting
 ))  # end OPEN_CASE_COUNT
 REVIEW_OUTCOMES = dataset("review_outcomes", "Review outcomes per hour", sql(  # one row per hour and verdict
-    "SELECT step AS simulated_hour, 'Confirmed fraud' AS outcome, confirmed_fraud AS cases",  # fraud
+    f"SELECT step AS simulated_hour, {_day_and_time('step')} AS day_and_time, 'Confirmed fraud' AS outcome, confirmed_fraud AS cases",  # fraud
     "FROM workspace.fraud.alert_summary_hourly WHERE closed_cases > 0",  # hours with verdicts
     "UNION ALL",  # stacked with
-    "SELECT step, 'False alarm', false_alarms",  # honest payments
+    f"SELECT step, {_day_and_time('step')}, 'False alarm', false_alarms",  # honest payments
     "FROM workspace.fraud.alert_summary_hourly WHERE closed_cases > 0",  # hours with verdicts
 ))  # end REVIEW_OUTCOMES
 PER_HOUR = (  # one row per hour with verdicts, shares made from counts (review I2)
@@ -304,18 +317,18 @@ PER_HOUR = (  # one row per hour with verdicts, shares made from counts (review 
     "                  GROUP BY step)",  # one row per hour, however many model versions
 )  # end PER_HOUR
 MODEL_BY_HOUR = dataset("model_by_hour", "Percent flagged that were fraud, per hour", sql(*PER_HOUR,  # the share line
-    "SELECT step AS simulated_hour, 'Each hour' AS series,",  # one point per hour
+    f"SELECT step AS simulated_hour, {_day_and_time('step')} AS day_and_time, 'Each hour' AS series,",  # one point per hour
     "       ROUND(100 * share_flagged, 1) AS percent_flagged_that_were_fraud",  # 0.139 -> 13.9
     "FROM per_hour",  # every ready hour
     "UNION ALL",  # with the flat reference line
-    "SELECT step, 'Average, all hours',",  # same hours
+    f"SELECT step, {_day_and_time('step')}, 'Average, all hours',",  # same hours
     "       ROUND(100 * try_divide(SUM(caught) OVER (), SUM(flagged_with_verdict) OVER ()), 1)",  # fixed: every ready hour
     "FROM per_hour",  # the same rows
 ))  # end MODEL_BY_HOUR
 FRAUD_CAUGHT_BY_HOUR = dataset("fraud_caught_by_hour", "Fraud caught and missed, per hour", sql(*PER_HOUR,  # the stacked bars
-    "SELECT step AS simulated_hour, 'Caught' AS result, caught AS payments FROM per_hour",  # flagged and fraud
+    f"SELECT step AS simulated_hour, {_day_and_time('step')} AS day_and_time, 'Caught' AS result, caught AS payments FROM per_hour",  # flagged and fraud
     "UNION ALL",  # stacked on
-    "SELECT step, 'Missed', fraud_in_hour - caught FROM per_hour",  # fraud we did not flag
+    f"SELECT step, {_day_and_time('step')}, 'Missed', fraud_in_hour - caught FROM per_hour",  # fraud we did not flag
 ))  # end FRAUD_CAUGHT_BY_HOUR
 MODEL_TOTALS = dataset("model_totals", "Model results so far", sql(  # every hour with verdicts, together (ruling R8)
     "WITH ready AS (SELECT * FROM workspace.fraud.model_accuracy_by_hour WHERE verdicts_ready),",  # hours with verdicts

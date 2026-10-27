@@ -13,17 +13,17 @@
     {
       "name": "review_outcomes",
       "displayName": "Review outcomes per hour",
-      "query": "SELECT step AS simulated_hour, 'Confirmed fraud' AS outcome, confirmed_fraud AS cases\nFROM workspace.fraud.alert_summary_hourly WHERE closed_cases > 0\nUNION ALL\nSELECT step, 'False alarm', false_alarms\nFROM workspace.fraud.alert_summary_hourly WHERE closed_cases > 0"
+      "query": "SELECT step AS simulated_hour, concat('Day ', CAST(floor((step - 1) / 24) + 1 AS STRING), ', ', lpad(CAST((step - 1) % 24 AS STRING), 2, '0'), ':00 (hour ', CAST(step AS STRING), ')') AS day_and_time, 'Confirmed fraud' AS outcome, confirmed_fraud AS cases\nFROM workspace.fraud.alert_summary_hourly WHERE closed_cases > 0\nUNION ALL\nSELECT step, concat('Day ', CAST(floor((step - 1) / 24) + 1 AS STRING), ', ', lpad(CAST((step - 1) % 24 AS STRING), 2, '0'), ':00 (hour ', CAST(step AS STRING), ')'), 'False alarm', false_alarms\nFROM workspace.fraud.alert_summary_hourly WHERE closed_cases > 0"
     },
     {
       "name": "model_by_hour",
       "displayName": "Percent flagged that were fraud, per hour",
-      "query": "WITH per_hour AS (SELECT step,\n                         SUM(confirmed_fraud) AS caught,\n                         SUM(closed_cases) AS flagged_with_verdict,\n                         MAX(fraud_in_hour) AS fraud_in_hour,\n                         try_divide(SUM(confirmed_fraud), SUM(closed_cases)) AS share_flagged\n                  FROM workspace.fraud.model_accuracy_by_hour\n                  WHERE verdicts_ready\n                  GROUP BY step)\nSELECT step AS simulated_hour, 'Each hour' AS series,\n       ROUND(100 * share_flagged, 1) AS percent_flagged_that_were_fraud\nFROM per_hour\nUNION ALL\nSELECT step, 'Average, all hours',\n       ROUND(100 * try_divide(SUM(caught) OVER (), SUM(flagged_with_verdict) OVER ()), 1)\nFROM per_hour"
+      "query": "WITH per_hour AS (SELECT step,\n                         SUM(confirmed_fraud) AS caught,\n                         SUM(closed_cases) AS flagged_with_verdict,\n                         MAX(fraud_in_hour) AS fraud_in_hour,\n                         try_divide(SUM(confirmed_fraud), SUM(closed_cases)) AS share_flagged\n                  FROM workspace.fraud.model_accuracy_by_hour\n                  WHERE verdicts_ready\n                  GROUP BY step)\nSELECT step AS simulated_hour, concat('Day ', CAST(floor((step - 1) / 24) + 1 AS STRING), ', ', lpad(CAST((step - 1) % 24 AS STRING), 2, '0'), ':00 (hour ', CAST(step AS STRING), ')') AS day_and_time, 'Each hour' AS series,\n       ROUND(100 * share_flagged, 1) AS percent_flagged_that_were_fraud\nFROM per_hour\nUNION ALL\nSELECT step, concat('Day ', CAST(floor((step - 1) / 24) + 1 AS STRING), ', ', lpad(CAST((step - 1) % 24 AS STRING), 2, '0'), ':00 (hour ', CAST(step AS STRING), ')'), 'Average, all hours',\n       ROUND(100 * try_divide(SUM(caught) OVER (), SUM(flagged_with_verdict) OVER ()), 1)\nFROM per_hour"
     },
     {
       "name": "fraud_caught_by_hour",
       "displayName": "Fraud caught and missed, per hour",
-      "query": "WITH per_hour AS (SELECT step,\n                         SUM(confirmed_fraud) AS caught,\n                         SUM(closed_cases) AS flagged_with_verdict,\n                         MAX(fraud_in_hour) AS fraud_in_hour,\n                         try_divide(SUM(confirmed_fraud), SUM(closed_cases)) AS share_flagged\n                  FROM workspace.fraud.model_accuracy_by_hour\n                  WHERE verdicts_ready\n                  GROUP BY step)\nSELECT step AS simulated_hour, 'Caught' AS result, caught AS payments FROM per_hour\nUNION ALL\nSELECT step, 'Missed', fraud_in_hour - caught FROM per_hour"
+      "query": "WITH per_hour AS (SELECT step,\n                         SUM(confirmed_fraud) AS caught,\n                         SUM(closed_cases) AS flagged_with_verdict,\n                         MAX(fraud_in_hour) AS fraud_in_hour,\n                         try_divide(SUM(confirmed_fraud), SUM(closed_cases)) AS share_flagged\n                  FROM workspace.fraud.model_accuracy_by_hour\n                  WHERE verdicts_ready\n                  GROUP BY step)\nSELECT step AS simulated_hour, concat('Day ', CAST(floor((step - 1) / 24) + 1 AS STRING), ', ', lpad(CAST((step - 1) % 24 AS STRING), 2, '0'), ':00 (hour ', CAST(step AS STRING), ')') AS day_and_time, 'Caught' AS result, caught AS payments FROM per_hour\nUNION ALL\nSELECT step, concat('Day ', CAST(floor((step - 1) / 24) + 1 AS STRING), ', ', lpad(CAST((step - 1) % 24 AS STRING), 2, '0'), ':00 (hour ', CAST(step AS STRING), ')'), 'Missed', fraud_in_hour - caught FROM per_hour"
     },
     {
       "name": "model_totals",
@@ -366,6 +366,10 @@
                     {
                       "name": "outcome",
                       "expression": "`outcome`"
+                    },
+                    {
+                      "name": "day_and_time",
+                      "expression": "`day_and_time`"
                     }
                   ],
                   "disaggregated": false
@@ -386,7 +390,7 @@
                   "fieldName": "simulated_hour",
                   "displayName": "Simulated hour",
                   "axis": {
-                    "title": "Simulated hour"
+                    "title": "Simulated hour (24 per day: hour 480 = day 20, 23:00)"
                   },
                   "scale": {
                     "type": "quantitative"
@@ -418,7 +422,13 @@
                       }
                     ]
                   }
-                }
+                },
+                "extra": [
+                  {
+                    "fieldName": "day_and_time",
+                    "displayName": "Day and time (simulated)"
+                  }
+                ]
               }
             }
           },
@@ -817,6 +827,10 @@
                     {
                       "name": "series",
                       "expression": "`series`"
+                    },
+                    {
+                      "name": "day_and_time",
+                      "expression": "`day_and_time`"
                     }
                   ],
                   "disaggregated": true
@@ -837,7 +851,7 @@
                   "fieldName": "simulated_hour",
                   "displayName": "Simulated hour",
                   "axis": {
-                    "title": "Simulated hour"
+                    "title": "Simulated hour (24 per day: hour 480 = day 20, 23:00)"
                   },
                   "scale": {
                     "type": "quantitative"
@@ -869,7 +883,13 @@
                       }
                     ]
                   }
-                }
+                },
+                "extra": [
+                  {
+                    "fieldName": "day_and_time",
+                    "displayName": "Day and time (simulated)"
+                  }
+                ]
               }
             }
           },
@@ -900,6 +920,10 @@
                     {
                       "name": "result",
                       "expression": "`result`"
+                    },
+                    {
+                      "name": "day_and_time",
+                      "expression": "`day_and_time`"
                     }
                   ],
                   "disaggregated": false
@@ -920,7 +944,7 @@
                   "fieldName": "simulated_hour",
                   "displayName": "Simulated hour",
                   "axis": {
-                    "title": "Simulated hour"
+                    "title": "Simulated hour (24 per day: hour 480 = day 20, 23:00)"
                   },
                   "scale": {
                     "type": "quantitative"
@@ -952,7 +976,13 @@
                       }
                     ]
                   }
-                }
+                },
+                "extra": [
+                  {
+                    "fieldName": "day_and_time",
+                    "displayName": "Day and time (simulated)"
+                  }
+                ]
               }
             }
           },
