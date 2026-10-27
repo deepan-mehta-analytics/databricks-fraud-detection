@@ -192,3 +192,20 @@ def test_after_run_checks_each_return_one_row_with_a_verdict():  # owner feedbac
     assert len(manager) == 2, "D8"  # one row, then the statement that must be refused (an error stops a query)
     assert manager[0].endswith("AS all_as_expected FROM result"), "D8"  # the row has the verdict too
     assert "FROM workspace.fraud.job_run_times" in manager[1], "D8"  # the refused one stays on its own
+
+
+D12_COLUMNS = ["confirmed_fraud_all_hours", "false_alarms_all_hours", "newest_24h_share_flagged_that_were_fraud",  # the totals...
+               "newest_24h_share_of_fraud_caught", "stages_behind"]  # ...the new shares and freshness
+
+
+def test_d12_check_is_one_row_ending_all_as_expected():  # dashboard beautify spec §5 D12: numbers unchanged
+    found = block("D12")  # its statements
+    assert len(found) == 1  # one Run, one row
+    check = found[0]  # the statement
+    positions = [check.index(f"AS {column}") for column in D12_COLUMNS]  # where each column is named
+    assert positions == sorted(positions)  # in the sheet's order
+    assert check.endswith("AS all_as_expected FROM result")  # the verdict is last
+    verdict = check[check.rindex("SELECT *"):]  # the final select
+    for expected in ("confirmed_fraud_all_hours = 405", "false_alarms_all_hours = 2511", "stages_behind = 0"):  # fixed values
+        assert expected in verdict, expected  # required
+    assert "FROM ready WHERE step > (SELECT MAX(step) FROM ready) - 24" in check  # same window as the dashboard

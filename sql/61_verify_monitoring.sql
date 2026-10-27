@@ -105,3 +105,24 @@ SELECT *, (confirmed_fraud = 405 AND checked_cases = 2916 AND all_fraud = 822   
            AND waiting_view = '480 / 408 / 72')                                 -- ...and the same waiting count
           AS all_as_expected FROM result;                                       -- expect true
 SELECT COUNT(*) AS runs FROM workspace.fraud.job_run_times;                     -- expect a permission error (engineers only)
+
+-- ── D12: after Deploy of the restyled dashboards, as the owner. Highlight the block, Run: one row ──
+WITH ready AS (SELECT * FROM workspace.fraud.model_accuracy_by_hour WHERE verdicts_ready),  -- hours with verdicts
+     recent AS (SELECT * FROM ready WHERE step > (SELECT MAX(step) FROM ready) - 24),  -- the newest 24 of them (as the dashboard)
+     recent_hours AS (SELECT DISTINCT step, fraud_in_hour FROM recent),        -- their fraud, once per hour
+     reviews AS (SELECT * FROM workspace.fraud.alert_summary_hourly WHERE closed_cases > 0),  -- the reviews page's hours
+     result AS (                                                                -- every D12 value side by side
+  SELECT (SELECT SUM(confirmed_fraud) FROM reviews) AS confirmed_fraud_all_hours,  -- expect 405
+         (SELECT SUM(false_alarms) FROM reviews) AS false_alarms_all_hours,     -- expect 2511
+         (SELECT ROUND(try_divide(SUM(confirmed_fraud), SUM(closed_cases)), 3) FROM recent)  -- compare with the first share counter
+           AS newest_24h_share_flagged_that_were_fraud,                         -- (shown as a percent there)
+         (SELECT ROUND(try_divide((SELECT SUM(confirmed_fraud) FROM recent),    -- compare with the second share counter
+                                  SUM(fraud_in_hour)), 3) FROM recent_hours)    -- fraud counted once per hour
+           AS newest_24h_share_of_fraud_caught,                                 -- (shown as a percent there)
+         (SELECT CAST(newest_hour_ingested < newest_hour_released AS INT)       -- each stage below...
+                 + CAST(newest_hour_scored < newest_hour_released AS INT)       -- ...the landing folder's hour...
+                 + CAST(newest_hour_flagged < newest_hour_released AS INT)      -- ...counts once
+          FROM workspace.fraud.data_freshness) AS stages_behind)                -- expect 0
+SELECT *, (confirmed_fraud_all_hours = 405 AND false_alarms_all_hours = 2511    -- the reviews totals...
+           AND stages_behind = 0)                                               -- ...and every stage up to date
+          AS all_as_expected FROM result;                                       -- expect true (compare the two shares on screen)
