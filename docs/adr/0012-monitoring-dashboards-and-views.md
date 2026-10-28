@@ -43,9 +43,11 @@ per-payment latency and a nightly 2 AM retrain. The built system is different:
      outcomes, and "Is the model still good?".
    - **Platform health** (engineers only): job runs, task times, pipeline
      updates, data freshness, set-aside rows, and a Run detail page.
-3. **Viewer credentials** (`embed_credentials: false`): every query runs as
-   the person looking, so the row filter and masks of ADR 0011 apply. A
-   manager sees 0 open cases and `REDACTED` names.
+3. **Viewer credentials** (`embed_credentials: false`, "individual data
+   permission" in the docs): every query uses the viewer's own data
+   permissions, so the row filter and masks of ADR 0011 apply; compute is
+   still granted by the publisher. A manager sees 0 open cases and
+   `REDACTED` names.
 4. **Dashboard tasks** `refresh_operations` and `refresh_platform` run after
    `monitor`. Stated plainly (plan ruling R1): without shared data
    permissions, the task refreshes the dashboard as the job's identity, and

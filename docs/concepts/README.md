@@ -16,6 +16,7 @@ private drill material lives outside this public repo.
 | 3. Data Transformation and Modeling | [Deduplicating Immutable Events](3-data-transformation-and-modeling/deduplicating-immutable-events.md) | 3.4 |
 | 3. Data Transformation and Modeling | [Gold: an Alert Log, a Case Table, and a View](3-data-transformation-and-modeling/gold-alert-log-cases-and-views.md) | 3.6 |
 | 4. Working with Lakeflow Jobs | [Job Retries, Dependencies, and Schedules](4-working-with-lakeflow-jobs/job-retries-dependencies-and-schedules.md) | 4.1, 4.2, 4.3 |
+| 6. Troubleshooting, Monitoring, and Optimization | [Monitoring Dashboards: Viewer Credentials and System Tables](6-troubleshooting-monitoring-and-optimization/dashboards-viewer-credentials-and-system-tables.md) | 4.2, 6.1, 6.2 |
 | 7. Governance and Security | [Grants, Row Filters, and Column Masks](7-governance-and-security/grants-row-filters-and-column-masks.md) | 7.2, 7.3 |
 | 7. Governance and Security | [Tag-Based Policies (ABAC)](7-governance-and-security/abac-tag-based-policies.md) | 7.4 |
 
