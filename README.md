@@ -16,6 +16,18 @@ this work) using only its free tier.
 - 🤖 **Scored by a machine-learning model** — every new payment, after each load
 - 🚨 **Suspicious ones become alerts** — surfaced on a dashboard for a fraud team
 
+#### 🕒 What the hour numbers mean
+
+The data is one **simulated month** of payments, counted in hours: hour 1 is day 1, midnight to 1 am, and the last one, hour 743, falls on day 31. Every 24 hours is one day, so **hour 480 is day 20, 11 pm**. The project replays that month a few hours at a time, as if it were happening live:
+
+| Hours | Days | What they are used for |
+|---|---|---|
+| 1–336 | 1–14 | Teaching the fraud model |
+| 337–408 | 15–17 | The test period: payments the model never saw, scored and turned into alerts |
+| 409–480 | 18–20 | Replayed later to watch the system keep running (the newest hour loaded is 480) |
+
+A fraud verdict arrives **3 simulated days (72 hours) after** the payment, just as real fraud is confirmed late. That is why the result charts stop at hour 408: hours 409–480 are still "waiting for verdicts". The dashboards show these hours as `Day 20, 23:00 (hour 480)`.
+
 #### ✅ Built in phases, each proven with real runs
 
 - 📥 **Phase 2 — Ingest (done)** — about **6 million** simulated transactions streamed in, and **every count matched exactly**
@@ -715,31 +727,31 @@ is the 54 full hours, where the budget forces a real choice:
 
 **Platform health: click a run, then drill through to it** (14 s loop)
 
-![Clicking a cancelled run narrows the run table; right-click, Drill to, opens the Run detail page for that run](docs/img/monitoring/platform-interaction.gif)
+[![Clicking a cancelled run narrows the run table; right-click, Drill to, opens the Run detail page for that run](docs/img/monitoring/platform-interaction.gif)](docs/img/monitoring/platform-interaction.gif)
 
 **Fraud operations: slide the hours, then drill from an hour to the model page** (23 s loop)
 
-![Dragging the hour slider narrows the totals and bars; right-click on an hour, Drill to, opens the model page for that hour](docs/img/monitoring/operations-interaction.gif)
+[![Dragging the hour slider narrows the totals and bars; right-click on an hour, Drill to, opens the model page for that hour](docs/img/monitoring/operations-interaction.gif)](docs/img/monitoring/operations-interaction.gif)
 
-<details>
-<summary><b>📸 Every page (12 screenshots)</b></summary>
+<details open>
+<summary><b>📸 Every page (12 screenshots; click any one to open it full size, or click this line to fold the gallery away)</b></summary>
 
 | Fraud operations | |
 |---|---|
-| ![Open cases waiting for review, newest hour first](docs/img/monitoring/operations-queue.png) | ![The same queue as a manager: 0 open cases, with the reason under the title](docs/img/monitoring/operations-queue-manager.png) |
+| [![Open cases waiting for review, newest hour first](docs/img/monitoring/operations-queue.png)](docs/img/monitoring/operations-queue.png) | [![The same queue as a manager: 0 open cases, with the reason under the title](docs/img/monitoring/operations-queue-manager.png)](docs/img/monitoring/operations-queue-manager.png) |
 | *Review queue, as an engineer: 2,117 open cases* | *The same page as a manager: 0, by design* |
-| ![Confirmed fraud and false alarms per simulated hour](docs/img/monitoring/operations-outcomes.png) | ![Model shares for the newest 24 hours against all hours, with the hour slider and picker](docs/img/monitoring/operations-model.png) |
+| [![Confirmed fraud and false alarms per simulated hour](docs/img/monitoring/operations-outcomes.png)](docs/img/monitoring/operations-outcomes.png) | [![Model shares for the newest 24 hours against all hours, with the hour slider and picker](docs/img/monitoring/operations-model.png)](docs/img/monitoring/operations-model.png) |
 | *Review outcomes: 405 confirmed fraud, 2,511 false alarms* | *Is the model still good? 17% vs 14% and 52% vs 49%* |
-| ![Percent of flagged payments that were fraud per hour, and fraud caught versus missed](docs/img/monitoring/operations-model-per-hour.png) | ![The plain-words list at the end of the dashboard](docs/img/monitoring/operations-words.png) |
+| [![Percent of flagged payments that were fraud per hour, and fraud caught versus missed](docs/img/monitoring/operations-model-per-hour.png)](docs/img/monitoring/operations-model-per-hour.png) | [![The plain-words list at the end of the dashboard](docs/img/monitoring/operations-words.png)](docs/img/monitoring/operations-words.png) |
 | *Per hour: the share line with its average, and caught versus missed* | *What these words mean* |
 
 | Platform health | |
 |---|---|
-| ![Newest run and one bar per job run, coloured by how it ended](docs/img/monitoring/platform-jobs.png) | ![Task minutes in the newest run and the cleaning pipeline's own minutes per update](docs/img/monitoring/platform-tasks.png) |
+| [![Newest run and one bar per job run, coloured by how it ended](docs/img/monitoring/platform-jobs.png)](docs/img/monitoring/platform-jobs.png) | [![Task minutes in the newest run and the cleaning pipeline's own minutes per update](docs/img/monitoring/platform-tasks.png)](docs/img/monitoring/platform-tasks.png) |
 | *Are the jobs healthy? One bar per run* | *Where the time went, and the pipeline's own minutes* |
-| ![Every job run with pastel job and outcome cells](docs/img/monitoring/platform-runs.png) | ![Waits, newest hour at each stage, hours behind](docs/img/monitoring/platform-freshness.png) |
+| [![Every job run with pastel job and outcome cells](docs/img/monitoring/platform-runs.png)](docs/img/monitoring/platform-runs.png) | [![Waits, newest hour at each stage, hours behind](docs/img/monitoring/platform-freshness.png)](docs/img/monitoring/platform-freshness.png) |
 | *Every run and how it ended* | *Is the data fresh and clean? 0 hours behind* |
-| ![Rows set aside by reason, tinted red](docs/img/monitoring/platform-set-aside.png) | ![Run detail for the 10-08 12:21 failed run, task by task](docs/img/monitoring/platform-run-detail.png) |
+| [![Rows set aside by reason, tinted red](docs/img/monitoring/platform-set-aside.png)](docs/img/monitoring/platform-set-aside.png) | [![Run detail for the 10-08 12:21 failed run, task by task](docs/img/monitoring/platform-run-detail.png)](docs/img/monitoring/platform-run-detail.png) |
 | *Rows set aside: 5, for an amount below zero* | *Run detail, opened by drill-through* |
 
 </details>
