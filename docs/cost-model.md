@@ -46,6 +46,7 @@ cost figure can be attached until the numeric quota is known (G-08).
 | `fraud-ingest` run B, nothing new (0 rows written by Gold) | 14 m 52 s: release 46 s, ingest 19 s, silver 11 m 45 s, score 1 m 14 s, gold 42 s | job run history, per-task view | 2026-10-12 |
 | `fraud-ingest` run C, one drift hour released, one held | 5 m 15 s | job run history | 2026-10-13 |
 | `fraud-ingest` run D, one drift hour plus the held one | 4 m 34 s | job run history | 2026-10-13 |
+| `fraud-ingest` run E, drift hours 422–480 (45,093 payments), first run with the `monitor` and dashboard tasks | 17 m 9 s: release 3 m 35 s, ingest 34.7 s, silver 7 m 14 s, score 1 m 36 s, gold 1 m 42 s, monitor 18.9 s, refresh_operations 51.3 s, refresh_platform 2 m 5 s | job run history, per-task view (GAPS §7, D4) | 2026-10-19 |
 
 At this size, incremental refresh did not shorten an update: fixed pipeline
 start-up and planning (about 1.5–2 minutes) dominates (GAPS G-15). All of
@@ -64,6 +65,15 @@ same run with nothing new to process, against a whole job of 4 m 20 s on run A
 the same day, so the pipeline's start-up time is the main and most variable
 cost (GAPS G-15). The first warehouse query of a day starts slowly (cold start,
 not timed).
+
+**Monitoring's share (Phase 6a):** on run E the `monitor` task (views and
+grants only) took 18.9 s, and the two dashboard refresh tasks ran side by
+side after it, the longer one 2 m 5 s, so monitoring added a little over two
+minutes to the job. Opening a dashboard runs its queries on the SQL
+warehouse, which counts against the daily limit, not a bill. No dashboard schedule was added, so open dashboards don't spend quota
+on their own (GAPS MON-REFRESH). Phase 6a used one job run (E); the restyle
+checks (D11–D17) needed no job run at all, only deploys and dashboard
+refreshes. Cost: ₹0.
 
 **Daily limit, observed (G-08):** on 2026-10-10 the 4th full `fraud-ingest`
 run of the day was refused with `CLUSTER_CREATION_RESOURCE_EXHAUSTED` after 3
@@ -90,4 +100,4 @@ teardown here, with no cluster IDs or account identifiers (this repo is public).
 
 | Date | Resource | Action | Confirmed by |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-10-15 | Probe Databricks App (P2, Streamlit template) and its service principal | Deleted; the service principal disappeared with it, so no app slot stays used | Owner, in the Apps and Service principals screens (GAPS G-21) |
