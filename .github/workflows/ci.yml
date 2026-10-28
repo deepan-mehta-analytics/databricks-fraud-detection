@@ -1,4 +1,4 @@
-# Minimal CI: repo hygiene plus the Phase 2 unit test suite.
+# Minimal CI: repo hygiene plus the full local pytest suite (all phases).
 # Lint job is added later; tests run in the test job below.
 name: ci # workflow name shown in the Actions tab
 
@@ -13,7 +13,7 @@ jobs: # job definitions
     steps: # ordered steps
       - uses: actions/checkout@v7 # fetch the repository
       - run: make check-hygiene # fail if .env, CLAUDE.md or workflow_status files are tracked
-  test: # unit tests for src/fraud_ingest (no Databricks needed)
+  test: # full pytest suite: unit, SQL and reference checks (no Databricks workspace)
     runs-on: ubuntu-latest # standard GitHub-hosted runner
     steps: # ordered steps
       - uses: actions/checkout@v7 # fetch the repository

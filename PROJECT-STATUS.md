@@ -7,8 +7,8 @@ emails — placeholders only.
 
 ## Current phase
 Phase 0 done (all 22 gaps resolved; the last, G-09, closed 2026-10-15: total
-cost ₹0, since nothing in the project can bill; the ADRs are proposed and await
-review) and Phase 1 scaffolding done. Phase 2
+cost ₹0, since nothing in the project can bill; ADRs 0001–0012 record the decisions the built phases follow;
+0004, 0005 and the Bronze half of 0003 are superseded) and Phase 1 scaffolding done. Phase 2
 (Auto Loader ingest to Bronze) is done: 44 local unit tests at ship, CI, and a
 Databricks Asset Bundle job, verified end to end in the Free Edition
 workspace on 2026-09-24 (V1–V6; every Bronze count matched exactly — see the
@@ -115,7 +115,7 @@ row), 9 not started (updated 2026-10-28 with the monitoring evidence: 6.1, 6.2);
 
 ## Last commit
 See `git log` on `main`; CI runs on every push (GitHub Actions: hygiene + unit tests).
-Latest content commits (2026-10-06): `900b84c` Silver reference model + CLI,
+Current release `v0.5.0`; latest commit `d67b563` (2026-10-28). Chronological log, oldest first. 2026-10-06: `900b84c` Silver reference model + CLI,
 `19aefd5` Silver pipeline SQL, `81f2531` bundle/job wiring, `f6b5464` measured
 expected values, `11fbd03` shared catalog/schema, `14fa8b3` review follow-ups.
 Workspace checks S1–S6 passed against `14fa8b3`. 2026-10-08: Silver write-up (ADR 0008, GAPS, exam map, concept notes, cost model); Phase 4 model code `ae65716`, `8b7cf87`, `bb5bbff`, `f7be1eb`, `5b92c9d`, review fixes `d1039b5` (CI green); status docs `476b56c`, `4532973`. 2026-10-10: environment pin `e7c6453` (did not reach the deployed job), scikit-learn pin in the model notebooks `806763a` (CI green), status docs `62ec064`. 2026-10-11: workspace checks M4b–M8 passed against `806763a`; Phase 4 write-up (ADR 0009, GAPS, cost model, README Model Summary) `cd75dc7`, quiet-hours note `ddb199a`, `v0.3.0`. Phase 5: Gold calculator `6ea4f5d`, Gold SQL `126f940`, job wiring `7751e31`, governance `f21743d` + `b6cdc45`, review fixes `ec54bac`, warehouse name `e5fdaf1`, R2 export dropped `4222ecc` (CI green), status docs `bbc00d7`. 2026-10-12: workspace checks G2–G8 and G11 passed against `4222ecc`, status docs `88ff21f`. 2026-10-13: G10 passed against `4222ecc`, status docs `2e2ca68`. 2026-10-15: Phase 5 write-up (ADRs 0010–0011, GAPS, exam map, concept notes, cost model, README), `v0.4.0`. Phase 6a: calculator `86680cf`, monitor SQL `4928ef7`, dashboards `0e538cd`, bundle wiring `d879ad2`, checks `4a8a93e`, review fixes `0612336`, table settings `e4a84d3`, UTC labels `a47286a` (all CI green). 2026-10-19: one-row checks `86e9ed1`, status docs `016944c` and `3f67a2f`, dashboard wording `426ecb2` (CI green); workspace checks D4–D9 passed; README and status sweep `4753f80`. 2026-10-26: dashboard restyle designed and planned (no code yet); status `fa63774` (CI green). 2026-10-27: restyle build `c5c2082`…`ef04ac1`, then fixes from the owner's checks `bea9522`, `cbd7448`, `36fc88e`, `9e5fff9`, `0471bfa` (CI green). 2026-10-28: drill-through picker `7dcecf2`, click wording `6103505` (CI green); Phase 6a write-up `4eac9ee` (ADR 0012), `43634ec` (GAPS), `920c586` (exam map), `75d2f2f` (cost model), `81b0f3c` (concept note), `8ad5c78` (README, screenshots, GIFs, word-list test), then this status update; `v0.5.0`. README polish `a835ee1` (screenshot gallery open by default, plain-words note on the hour numbers; CI green). Phase 6b (job alerting) designed 2026-10-28, no code yet.

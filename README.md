@@ -7,7 +7,7 @@ are fraud. This project builds the system a bank's data team would use to
 catch it, on **Databricks** (the data platform many large companies use for
 this work) using only its free tier.
 
-### Streaming fraud detection on a Databricks lakehouse, built in verified steps, measured rather than claimed
+### Incremental fraud detection on a Databricks lakehouse (file ingest as data lands, batch scoring), built in verified steps, measured rather than claimed
 
 #### 🔁 How it works
 
@@ -37,6 +37,7 @@ A fraud verdict arrives **3 simulated days (72 hours) after** the payment, just 
   - Every count again matched an independent calculation exactly
 - 🤖 **Phase 4 — Score (done)** — a fraud model trained on those warning signs scores every new payment after each load
   - With the same **50 alerts per hour** a review team could handle, it catches **405 of the 822 frauds** in the test period, more than any simpler rule
+  - That is 49.3% across all 72 test hours; in the 54 full-volume hours it is 31.2%, because the 18 quiet hours hold only frauds that every approach catches
   - Every score is logged with the model version that made it
 - 🗂️ **Phase 5 — Alerts and access (done)** — each hour's 50 riskiest payments become alerts that never change once issued
   - Each alert opens a case, and cases close three simulated days later with a verdict
@@ -52,7 +53,7 @@ A fraud verdict arrives **3 simulated days (72 hours) after** the payment, just 
 ## 🏷️ Project Badges
 
 [![Databricks](https://img.shields.io/badge/Databricks-Free_Edition-FF3621?style=for-the-badge&logo=databricks&logoColor=white)](https://www.databricks.com/)
-[![Apache Spark](https://img.shields.io/badge/Spark-Structured_Streaming-E25A1C?style=for-the-badge&logo=apachespark&logoColor=white)](https://spark.apache.org/)
+[![Apache Spark](https://img.shields.io/badge/Spark-Structured_Streaming_(AvailableNow)-E25A1C?style=for-the-badge&logo=apachespark&logoColor=white)](https://spark.apache.org/)
 [![Auto Loader](https://img.shields.io/badge/Auto_Loader-cloudFiles-FF3621?style=for-the-badge&logo=databricks&logoColor=white)](https://docs.databricks.com/aws/en/ingestion/cloud-object-storage/auto-loader/)
 [![Delta Lake](https://img.shields.io/badge/Delta_Lake-Bronze_to_Gold-00ADD4?style=for-the-badge)](https://delta.io/)
 [![Unity Catalog](https://img.shields.io/badge/Unity_Catalog-Volumes_%2B_Governance-1B3139?style=for-the-badge&logo=databricks&logoColor=white)](https://docs.databricks.com/aws/en/data-governance/unity-catalog/)
