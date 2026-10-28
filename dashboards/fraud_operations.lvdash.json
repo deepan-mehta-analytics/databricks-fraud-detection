@@ -205,7 +205,7 @@
         {
           "widget": {
             "name": "outcomes_header",
-            "textbox_spec": "## How did the reviews turn out?\n\nEvery flagged payment gets a verdict 3 simulated days later. Drag the slider or click a bar to narrow the totals and the chart together; right-click a bar, then Drill to, to see that hour on the model page."
+            "textbox_spec": "## How did the reviews turn out?\n\nEvery flagged payment gets a verdict 3 simulated days later. Drag the slider or click a bar to narrow the totals and the chart together. Clicking a red or grey part also picks that verdict, so the other total shows No data. Right-click a bar, then Drill to, to see that hour on the model page."
           },
           "position": {
             "x": 0,

@@ -509,3 +509,7 @@ def test_model_page_takes_a_drill_from_the_reviews_hours():  # D15b: no "Drill t
                                     ("model_by_hour", "simulated_hour"),  # ...and it narrows the line...
                                     ("fraud_caught_by_hour", "simulated_hour")}  # ...and the bars
     assert "hour picker" in page_text("fraud_operations", "Is the model still good?")  # the header says it exists
+
+
+def test_reviews_page_explains_a_blank_total_after_a_click():  # GIF check: a segment click also picks its verdict
+    assert "the other total shows No data" in page_text("fraud_operations", "How did the reviews turn out?")  # said
