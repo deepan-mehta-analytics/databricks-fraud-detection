@@ -513,3 +513,9 @@ def test_model_page_takes_a_drill_from_the_reviews_hours():  # D15b: no "Drill t
 
 def test_reviews_page_explains_a_blank_total_after_a_click():  # GIF check: a segment click also picks its verdict
     assert "the other total shows No data" in page_text("fraud_operations", "How did the reviews turn out?")  # said
+
+
+def test_readme_word_list_matches_the_dashboards():  # owner plain-language rule: the same words in the README
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")  # the portfolio page
+    for term, meaning in {**d.WORD_LIST, **d.PLATFORM_WORDS}.items():  # every term on either dashboard
+        assert f"- **{term}** — {meaning}" in readme, term  # same term, same sentence

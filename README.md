@@ -30,9 +30,10 @@ this work) using only its free tier.
   - Each alert opens a case, and cases close three simulated days later with a verdict
   - Who sees what is enforced by the platform itself: managers see only closed cases and never a customer's account name
   - Proven with a second, real user account, including taking access away and giving it back
-- 📊 **Phase 6a — Monitoring (checked, release next)** — two dashboards, one for the fraud team and one for engineers, rebuilt after every load
+- 📊 **Phase 6a — Monitoring (done, `v0.5.0`)** — two dashboards, one for the fraud team and one for engineers, rebuilt after every load
   - Every number on them matched an independent calculation from the data, including the model's **405 of 822** frauds caught
   - A manager sees the same totals but no open cases and no engineering pages, proven with the second user account
+  - Designed to be read at a glance: one colour theme, green for good and red for bad on every chart, and sliders, click-to-filter and drill-through to a single job run
 
 ---
 
@@ -47,13 +48,14 @@ this work) using only its free tier.
 [![MLflow](https://img.shields.io/badge/MLflow-UC_Model_Registry-0194E2?style=for-the-badge&logo=mlflow&logoColor=white)](https://mlflow.org/)
 [![scikit-learn](https://img.shields.io/badge/scikit--learn-1.7.2-F7931E?style=for-the-badge&logo=scikitlearn&logoColor=white)](https://scikit-learn.org/)
 [![Databricks SQL](https://img.shields.io/badge/Databricks_SQL-Warehouse_Tasks-FF3621?style=for-the-badge&logo=databricks&logoColor=white)](https://docs.databricks.com/aws/en/sql/)
+[![AI/BI Dashboards](https://img.shields.io/badge/AI%2FBI_Dashboards-As_Code-FF3621?style=for-the-badge&logo=databricks&logoColor=white)](https://docs.databricks.com/aws/en/dashboards/)
 
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
-[![pytest](https://img.shields.io/badge/pytest-191_passing-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white)](tests/README.md)
+[![pytest](https://img.shields.io/badge/pytest-236_passing-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white)](tests/README.md)
 [![CI](https://img.shields.io/github/actions/workflow/status/deepan-mehta-analytics/databricks-fraud-detection/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI)](https://github.com/deepan-mehta-analytics/databricks-fraud-detection/actions)
 [![Release](https://img.shields.io/github/v/release/deepan-mehta-analytics/databricks-fraud-detection?style=for-the-badge&logo=github)](https://github.com/deepan-mehta-analytics/databricks-fraud-detection/releases)
-[![Status](https://img.shields.io/badge/Status-Phase_6a_Monitoring_In_Progress-yellow?style=for-the-badge)](PROJECT-STATUS.md)
-[![Exam coverage](https://img.shields.io/badge/DE_Associate-16%2F33_shown-blue?style=for-the-badge)](docs/exam-guide-map.md)
+[![Status](https://img.shields.io/badge/Status-v0.5.0_Monitoring_Released-brightgreen?style=for-the-badge)](PROJECT-STATUS.md)
+[![Exam coverage](https://img.shields.io/badge/DE_Associate-18%2F33_shown-blue?style=for-the-badge)](docs/exam-guide-map.md)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
 ---
@@ -75,8 +77,8 @@ stream through **Auto Loader into a Unity Catalog medallion layout**.
 - **Staged failure scenarios**: duplicate delivery, late arrival, a new column mid-stream and malformed values, each switched on per run and each proven with a SQL check
 - **Jobs as code**: a Databricks job (release → ingest → silver, plus a `score` task from Phase 4, a `gold` SQL task from Phase 5, and a `monitor` SQL task with two dashboard refreshes from Phase 6a) and the Silver pipeline, declared in an Asset Bundle with shared catalog/schema variables and deployed from the workspace UI, with no token
 - **Guarded parameters**: scenario settings that can't take effect raise an error before any file is copied
-- **Tested and CI-gated**: 191 local unit tests, and a GitHub Actions job running hygiene checks plus tests on every push
-- **Exam-skills coverage map**: every Data Engineer Associate exam item mapped to repo evidence (16 of 33 shown), with short concept notes in [`docs/concepts/`](docs/concepts/)
+- **Tested and CI-gated**: 236 local unit tests, and a GitHub Actions job running hygiene checks plus tests on every push
+- **Exam-skills coverage map**: every Data Engineer Associate exam item mapped to repo evidence (18 of 33 shown), with short concept notes in [`docs/concepts/`](docs/concepts/)
 
 **✅ Implemented and verified (Phase 3: Silver)**
 
@@ -106,11 +108,13 @@ stream through **Auto Loader into a Unity Catalog medallion layout**.
 - **Tag-based policy probe**: a governed tag and one schema-level policy masked a scratch table, showing ABAC works on Free Edition
 - **Measured limits**: an external table on Cloudflare R2 was designed, but Free Edition can't reach R2, so it is documented, not wired in
 
-**✅ Implemented and verified (Phase 6a: monitoring view; release `v0.5.0` next)**
+**✅ Implemented and verified (Phase 6a: monitoring view, `v0.5.0`)**
 
 - **Six plain monitoring views** rebuilt by a `monitor` SQL task after every load: model results per hour, hours still waiting for verdicts, data freshness, rejected rows, and job and pipeline run times read from `system.lakeflow` by name
 - **Two AI/BI dashboards as code**: *Fraud operations* for all three groups (each viewer's own grants, so the row filter and masks apply) and *Platform health* for engineers, built from commented Python and deployed with the bundle; every chart has a plain "How to read it" line and each dashboard ends with a word list
-- **Status**: deployed 2026-10-15 and checked 2026-10-19 (D3a–D9): a test run of 59 more hours took 17m 9s with all 8 tasks green, every view number (5,033 alerts, 405 of 822 frauds caught, 72 hours waiting) matched the CSV calculation, the run history matched the Jobs page, and a manager saw the same totals with no open cases or engineering pages. Screenshots and the write-up land with `v0.5.0`
+- **A designed look**: one theme on both dashboards, meaning colours pinned to values (green succeeded, red failed or fraud, grey cancelled or false alarm, always beside a ✓ or ✕), pastel table cells for slow runs and stages behind, and hours shown as `Day 20, 23:00` rather than bare numbers
+- **Interactions**: hour sliders, click-to-filter between charts that share data, and drill-through from a run to a Run detail page and from a reviews hour to the model page
+- **Status**: deployed 2026-10-15, checked 2026-10-15 to 2026-10-28 (D1–D17): a test run of 59 more hours took 17m 9s with all 8 tasks green, every view number (5,033 alerts, 405 of 822 frauds caught, 72 hours waiting) matched the CSV calculation, the run history matched the Jobs page, a manager saw the same totals with no open cases or engineering pages, and every restyle and interaction check passed
 
 **🔜 Planned**
 
@@ -120,7 +124,7 @@ stream through **Auto Loader into a Unity Catalog medallion layout**.
 
 - **Research first**: every claim in the original brief is re-verified and logged in [`docs/GAPS.md`](docs/GAPS.md) before adoption
 - **Measured results only**: no number is reported unless it came from a real run
-- **Decisions on record**: eleven ADRs in [`docs/adr/`](docs/adr/) capture each choice and what it cost, summarised in [Key Design Choices](#-key-design-choices)
+- **Decisions on record**: twelve ADRs in [`docs/adr/`](docs/adr/) capture each choice and what it cost, summarised in [Key Design Choices](#-key-design-choices)
 - **Cost-disciplined and public-safe**: free tier only, placeholders for every workspace identifier
 
 ---
@@ -139,10 +143,10 @@ stream through **Auto Loader into a Unity Catalog medallion layout**.
 | 💾 Checkpoints | Unity Catalog Volume | DBFS root is deprecated (G-03) |
 | 🤖 ML | scikit-learn 1.7.2, MLflow, Unity Catalog model registry | Gradient-boosted trees vs a logistic baseline, experiment tracking, versioned models with `@champion` / `@challenger` aliases |
 | 🧩 Orchestration | Databricks Jobs + Asset Bundle (`databricks.yml`) | Eight-task ingest job (release, ingest, the Silver pipeline task, score, a `gold` and a `monitor` SQL task on the SQL warehouse, found by name at deploy time, then two dashboard refreshes), an on-demand training job, the pipeline and two dashboards, as code, deployed from the workspace UI (G-11) |
-| 📊 Monitoring | AI/BI dashboards (`.lvdash.json` built from Python), plain views over Gold, Silver and `system.lakeflow` | Fraud operations and platform health pages; Phase 6a, verified 2026-10-19 |
+| 📊 Monitoring | AI/BI dashboards (`.lvdash.json` built from Python), plain views over Gold, Silver and `system.lakeflow` | Fraud operations and platform health pages with one theme, sliders, cross-filtering and drill-through; verified 2026-10-15 to 2026-10-28 ([ADR 0012](docs/adr/0012-monitoring-dashboards-and-views.md)) |
 | 🔗 Code delivery | Databricks Git folder | Workspace runs use this repo at a known commit (G-12) |
 | 🐍 Language | Python 3.11, SQL | Splitter, release logic, scenario transforms, local Silver and Gold reference models (stdlib only); model code with scikit-learn and pandas; Silver and Gold in SQL |
-| 🧪 Testing | pytest (191 tests), PyYAML | Contract, split, scenarios, release, ingest options, job and pipeline definitions, Silver reference model and SQL guards, model windows, features, metrics, training and scoring, Gold calculator and Gold/governance SQL guards, monitoring SQL and dashboard guards |
+| 🧪 Testing | pytest (236 tests), PyYAML | Contract, split, scenarios, release, ingest options, job and pipeline definitions, Silver reference model and SQL guards, model windows, features, metrics, training and scoring, Gold calculator and Gold/governance SQL guards, monitoring SQL and dashboard guards |
 | ⚙️ CI | GitHub Actions | Hygiene check + unit tests on every push |
 | 📊 Data | PaySim (CC BY-SA 4.0) | Synthetic mobile-money transactions with fraud labels |
 
@@ -238,14 +242,25 @@ flowchart LR
     GOV -.-> CASES
     GOV -.-> ALERTS
 
-    SUMMARY -.-> APP["📊 Dashboards<br/>Phase 6a"]
+    subgraph MON["📊 Monitoring · job tasks 6–8"]
+        direction TB
+        VIEWS["monitor SQL task<br/>6 plain views, re-granted"]
+        SYS[("system.lakeflow<br/>job + pipeline history")]
+        DASH["2 AI/BI dashboards<br/>viewer credentials"]
+        SYS --> VIEWS
+        VIEWS -->|refresh tasks| DASH
+    end
+
+    SUMMARY --> VIEWS
+    CASES --> VIEWS
+    GOV -.-> DASH
 
     classDef planned fill:#f5f5f5,stroke:#999,stroke-dasharray:4 3,color:#666
     classDef done fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20
-    class REL,ING,SPLIT,BRONZE,CHK,CLEAN,REJ,FEAT,TRAIN,REG,SCORE,SCORES,ALERTS,CASES,SUMMARY,GOV,APP done
+    class REL,ING,SPLIT,BRONZE,CHK,CLEAN,REJ,FEAT,TRAIN,REG,SCORE,SCORES,ALERTS,CASES,SUMMARY,GOV,VIEWS,SYS,DASH done
 ```
 
-*Green nodes are built and verified. Dotted arrows show the label read when closing cases and where governance applies.*
+*Green nodes are built and verified. Dotted arrows show the label read when closing cases and where governance applies; the dashboards apply each viewer's own grants.*
 
 | Component | Type | Role |
 |---|---|---|
@@ -275,13 +290,13 @@ flowchart LR
 
 | Phase | Layer | Status |
 |---|---|---|
-| 0 | Research, gaps register, ADRs | ✅ 19 of 19 gaps resolved (ADRs proposed, awaiting review) |
+| 0 | Research, gaps register, ADRs | ✅ 22 of 22 gaps resolved (ADRs proposed, awaiting review) |
 | 1 | Scaffolding, CI | ✅ Done |
 | 2 | Ingest to Bronze | ✅ Verified 2026-09-24 |
 | 3 | Silver and features | ✅ Verified 2026-10-06/07 (S1–S6) |
 | 4 | Training and scoring | ✅ Verified 2026-10-08 to 2026-10-11 (M1–M8) |
 | 5 | Gold alerts and governance | ✅ Verified 2026-10-11 to 2026-10-13 (G1–G11; G9 dropped, R2 unreachable) |
-| 6 | Monitoring view (6a), alerting (6b), model monitoring (6c) | 🔄 6a verified 2026-10-19 (D3a–D9), release `v0.5.0` next; 6b and 6c planned |
+| 6 | Monitoring view (6a), alerting (6b), model monitoring (6c) | 🔄 6a ✅ verified 2026-10-15 to 2026-10-28 (D1–D17), released `v0.5.0`; 6b and 6c planned |
 | 7 | Live demo window and teardown | ⏳ |
 
 ---
@@ -343,7 +358,7 @@ databricks-fraud-detection/
 │   ├── 53_verify_gold.sql         ← Gold checks G3–G10
 │   ├── monitoring/monitoring.sql  ← job task: six plain monitoring views, re-granted
 │   ├── 60_probe_system_tables.sql ← system.lakeflow probe record
-│   └── 61_verify_monitoring.sql   ← monitoring checks D3a–D8
+│   └── 61_verify_monitoring.sql   ← monitoring checks D3a–D8 and D12
 │
 ├── dashboards/                    ← generated AI/BI dashboards: fraud_operations, platform_health
 │
@@ -354,15 +369,16 @@ databricks-fraud-detection/
 │   └── fraud_silver_pipeline.yml  ← Silver Lakeflow pipeline (serverless, triggered)
 ├── databricks.yml                 ← Asset Bundle root (dev target, catalog/schema variables, warehouse lookup)
 │
-├── tests/                         ← 191 pytest tests (see tests/README.md)
+├── tests/                         ← 236 pytest tests (see tests/README.md)
 ├── docs/
-│   ├── adr/                       ← ADRs 0001–0011
+│   ├── adr/                       ← ADRs 0001–0012
 │   ├── GAPS.md                    ← brief-vs-reality register + accepted limitations
 │   ├── ENGINEERING-DECISIONS.md   ← decision log
 │   ├── cost-model.md              ← free-tier cost tracking
 │   ├── exam-guide-map.md          ← DE Associate skills-coverage map (33 items)
 │   ├── exam-guide-delta.md        ← log of each re-check against the exam guide
 │   ├── concepts/                  ← short plain-English notes for each shown skill
+│   ├── img/monitoring/            ← dashboard screenshots and two interaction GIFs (Phase 6a)
 │   └── 00-initial-brief.md        ← original non-binding brief
 │
 ├── app/                           ← reserved: Phase 6a uses AI/BI dashboards instead
@@ -391,7 +407,7 @@ python -m pip install -r requirements-dev.txt
 
 #### 2. Run the checks
 ```bash
-python -m pytest -q      # 191 unit tests (or: make test)
+python -m pytest -q      # 236 unit tests (or: make test)
 make check-hygiene       # no local-only or secret file is tracked
 make help                # lint / deploy / teardown are stubs until their phase lands
 ```
@@ -400,7 +416,7 @@ make help                # lint / deploy / teardown are stubs until their phase 
 
 This is the path used for the Bronze (2026-09-24), Silver (2026-10-06/07),
 model (2026-10-08 to 2026-10-11), Gold (2026-10-11 to 2026-10-13) and
-monitoring (2026-10-15 to 2026-10-19) verifications. Every step is done by hand in the workspace UI.
+monitoring (2026-10-15 to 2026-10-28) verifications. Every step is done by hand in the workspace UI.
 
 1. **Git folder**: Workspace → Home → Create → Git folder → this repo's URL. A public clone needs no token (G-12)
 2. **Setup SQL**: in the SQL editor, on a **SQL warehouse**, run `sql/10_fraud_ingest_setup.sql` once
@@ -434,7 +450,7 @@ monitoring (2026-10-15 to 2026-10-19) verifications. Every step is done by hand 
 16. **Gold**: run `fraud-ingest`. Its `gold` task creates the alert log, the case table and the view on the first run, then adds alerts and closes cases on every run. Print the expected numbers locally with `python scripts/expected_gold.py --csv data/paysim.csv` and compare them with the G3–G5 blocks of `sql/53_verify_gold.sql`
 17. **Governance**: run `sql/50_governance.sql` once, after the first Gold run. To see the rules work, invite a second user, add them to `fraud_managers`, and run the G6-manager block as them; `sql/52_abac_probe.sql` walks through the tag-based policy probe
 
-18. **Monitoring**: Pull, then Deploy. That adds the `monitor` task, the two dashboard refreshes and the dashboards *Fraud operations* and *Platform health*. After the next `fraud-ingest` run, open them from **Dashboards**. Platform health is refreshed by the job before Databricks records that run, so click **Refresh** on it about an hour later. Print the expected numbers with `python scripts/expected_gold.py --csv data/paysim.csv --monitoring` and compare them with `sql/61_verify_monitoring.sql`: each after-run block returns one row ending in `all_as_expected`
+18. **Monitoring**: Pull, then Deploy. That adds the `monitor` task, the two dashboard refreshes and the dashboards *Fraud operations* and *Platform health*. After the next `fraud-ingest` run, open them from **Dashboards**. Platform health is refreshed by the job before Databricks records that run, so click **Refresh** on it about an hour later. Print the expected numbers with `python scripts/expected_gold.py --csv data/paysim.csv --monitoring` and compare them with `sql/61_verify_monitoring.sql`: each after-run block returns one row ending in `all_as_expected`. Dashboard changes go through `src/fraud_monitoring/dashboards.py`: run `python scripts/build_dashboards.py`, commit the regenerated JSON, then Pull and Deploy. Never edit the deployed dashboard in the UI, because the next deploy overwrites it
 
 The daily compute limit fits about 3–4 full job runs (G-08), so spread steps 11–17 over several days if needed.
 
@@ -449,7 +465,7 @@ pytest).
 ## 🧪 Tests
 
 ```bash
-python -m pytest -q      # → 191 passed
+python -m pytest -q      # → 236 passed
 ```
 
 | File | What it covers |
@@ -472,10 +488,10 @@ python -m pytest -q      # → 191 passed
 | `test_gold_expected.py` | Gold calculator: alerts capped at 50 per hour, closing cutoff 72 hours back, closed cases, the late-alert rule for one payment and for a batch |
 | `test_gold_sql.py` | Gold and governance SQL guards: insert-only alert log, tie-break, late rule, label read only when closing cases, run-as check, names from Silver, masks and filter exempting trusted groups, per-table grants, no real storage path or account ID in tracked files |
 | `test_monitoring_sql.py` | Monitoring SQL guards: views and grants only, every column commented, the label read only behind the 72-hour clock, an hour ready only once Gold closed it, waiting hours counted for every reader, fraud summed once per hour, jobs matched by name, no ID columns, each after-run check one row with a verdict |
-| `test_dashboards.py` | The two dashboards: committed JSON equals the builder, only each audience's views, a "How to read it" line per chart, a word list, a jargon guard, full table column settings, UTC time labels, viewer credentials and group permissions, the wording for a manager's empty queue and for the refresh lag |
+| `test_dashboards.py` | The two dashboards: committed JSON equals the builder, only each audience's views, a "How to read it" line per chart, a word list (the same words in this README), a jargon guard, the theme on both, meaning colours as bare hex, exported cell-rule and number-format shapes, readable hours, sliders and pickers bound to the right datasets, the drill-through picker on the model page, UTC time labels, viewer credentials and group permissions, and the wording for a manager's empty queue, the refresh lag and a blank total after a click |
 
 Notebook behaviour, the Delta tables and Auto Loader itself are verified by
-workspace runs (V1–V6, S1–S6 for Silver, M1–M8 for the model, G1–G11 for Gold, D3a–D9 for monitoring), not by this local suite. File-by-file detail is in
+workspace runs (V1–V6, S1–S6 for Silver, M1–M8 for the model, G1–G11 for Gold, D1–D17 for monitoring), not by this local suite. File-by-file detail is in
 [`tests/README.md`](tests/README.md).
 
 ---
@@ -650,7 +666,7 @@ is the 54 full hours, where the budget forces a real choice:
 - Taking access away worked on the very next query, with no cache to wait out.
 - The Gold task itself is cheap (42 s). The time goes to the Silver pipeline's start-up, even when there is nothing new (G-15).
 
-### 📊 Phase 6a monitoring, checked 2026-10-15 to 2026-10-19
+### 📊 Phase 6a monitoring, checked 2026-10-15 to 2026-10-28
 
 > Same workspace. Views and dashboards at commit `a47286a`; one-row checks from
 > `86e9ed1`. Run E released 59 more hours (the drift stretch, to hour 480).
@@ -680,6 +696,78 @@ is the 54 full hours, where the budget forces a real choice:
 - Viewer credentials make one dashboard serve three groups: the manager's queue read 0 while the owner's read 2,117.
 - Platform health, refreshed inside the job, was one run behind: the system tables recorded run E later, and a manual Refresh showed it.
 - The Silver pipeline's own update took 4.7 of its task's 7.2 minutes; the rest is start-up and waiting (G-15).
+
+#### 🎨 The dashboards, restyled and checked 2026-10-27/28
+
+> Same workspace, dashboards at commit `0471bfa`, with the drill-through fix
+> `7dcecf2` and a wording fix `6103505`. No job run was needed: only deploys,
+> the dashboards themselves and one SQL check.
+
+| Check | Expected | Measured |
+|---|---|---|
+| D11 every page renders with the theme and meaning colours | no invalid widget anywhere | ✅ after copying cell-rule and number-format shapes from a UI export |
+| D12 restyled numbers: reviews totals / newest 24 hours vs all hours / stages behind | 405 and 2,511 / shares compared with 14% and 49% / 0 | ✅ 405 and 2,511 / 17% vs 14%, 52% vs 49% / 0 |
+| D13 hour sliders | totals and charts narrow; the big model numbers and the average line stay | ✅ |
+| D14 click to filter | a run narrows the run table; a legend entry keeps one outcome; an hour narrows the reviews totals | ✅ |
+| D15 drill-through | a run opens Run detail for that run; a reviews hour opens the model page for that hour | ✅ (the model page needed a one-hour picker on the reviews data first) |
+| D16 manager view after the restyle | same theme and numbers, 0 open cases, no Platform health | ✅ |
+| D17 table cell colours | slow runs blue, 0 hours behind green, set-aside rows red | ✅ |
+
+**Platform health: click a run, then drill through to it** (14 s loop)
+
+![Clicking a cancelled run narrows the run table; right-click, Drill to, opens the Run detail page for that run](docs/img/monitoring/platform-interaction.gif)
+
+**Fraud operations: slide the hours, then drill from an hour to the model page** (23 s loop)
+
+![Dragging the hour slider narrows the totals and bars; right-click on an hour, Drill to, opens the model page for that hour](docs/img/monitoring/operations-interaction.gif)
+
+<details>
+<summary><b>📸 Every page (12 screenshots)</b></summary>
+
+| Fraud operations | |
+|---|---|
+| ![Open cases waiting for review, newest hour first](docs/img/monitoring/operations-queue.png) | ![The same queue as a manager: 0 open cases, with the reason under the title](docs/img/monitoring/operations-queue-manager.png) |
+| *Review queue, as an engineer: 2,117 open cases* | *The same page as a manager: 0, by design* |
+| ![Confirmed fraud and false alarms per simulated hour](docs/img/monitoring/operations-outcomes.png) | ![Model shares for the newest 24 hours against all hours, with the hour slider and picker](docs/img/monitoring/operations-model.png) |
+| *Review outcomes: 405 confirmed fraud, 2,511 false alarms* | *Is the model still good? 17% vs 14% and 52% vs 49%* |
+| ![Percent of flagged payments that were fraud per hour, and fraud caught versus missed](docs/img/monitoring/operations-model-per-hour.png) | ![The plain-words list at the end of the dashboard](docs/img/monitoring/operations-words.png) |
+| *Per hour: the share line with its average, and caught versus missed* | *What these words mean* |
+
+| Platform health | |
+|---|---|
+| ![Newest run and one bar per job run, coloured by how it ended](docs/img/monitoring/platform-jobs.png) | ![Task minutes in the newest run and the cleaning pipeline's own minutes per update](docs/img/monitoring/platform-tasks.png) |
+| *Are the jobs healthy? One bar per run* | *Where the time went, and the pipeline's own minutes* |
+| ![Every job run with pastel job and outcome cells](docs/img/monitoring/platform-runs.png) | ![Waits, newest hour at each stage, hours behind](docs/img/monitoring/platform-freshness.png) |
+| *Every run and how it ended* | *Is the data fresh and clean? 0 hours behind* |
+| ![Rows set aside by reason, tinted red](docs/img/monitoring/platform-set-aside.png) | ![Run detail for the 10-08 12:21 failed run, task by task](docs/img/monitoring/platform-run-detail.png) |
+| *Rows set aside: 5, for an amount below zero* | *Run detail, opened by drill-through* |
+
+</details>
+
+💡 **What the restyle shows.**
+- Colour carries meaning, never decoration: green good, red bad, grey neutral, the same on every chart, and always next to a ✓ or ✕ so it never depends on colour vision alone.
+- Drill-through only offers a page that has a filter on the same data as the chart you clicked, so the model page got a one-hour picker bound to the reviews data too (D15).
+- Some UI settings come back in a different shape than hand-written JSON; copying the shapes from a UI export, not guessing, fixed every invalid widget (D3, D11).
+
+**What these words mean** (the same list ends each dashboard; a test keeps them identical):
+
+- **Flagged payment** — A payment the model ranked among the 50 most suspicious of its hour, so a person should look at it.
+- **Case** — The review of one flagged payment. It stays open until its verdict is recorded.
+- **Verdict** — The answer to a case: confirmed fraud or false alarm. It arrives 3 simulated days after the payment.
+- **Confirmed fraud** — A flagged payment that really was fraud.
+- **False alarm** — A flagged payment that turned out to be honest.
+- **Simulated hour** — One hour of the replayed month of payments, numbered from 1 to 743. Hour 1 is day 1, midnight to 1 am; hour 480 is day 20, 11 pm.
+- **Model version** — Which saved copy of the fraud model made the decision. Each new copy gets the next number.
+- **Champion model** — The model version currently trusted to score new payments.
+- **Risk score** — How suspicious the model found a payment. Higher is more suspicious. It ranks payments, it is not a chance.
+- **Rejected row** — A payment record that failed a basic check, such as an amount below zero, and was set aside.
+- **Job run** — One run of the scheduled work that releases, loads, cleans, scores and flags payments.
+- **Task** — One step inside a job run, such as loading or scoring.
+- **REDACTED** — Shown instead of an account name to people who may not see who paid whom.
+- **Landing folder** — Where each simulated hour's file of payments arrives before it is loaded.
+- **Pipeline update** — One run of the cleaning step that turns loaded payments into clean ones.
+- **Full rebuild** — A pipeline update that redoes everything from the start instead of only the new rows.
+- **Run detail** — A page showing one job run task by task. Open it from a run's bar: right-click, then Drill to.
 
 ---
 
@@ -726,6 +814,10 @@ the evidence and the alternatives rejected. Full narrative:
 | Monitoring | Viewer credentials, not the publisher's | Each viewer's own grants, row filter and masks apply: the manager's queue read 0 (measured) | The same |
 | Monitoring | Jobs and the pipeline matched by name, minutes from start and end times | The system tables' duration columns read 0 here (measured), and no ID lands in this public repo | Joins by ID in a fixed production workspace |
 | Monitoring | Waiting hours counted from scored hours, with no share shown until verdicts arrive | A 0 would claim the model caught nothing, and the manager's row filter hides open hours | The same |
+| Monitoring | AI/BI dashboards, not a custom app ([ADR 0012](docs/adr/0012-monitoring-dashboards-and-views.md)) | An app works on Free Edition (measured) but would use one of 3 app slots and re-build the per-viewer security that dashboards get from viewer credentials | A custom app for workflows a dashboard can't do, such as recording verdicts |
+| Monitoring | One theme and meaning colours pinned to values on both dashboards | Green, red and grey mean the same on every chart, always beside a ✓ or ✕; the palette passed a contrast check | A company-wide dashboard theme set by an admin |
+| Monitoring | Hour sliders, click-to-filter and drill-through, with a one-hour picker on the model page | Readers narrow and follow a question without editing anything; "Drill to" only offers a page with a filter on the same data (measured, D15) | The same, plus saved views per team |
+| Monitoring | Hours shown as `Day 20, 23:00 (hour 480)`, never a made-up calendar date | People read a clock, not a counter; the data has no real dates, so a date would claim something false | Business time (dates, shifts) from real timestamps |
 | Testing | A pure-Python reference model checks the SQL's results row for row | CI can't run Spark; the workspace runs were compared with an independent calculation | Integration tests on a dev workspace in CI |
 
 ---
@@ -754,6 +846,8 @@ reach for as volume or latency needs grow.
 | Alerting | A SQL task after each load, top 50 per hour | Hourly batches, a fixed review team | ✅ |
 | Alerting | A streaming Gold table raising alerts per payment | Alerts needed seconds after payment | — |
 | Monitoring | Plain views and dashboards refreshed by the job | One team, hourly batches | ✅ |
+| Monitoring | A custom monitoring app with its own service principal | Workflows beyond reading, such as recording verdicts | — (probed: an app works on Free Edition, G-21) |
+| Monitoring | Streaming views with a live-refreshing dashboard | Data that changes every few seconds | — (data changes once per job run) |
 | Monitoring | Lakehouse Monitoring with drift metrics and alerts | Many models and tables, an on-call rota | 🔜 Phases 6b, 6c |
 | Access control | Per-table row filters and column masks | A handful of governed tables | ✅ |
 | Access control | Tag-based policies (ABAC) at catalog or schema level | Many tables, new ones added often | 🟡 probed on a scratch table (G-19) |
@@ -767,9 +861,9 @@ reach for as volume or latency needs grow.
 ## 🎓 Exam Alignment
 
 This repo doubles as verifiable skills coverage for the **Databricks
-Certified Data Engineer Associate** exam guide: 16 of 33 official items are
+Certified Data Engineer Associate** exam guide: 18 of 33 official items are
 shown with real code or a verified run, 6 more are designed (an ADR or a
-`docs/GAPS.md` row), and 11 are not started. See the full breakdown in
+`docs/GAPS.md` row), and 9 are not started. See the full breakdown in
 [`docs/exam-guide-map.md`](docs/exam-guide-map.md), and the study notes
 building toward it in [`docs/concepts/`](docs/concepts/). This is a skills
 coverage map, not exam prep. Several ✅ rows are partial rather than
@@ -783,7 +877,9 @@ shown.
 - **Single verification day**: Phase 2 figures are single runs, not averages. The daily compute quota is unpublished. Phase 2's runs fit inside one day's allowance; on 2026-10-08, after a day of Phase 4 runs (deploy, two training runs, two job runs), a job's Silver step was refused with `CLUSTER_CREATION_RESOURCE_EXHAUSTED`, and on 2026-10-10 the limit was reached after three full ingest-and-score job runs. On 2026-10-11, four job runs, three evaluation runs and several SQL checks fit, and the fifth job run was refused. A job run with nothing new still costs time: on 2026-10-12 the Silver pipeline step alone took 11m 45s with no new data. So heavy verification days are split across days (G-08)
 - **scikit-learn installed at run time**: serverless job tasks can land on different environment versions (5 ships scikit-learn 1.6.1, 6 ships 1.7.2), and a bundle deploy did not keep a job-level environment on a notebook task (measured 2026-10-10). So the training, scoring and evaluation notebooks run `%pip install scikit-learn==1.7.2` first. The version is exact but not hash-locked, and a guard still stops scoring if the model's version differs. MLflow is not pinned: job tasks got 3.8.1 and training 3.12.0, and loading worked across them (GAPS §3, M-MLFLOW)
 - **Scores are rankings, not probabilities**: the model is trained on all fraud plus a 10% sample of the rest, so `risk_score` orders payments but isn't a calibrated chance of fraud (GAPS §3, M-RANK)
-- **Platform health is one run behind until refreshed**: Databricks records a job run in its system tables up to an hour after it ends, but the job refreshes the dashboard as it ends. So the newest run appears only after a manual Refresh about an hour later (measured on run E, 2026-10-19); an hourly schedule was rejected because it would spend the daily compute allowance (G-08)
+- **Platform health is one run behind until refreshed**: Databricks records a job run in its system tables up to an hour after it ends, but the job refreshes the dashboard as it ends. So the newest run appears only after a manual Refresh about an hour later (measured on run E, 2026-10-19); an hourly schedule was rejected because it would spend the daily compute allowance (G-08, GAPS §3 MON-LAG, MON-REFRESH)
+- **No live auto-refresh and no single-payment drill-down**: an open dashboard shows the data as of the last job run or Refresh, and the deepest drill is one job run or one simulated hour, not one payment (GAPS §3, MON-REFRESH, MON-DRILL)
+- **A click can blank a total**: clicking the red or grey part of a stacked reviews bar also picks that verdict, so the other total shows "No data". This is Databricks' normal click-to-filter, and the page says so (GAPS §3, MON-CLICK)
 - **No real-time scoring**: payments are scored when the job runs after their file lands, not at payment time (GAPS §3, M-BATCH)
 - **Manual promotion**: a person moves `@champion` with a notebook; there is no CI gate, no shadow scoring and no automatic retraining yet (GAPS §3, M-PROMOTE)
 - **Model leans on simple signals**: amount, hour of day and payment type carry most of the weight, and the receiver-history features aren't in the top 5. The hour-of-day effect is a PaySim artefact (measured: clock hours 0–7 hold 31% of training fraud but 1.2% of normal payments), so it wouldn't carry over to real traffic (GAPS §3, M-QUIET)
@@ -804,7 +900,7 @@ shown.
 - **The job runs as the owner**, not a service principal; the Gold SQL refuses to run if that identity isn't an engineer (GAPS §3, G-RUNAS)
 - **Late payments shown in tests only**: each replayed hour is one file, so a single payment never arrives after its hour was alerted. The workspace proved a late *hour*; the late-payment rule is proven by the calculator and a SQL guard (GAPS §3, G-LATE)
 - **Tag-based policy on a scratch table only**: the live Gold tables keep per-table masks, because mixing both on one table is listed as unsupported (GAPS §3, G-POLICY)
-- **No open research gaps**: all 19 rows in [`docs/GAPS.md`](docs/GAPS.md) are resolved. The total cost is ₹0 (G-09); the real limit is the unpublished daily compute quota (G-08)
+- **No open research gaps**: all 22 rows in [`docs/GAPS.md`](docs/GAPS.md) are resolved. The total cost is ₹0 (G-09); the real limit is the unpublished daily compute quota (G-08)
 - **Exam items out of scope for this project**: 2.2 (COPY INTO), 2.4 (Lakeflow Connect) and 2.5 (JDBC/ODBC/REST landing) are not planned — see [`docs/exam-guide-map.md`](docs/exam-guide-map.md) for why
 - **Keyless CI/CD unavailable**: Keyless OIDC deploys from GitHub Actions need a Databricks account console, which Free Edition does not have, so CI deploys will use a stored credential in a protected GitHub environment instead ([docs](https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation-policy), checked 2026-09-27)
 
@@ -812,15 +908,17 @@ shown.
 
 ## 🔜 Roadmap
 
-- [x] Phase 0: research and ADRs (19 of 19 gaps resolved; ADRs proposed, awaiting review)
+- [x] Phase 0: research and ADRs (22 of 22 gaps resolved; ADRs proposed, awaiting review)
 - [x] Phase 1: scaffolding and CI
 - [x] Phase 2: ingest to Bronze (44 unit tests at ship; workspace V1–V6 verified 2026-09-24)
 - [x] Phase 3: Silver (quality rules with quarantine, dedup on `transaction_id`, strict-past velocity features; workspace S1–S6 verified 2026-10-06/07)
 - [ ] Phase 3 add-on: dev and prod bundle targets, and CI deploys from a protected GitHub environment (exam items 5.2, 5.4)
 - [x] Phase 4: ML training and batch scoring (champion catches 405 of 822 frauds at 50 alerts per hour; workspace M1–M8 verified 2026-10-08 to 2026-10-11)
 - [x] Phase 5: Gold alerts and Unity Catalog governance (3,154 then 3,268 alerts, every count matching the calculator; manager access proven with a second user; workspace G1–G11 verified 2026-10-11 to 2026-10-13)
-- [ ] Phase 6: monitoring view (6a: built 2026-10-15, workspace checks D3a–D9 passed 2026-10-19, release `v0.5.0` next), alerting (6b), model monitoring (6c)
-- [ ] Phase 7: live demo window and teardown
+- [x] Phase 6a: monitoring view, `v0.5.0` (two AI/BI dashboards, restyled with sliders, click-to-filter and drill-through; workspace D1–D17 verified 2026-10-15 to 2026-10-28)
+- [ ] Phase 6b: job alerting, `v0.6.0`
+- [ ] Phase 6c: model monitoring, `v0.7.0`
+- [ ] Phase 7: live demo window and teardown, `v1.0.0`
 - [x] Databricks Data Engineer Associate coverage map
 
 ---

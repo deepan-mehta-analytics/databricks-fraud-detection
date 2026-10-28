@@ -60,7 +60,8 @@ roles (G-06).
   expected values from `scripts/expected_gold.py` over `data/paysim.csv`.
 - `60_probe_system_tables.sql` — the system-table probes P1 and D1b (done
   2026-10-15) and the column checks behind the monitoring views.
-- `61_verify_monitoring.sql` — the monitoring checks D3a and D5–D8, with
-  expected values from `scripts/expected_gold.py --monitoring` inline,
-  including a block for the test user in `fraud_managers`. D5–D8 each
-  return one row ending in `all_as_expected`, so one Run shows the check.
+- `61_verify_monitoring.sql` — the monitoring checks D3a, D5–D8 and D12
+  (the restyled dashboards' numbers), with expected values from
+  `scripts/expected_gold.py --monitoring` inline, including a block for the
+  test user in `fraud_managers`. D5–D8 and D12 each return one row ending in
+  `all_as_expected`, so one Run shows the check.
