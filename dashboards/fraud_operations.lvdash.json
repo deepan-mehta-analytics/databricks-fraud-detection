@@ -205,7 +205,7 @@
         {
           "widget": {
             "name": "outcomes_header",
-            "textbox_spec": "## How did the reviews turn out?\n\nEvery flagged payment gets a verdict 3 simulated days later. Drag the slider or click a bar to narrow the totals and the chart together."
+            "textbox_spec": "## How did the reviews turn out?\n\nEvery flagged payment gets a verdict 3 simulated days later. Drag the slider or click a bar to narrow the totals and the chart together; right-click a bar, then Drill to, to see that hour on the model page."
           },
           "position": {
             "x": 0,
@@ -473,12 +473,12 @@
         {
           "widget": {
             "name": "model_header",
-            "textbox_spec": "## Is the model still good?\n\nThe slider narrows the two charts. The big numbers always cover every hour whose verdicts are in, and the shares compare the newest 24 of those hours with all of them."
+            "textbox_spec": "## Is the model still good?\n\nThe slider and the hour picker narrow the two charts. The big numbers always cover every hour whose verdicts are in, and the shares compare the newest 24 of those hours with all of them."
           },
           "position": {
             "x": 0,
             "y": 0,
-            "width": 4,
+            "width": 6,
             "height": 2
           }
         },
@@ -543,9 +543,88 @@
             }
           },
           "position": {
-            "x": 4,
-            "y": 0,
-            "width": 2,
+            "x": 0,
+            "y": 2,
+            "width": 3,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "model_hour_pick",
+            "queries": [
+              {
+                "name": "model_hour_pick_review_outcomes",
+                "query": {
+                  "datasetName": "review_outcomes",
+                  "fields": [
+                    {
+                      "name": "simulated_hour",
+                      "expression": "`simulated_hour`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "model_hour_pick_model_by_hour",
+                "query": {
+                  "datasetName": "model_by_hour",
+                  "fields": [
+                    {
+                      "name": "simulated_hour",
+                      "expression": "`simulated_hour`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "model_hour_pick_fraud_caught_by_hour",
+                "query": {
+                  "datasetName": "fraud_caught_by_hour",
+                  "fields": [
+                    {
+                      "name": "simulated_hour",
+                      "expression": "`simulated_hour`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "simulated_hour",
+                    "queryName": "model_hour_pick_review_outcomes",
+                    "displayName": "One simulated hour"
+                  },
+                  {
+                    "fieldName": "simulated_hour",
+                    "queryName": "model_hour_pick_model_by_hour",
+                    "displayName": "One simulated hour"
+                  },
+                  {
+                    "fieldName": "simulated_hour",
+                    "queryName": "model_hour_pick_fraud_caught_by_hour",
+                    "displayName": "One simulated hour"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "One simulated hour"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 2,
+            "width": 3,
             "height": 2
           }
         },
@@ -608,7 +687,7 @@
           },
           "position": {
             "x": 0,
-            "y": 2,
+            "y": 4,
             "width": 2,
             "height": 3
           }
@@ -672,7 +751,7 @@
           },
           "position": {
             "x": 2,
-            "y": 2,
+            "y": 4,
             "width": 2,
             "height": 3
           }
@@ -722,7 +801,7 @@
           },
           "position": {
             "x": 4,
-            "y": 2,
+            "y": 4,
             "width": 2,
             "height": 3
           }
@@ -772,7 +851,7 @@
           },
           "position": {
             "x": 0,
-            "y": 5,
+            "y": 7,
             "width": 2,
             "height": 2
           }
@@ -822,7 +901,7 @@
           },
           "position": {
             "x": 2,
-            "y": 5,
+            "y": 7,
             "width": 2,
             "height": 2
           }
@@ -872,7 +951,7 @@
           },
           "position": {
             "x": 4,
-            "y": 5,
+            "y": 7,
             "width": 2,
             "height": 2
           }
@@ -955,7 +1034,7 @@
           },
           "position": {
             "x": 0,
-            "y": 7,
+            "y": 9,
             "width": 6,
             "height": 6
           }
@@ -1048,7 +1127,7 @@
           },
           "position": {
             "x": 0,
-            "y": 13,
+            "y": 15,
             "width": 6,
             "height": 6
           }

@@ -499,3 +499,13 @@ def test_reviews_sentence_claims_no_stack_order():  # D11 recheck: grey drew at 
 def test_run_detail_table_shows_more_than_one_row():  # D11 recheck: height 3 cut the second row in half
     item = next(i for p in BUILT["platform_health"]["pages"] for i in p["layout"] if i["widget"]["name"] == "detail_table")  # placed
     assert item["position"]["height"] >= 5  # title, sentence, header and a few rows
+
+
+def test_model_page_takes_a_drill_from_the_reviews_hours():  # D15b: no "Drill to" without a filter on the source dataset
+    pickers = [w for w in page_widgets("fraud_operations", "Is the model still good?")  # the page's filters
+               if w.get("spec", {}).get("widgetType") == "filter-single-select"]  # pick one hour
+    assert len(pickers) == 1  # one picker
+    assert bindings(pickers[0]) == {("review_outcomes", "simulated_hour"),  # the drill source fills it...
+                                    ("model_by_hour", "simulated_hour"),  # ...and it narrows the line...
+                                    ("fraud_caught_by_hour", "simulated_hour")}  # ...and the bars
+    assert "hour picker" in page_text("fraud_operations", "Is the model still good?")  # the header says it exists

@@ -373,7 +373,8 @@ def operations_dashboard() -> dict[str, Any]:  # "Fraud operations": reviewers, 
     outcomes = page("outcomes", "How did the reviews turn out?",  # page 2
         (header("outcomes_header", "How did the reviews turn out?",  # the question...
                 "Every flagged payment gets a verdict 3 simulated days later. Drag the slider or click a bar to "  # ...and
-                "narrow the totals and the chart together."), 4, 2),  # how to use the page
+                "narrow the totals and the chart together; right-click a bar, then Drill to, to see that hour "  # how to use the page...
+                "on the model page."), 4, 2),  # ...and reach the model page (D15b)
         (range_slider("outcomes_hours", "Simulated hours (24 per day)", [("review_outcomes", "simulated_hour")]), 2, 2),  # narrows the page
         (counter("fraud_total", "Confirmed fraud", "review_outcomes", ("cases", "Confirmed fraud"),  # 405 on all hours
                  "Flagged payments that really were fraud, in the hours shown.", aggregate="SUM",  # what it counts
@@ -389,10 +390,13 @@ def operations_dashboard() -> dict[str, Any]:  # "Fraud operations": reviewers, 
     )  # end outcomes
     model = page("model", "Is the model still good?",  # page 3
         (header("model_header", "Is the model still good?",  # the question...
-                "The slider narrows the two charts. The big numbers always cover every hour whose verdicts are in, "  # ...what moves
-                "and the shares compare the newest 24 of those hours with all of them."), 4, 2),  # ...and what the shares mean
+                "The slider and the hour picker narrow the two charts. The big numbers always cover every hour whose "  # ...what moves
+                "verdicts are in, and the shares compare the newest 24 of those hours with all of them."), GRID_WIDTH, 2),  # ...and what the shares mean
         (range_slider("model_hours", "Simulated hours (24 per day)", [("model_by_hour", "simulated_hour"),  # narrows the line...
-                                                         ("fraud_caught_by_hour", "simulated_hour")]), 2, 2),  # ...and the bars
+                                                         ("fraud_caught_by_hour", "simulated_hour")]), 3, 2),  # ...and the bars
+        (single_select("model_hour_pick", "One simulated hour", [("review_outcomes", "simulated_hour"),  # filled by a drill from reviews (D15b)
+                                                                 ("model_by_hour", "simulated_hour"),  # narrows the line...
+                                                                 ("fraud_caught_by_hour", "simulated_hour")]), 3, 2),  # ...and the bars
         (counter("flagged_share", "Flagged payments that were fraud, newest 24 hours with verdicts", "model_totals",  # share 1
                  ("newest_24h_share_flagged_that_were_fraud", "Newest 24 hours"),  # the value
                  "Of the payments we flagged, how many were really fraud, compared with all hours.",  # the comparison
