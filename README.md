@@ -7,11 +7,11 @@ are fraud. This project builds the system a bank's data team would use to
 catch it, on **Databricks** (the data platform many large companies use for
 this work) using only its free tier.
 
-### Incremental fraud detection on a Databricks lakehouse (file ingest as data lands, batch scoring), built in verified steps, measured rather than claimed
+### Streaming-ingest fraud detection on a Databricks lakehouse (hourly replay, batch scoring), built in verified steps, measured rather than claimed
 
 #### 🔁 How it works
 
-- 📥 **Transactions flow in continuously** — a live stream of simulated mobile-money payments
+- 📥 **Transactions arrive hour by hour** — simulated mobile-money payments replayed as a stream
 - 🧹 **Cleaned and organised** — checked against quality rules, with copies removed
 - 🤖 **Scored by a machine-learning model** — every new payment, after each load
 - 🚨 **Suspicious ones become alerts** — surfaced on a dashboard for a fraud team
@@ -75,8 +75,8 @@ A fraud verdict arrives **3 simulated days (72 hours) after** the payment, just 
 
 ## 📌 Project Overview
 
-This project implements **an event-driven fraud pipeline on the Databricks
-lakehouse**. Every architecture claim is checked against current docs or a
+This project implements **a streaming-ingest fraud pipeline with batch scoring on the
+Databricks lakehouse**. Every architecture claim is checked against current docs or a
 real run before it is adopted.
 
 It uses the [PaySim](https://www.kaggle.com/datasets/ealaxi/paysim1)
@@ -90,7 +90,7 @@ stream through **Auto Loader into a Unity Catalog medallion layout**.
 - **Staged failure scenarios**: duplicate delivery, late arrival, a new column mid-stream and malformed values, each switched on per run and each proven with a SQL check
 - **Jobs as code**: a Databricks job (release → ingest → silver, plus a `score` task from Phase 4, a `gold` SQL task from Phase 5, and a `monitor` SQL task with two dashboard refreshes from Phase 6a) and the Silver pipeline, declared in an Asset Bundle with shared catalog/schema variables and deployed from the workspace UI, with no token
 - **Guarded parameters**: scenario settings that can't take effect raise an error before any file is copied
-- **Tested and CI-gated**: 236 local unit tests, and a GitHub Actions job running hygiene checks plus tests on every push
+- **Tested and CI-gated**: 236 local tests, and a GitHub Actions job running hygiene checks plus tests on every push
 - **Exam-skills coverage map**: every Data Engineer Associate exam item mapped to repo evidence (18 of 33 shown), with short concept notes in [`docs/concepts/`](docs/concepts/)
 
 **✅ Implemented and verified (Phase 3: Silver)**
@@ -160,7 +160,7 @@ stream through **Auto Loader into a Unity Catalog medallion layout**.
 | 🔗 Code delivery | Databricks Git folder | Workspace runs use this repo at a known commit (G-12) |
 | 🐍 Language | Python 3.11, SQL | Splitter, release logic, scenario transforms, local Silver and Gold reference models (stdlib only); model code with scikit-learn and pandas; Silver and Gold in SQL |
 | 🧪 Testing | pytest (236 tests), PyYAML | Contract, split, scenarios, release, ingest options, job and pipeline definitions, Silver reference model and SQL guards, model windows, features, metrics, training and scoring, Gold calculator and Gold/governance SQL guards, monitoring SQL and dashboard guards |
-| ⚙️ CI | GitHub Actions | Hygiene check + unit tests on every push |
+| ⚙️ CI | GitHub Actions | Hygiene check + the full local pytest suite on every push |
 | 📊 Data | PaySim (CC BY-SA 4.0) | Synthetic mobile-money transactions with fraud labels |
 
 ---
@@ -303,7 +303,7 @@ flowchart LR
 
 | Phase | Layer | Status |
 |---|---|---|
-| 0 | Research, gaps register, ADRs | ✅ 22 of 22 gaps resolved (ADRs proposed, awaiting review) |
+| 0 | Research, gaps register, ADRs | ✅ 22 of 22 gaps resolved; ADRs 0001–0012 recorded (0004, 0005 superseded) |
 | 1 | Scaffolding, CI | ✅ Done |
 | 2 | Ingest to Bronze | ✅ Verified 2026-09-24 |
 | 3 | Silver and features | ✅ Verified 2026-10-06/07 (S1–S6) |
@@ -420,7 +420,7 @@ python -m pip install -r requirements-dev.txt
 
 #### 2. Run the checks
 ```bash
-python -m pytest -q      # 236 unit tests (or: make test)
+python -m pytest -q      # 236 local tests (or: make test)
 make check-hygiene       # no local-only or secret file is tracked
 make help                # lint / deploy / teardown are stubs until their phase lands
 ```
@@ -921,7 +921,7 @@ shown.
 
 ## 🔜 Roadmap
 
-- [x] Phase 0: research and ADRs (22 of 22 gaps resolved; ADRs proposed, awaiting review)
+- [x] Phase 0: research and ADRs (22 of 22 gaps resolved; ADRs 0001–0012 recorded, 0004 and 0005 superseded)
 - [x] Phase 1: scaffolding and CI
 - [x] Phase 2: ingest to Bronze (44 unit tests at ship; workspace V1–V6 verified 2026-09-24)
 - [x] Phase 3: Silver (quality rules with quarantine, dedup on `transaction_id`, strict-past velocity features; workspace S1–S6 verified 2026-10-06/07)
