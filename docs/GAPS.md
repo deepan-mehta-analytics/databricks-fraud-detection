@@ -49,7 +49,7 @@ Databricks Certified Data Engineer Associate syllabus versus what this
 project actually demonstrates.
 
 Moved to [exam-guide-map.md](exam-guide-map.md) (guide Exam Guide - May 2026,
-fetched 2026-09-27): 16 ✅ / 6 🟡 / 11 ⬜ of 33 (updated 2026-10-15).
+fetched 2026-09-27): 18 ✅ / 6 🟡 / 9 ⬜ of 33 (updated 2026-10-28).
 
 ---
 
