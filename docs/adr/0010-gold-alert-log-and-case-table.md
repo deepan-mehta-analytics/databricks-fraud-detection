@@ -3,6 +3,7 @@
 ## Status
 Proposed (2026-10-15). Builds on [ADR 0009](0009-batch-scoring-with-mlflow-and-unity-catalog.md):
 Gold reads the scoring decision log, `transaction_risk_scores`.
+Label-rule wording widened by [ADR 0012](0012-monitoring-dashboards-and-views.md) (2026-10-15): two statements, both behind the 72-hour cutoff.
 
 ## Context
 Phase 4 writes one risk score per payment. A fraud team needs more than

@@ -279,6 +279,34 @@ rows for the test user and none for the owner.
 
 ---
 
+## ADR 0012 — Monitoring with views, two AI/BI dashboards, and system tables
+
+**Brief assumed:** a Streamlit app showing a 95th-percentile per-payment
+latency, plus a nightly 2 AM retrain.
+**We found:** scoring is batch, so per-payment latency has no meaning; the
+useful number is how long a payment waited from landing to scored in the
+latest run. The retrain was already rejected (ADR 0009). Free Edition exposes
+`system.lakeflow`, but its duration columns are 0, so minutes must come from
+period start and end times. An app works on Free Edition but would use one of
+3 app slots and re-implement the per-viewer security that dashboards get for
+free.
+**We decided:** plain views rebuilt and re-granted by a `monitor` task; two
+AI/BI dashboards per audience (Fraud operations for all three groups, Platform
+health for engineers) running with viewer credentials; two dashboard refresh
+tasks; job history from `system.lakeflow` matched by name. Both dashboards
+are generated from Python, share one theme and meaning colours, and support
+sliders, cross-filtering and drill-through.
+**Trade-off, stated plainly:** no live auto-refresh, job rows up to an hour
+late, no single-payment drill-down, and the refresh tasks only refresh the
+owner's cached view.
+**Verified 2026-10-15 to 2026-10-28:** run E took 17 min 9 s with all 8 tasks
+green; the dashboards showed 405 confirmed fraud of 2,916 checked and 822 in
+all, matching the local calculator; a manager saw 0 open cases and was refused
+Platform health; every restyle check (D11–D17) passed.
+→ [ADR 0012](adr/0012-monitoring-dashboards-and-views.md)
+
+---
+
 ## Reading this alongside the code
 
 Every decision above is `Proposed`, not yet `Accepted` — that flip happens
