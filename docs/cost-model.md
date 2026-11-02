@@ -75,6 +75,13 @@ on their own (GAPS MON-REFRESH). Phase 6a used one job run (E); the restyle
 checks (D11–D17) needed no job run at all, only deploys and dashboard
 refreshes. Cost: ₹0.
 
+**Alerting's share (Phase 6b):** the two health checks are SQL alerts
+with paused schedules, so they run only as the last two tasks of a job
+run: two small queries on the SQL warehouse per run, never on their own.
+Job notification emails cost nothing to send. Phase 6b used one job run,
+deliberately failed in `release` before any copy (V4, not timed), plus a
+few SQL-editor checks and two hand-made alert runs. Cost: ₹0.
+
 **Daily limit, observed (G-08):** on 2026-10-10 the 4th full `fraud-ingest`
 run of the day was refused with `CLUSTER_CREATION_RESOURCE_EXHAUSTED` after 3
 runs had completed, and the limit also stopped a run on 2026-10-08. On
@@ -101,3 +108,4 @@ teardown here, with no cluster IDs or account identifiers (this repo is public).
 | Date | Resource | Action | Confirmed by |
 |---|---|---|---|
 | 2026-10-15 | Probe Databricks App (P2, Streamlit template) and its service principal | Deleted; the service principal disappeared with it, so no app slot stays used | Owner, in the Apps and Service principals screens (GAPS G-21) |
+| 2026-11-02 | Hand-made probe alert (P4) and drill alert (V6) | Deleted after their emails arrived, so no extra alert keeps a schedule | Owner, in the Alerts list |
