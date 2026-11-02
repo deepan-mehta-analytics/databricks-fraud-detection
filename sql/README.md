@@ -65,3 +65,8 @@ roles (G-06).
   `scripts/expected_gold.py --monitoring` inline, including a block for the
   test user in `fraud_managers`. D5–D8 and D12 each return one row ending in
   `all_as_expected`, so one Run shows the check.
+- `62_verify_health_checks.sql` — the alerting checks V1a–V1d: the two health
+  checks' own questions (stages behind, rejected rows; 0 when all is well)
+  and two changed copies that show a problem would be caught (expected 5
+  and 1). A test keeps V1a and V1b identical to the deployed queries in
+  `resources/fraud_health_checks.yml`.

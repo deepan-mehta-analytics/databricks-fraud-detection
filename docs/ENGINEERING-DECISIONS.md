@@ -307,6 +307,36 @@ Platform health; every restyle check (D11–D17) passed.
 
 ---
 
+## ADR 0013 — Alerting emails from job notifications and two health checks
+
+**Brief assumed:** email or Slack alerts on a fraud spike ("> 5% in 10 mins").
+**We found:** the alert queue is a fixed 50 payments per simulated hour,
+and on the test period about 14% of flagged payments were fraud, so a
+5% rule would fire on every hour. Data arrives once per job run, not
+every 10 minutes. Free Edition can send alert email, measured in a
+hand-made probe: SQL alerts exist, "Run alert" needs a schedule, and
+the email arrived in about a minute. It has no Slack or webhook
+destinations. What actually needed a push was the system's own health:
+a failed or slow run, a stage left behind, new rejected rows.
+**We decided:** job notifications (failure, and a 30-minute duration rule)
+plus two SQL alerts in the bundle (stages behind, rejected rows). Two alert
+tasks run them as the job's last tasks with Run if: All done; the alerts'
+own schedules stay paused. Emails go to the deploying engineer only (the
+address is filled in at deploy). Subjects start "System health check:",
+and every body opens by saying no payment needs review, so they can't be
+mistaken for fraud alerts.
+**Trade-off, stated plainly:** the 30-minute email and the alerts' own "back
+to normal" email are configured but not yet seen. A failure after `release`
+can send two emails. Databricks adds a fixed frame to every alert email.
+Fraud-level alerting (model quality) waits for Phase 6c.
+**Verified 2026-11-02:** each check's question gave 0 / 0 / 5 / 1 as written
+in the spec. A run made to fail before copying anything still ran both
+checks and sent its failure email, with the release log unchanged. A drill
+email arrived in about a minute with its placeholders filled in.
+→ [ADR 0013](adr/0013-alerting-emails-and-health-checks.md)
+
+---
+
 ## Reading this alongside the code
 
 Every decision above is `Proposed`, not yet `Accepted` — that flip happens
