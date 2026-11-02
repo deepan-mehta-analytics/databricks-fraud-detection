@@ -1,6 +1,6 @@
 # tests/
 
-`python -m pytest -q` runs 236 tests, all local (no Databricks needed):
+`python -m pytest -q` runs 251 tests, all local (no Databricks needed):
 
 - `test_contract.py` — segment boundaries, file naming, transaction ID and
   timestamp derivation, schema hints, volume paths.
@@ -15,7 +15,7 @@
 - `test_ingest.py` — Auto Loader option construction and that the module
   imports without PySpark installed.
 - `test_job_definition.py` — parses `resources/fraud_ingest_job.yml` and
-  checks the eight tasks (release, ingest, silver, score, gold, monitor and the two dashboard refreshes), the Gold SQL tasks on the warehouse found by name, retry, schedule and
+  checks the ten tasks (release, ingest, silver, score, gold, monitor, the two dashboard refreshes and the two health checks, which run after monitor with Run if: All done and add no subscribers), the failure and 30-minute emails to the deploying user, the Gold SQL tasks on the warehouse found by name, retry, schedule and
   parameter list (release and scoring options), the on-demand
   `fraud_train` job and its defaults, plus the `fraud_silver` pipeline resource (serverless,
   triggered, anchor, the four SQL files in order), and that the job and
@@ -83,7 +83,15 @@
   datasets, the one-hour picker that lets a reviews hour drill to the model
   page (D15), the sentence explaining a blank total after a click, and the
   README's word list matching the dashboards word for word.
+- `test_health_checks.py` — the two health checks (SQL alerts): the
+  approved names, paused schedules, a condition above 0, one email then
+  a back-to-normal email to the deploying user only, read-only queries
+  over released hours, an empty stage counted as fully behind, no closing
+  semicolon or trailing comment, the exact email wording (subject starting
+  System health check, the no-payment opening, only allowed HTML tags),
+  the SQL-editor checks asking the deployed questions, and no address,
+  URL or ID in any resource file.
 
 Notebook behavior, the Delta tables, the Silver pipeline and the model
-registry are verified by workspace runs (V1–V6, S1–S6, M1–M8, G1–G11, D1–D17), not by this
+registry are verified by workspace runs (V1–V6, S1–S6, M1–M8, G1–G11, D1–D17, and P4 plus V1–V7 for alerting), not by this
 local suite.
