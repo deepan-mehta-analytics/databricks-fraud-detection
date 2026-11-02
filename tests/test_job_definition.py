@@ -28,7 +28,8 @@ def load_pipeline() -> dict:  # load and return the fraud_silver pipeline block 
 def test_tasks_run_release_ingest_silver_score_gold_then_monitor():  # verify task graph and retry policy
     tasks = {t["task_key"]: t for t in load_job()["tasks"]}  # tasks by key
     assert set(tasks) == {"release", "ingest", "silver", "score", "gold",  # load and alert...
-                          "monitor", "refresh_operations", "refresh_platform"}  # ...then monitor (no export: R2 unreachable, measured)
+                          "monitor", "refresh_operations", "refresh_platform",  # ...then monitor (no export: R2 unreachable, measured)...
+                          "check_stages_behind", "check_rejected_rows"}  # ...then the two health checks (Phase 6b)
     assert tasks["ingest"]["depends_on"] == [{"task_key": "release"}]  # ingest waits for release
     assert tasks["silver"]["depends_on"] == [{"task_key": "ingest"}]  # Silver waits for Bronze
     assert tasks["score"]["depends_on"] == [{"task_key": "silver"}]  # scoring waits for features
@@ -138,6 +139,36 @@ def test_monitor_and_refresh_tasks_follow_gold_on_the_looked_up_warehouse():  # 
         assert tasks[key]["dashboard_task"] == {  # the bundle's own dashboard...
             "dashboard_id": f"${{resources.dashboards.{dashboard}.id}}", "warehouse_id": "${var.warehouse_id}"}, key  # ...no ID in the repo
     assert all("max_retries" not in tasks[k] for k in ("monitor", "refresh_operations", "refresh_platform"))  # failures stay loud
+
+
+HEALTH_CHECK_TASKS = {"check_stages_behind": "fraud_health_stages_behind",  # task key -> alert resource key...
+                      "check_rejected_rows": "fraud_health_rejected_rows"}  # ...(resources/fraud_health_checks.yml)
+RECIPIENT = "${workspace.current_user.userName}"  # the deploying engineer, filled in at deploy (no address in the repo)
+
+
+def test_job_emails_the_deploying_user_on_failure_and_long_runs():  # Phase 6b spec §5.1
+    job = load_job()  # the job block
+    assert job["health"] == {"rules": [{"metric": "RUN_DURATION_SECONDS", "op": "GREATER_THAN", "value": 1800}]}  # over 30 minutes
+    assert job["email_notifications"] == {"on_failure": [RECIPIENT],  # failed, timed out or internal error...
+                                          "on_duration_warning_threshold_exceeded": [RECIPIENT]}  # ...or too long; nothing else
+    assert job["notification_settings"] == {"no_alert_for_canceled_runs": True,  # a cancel by hand is not a fault...
+                                            "no_alert_for_skipped_runs": True}  # ...nor a skipped overlapping run
+
+
+def test_health_check_tasks_run_last_even_after_a_failure():  # Review Focus 1, spec §4-5.5
+    tasks = {t["task_key"]: t for t in load_job()["tasks"]}  # tasks by key
+    for key, alert in HEALTH_CHECK_TASKS.items():  # both checks
+        assert tasks[key]["depends_on"] == [{"task_key": "monitor"}], key  # last in the run
+        assert tasks[key]["run_if"] == "ALL_DONE", key  # also after an earlier failure
+        assert tasks[key]["alert_task"]["alert_id"] == f"${{resources.alerts.{alert}.id}}", key  # the bundle's own alert, no ID
+        assert tasks[key]["alert_task"]["warehouse_id"] == "${var.warehouse_id}", key  # looked up by name
+        assert "max_retries" not in tasks[key], key  # a broken check stays loud
+
+
+def test_health_check_tasks_add_no_subscribers():  # Review Focus 5: one email per problem, sent by the alert
+    tasks = {t["task_key"]: t for t in load_job()["tasks"]}  # tasks by key
+    for key in HEALTH_CHECK_TASKS:  # both checks
+        assert "subscribers" not in tasks[key]["alert_task"], key  # the alert's own recipient only
 
 
 def test_bundle_does_not_sync_dashboard_files():  # ruling R9: the bundle docs' advice against duplicate dashboards

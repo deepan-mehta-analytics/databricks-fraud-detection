@@ -1,9 +1,23 @@
 # ── Job: release, ingest, refresh Silver, score, raise Gold alerts, then rebuild the monitoring views and refresh both dashboards (ADR 0007-0012); no export task: R2 is unreachable from Free Edition ──
+# ── Alerting emails (ADR 0013): the deploying engineer hears about a failed or too-long run, and two health checks run last on every run ──
 resources:                                        # bundle resources
   jobs:                                           # job resources
     fraud_ingest:                                 # resource key (used in tests)
       name: fraud-ingest                          # job name in the workspace
       max_concurrent_runs: 1                      # never overlap release runs
+      health:                                     # job health rules
+        rules:                                    # one rule
+          - metric: RUN_DURATION_SECONDS          # whole-run time
+            op: GREATER_THAN                      # the only operator offered
+            value: 1800                           # 30 minutes; slowest measured run 17 m 9 s (Phase 6a run E)
+      email_notifications:                        # job-level alerting emails
+        on_failure:                               # run ended failed, timed out or with an internal error
+          - ${workspace.current_user.userName}    # the deploying engineer, filled in at deploy (no address in the repo)
+        on_duration_warning_threshold_exceeded:   # the health rule above was crossed
+          - ${workspace.current_user.userName}    # the same engineer
+      notification_settings:                      # noise control
+        no_alert_for_canceled_runs: true          # a cancel by hand is not a fault
+        no_alert_for_skipped_runs: true           # a run skipped by max_concurrent_runs is not a fault
       schedule:                                   # hands-off demo schedule
         quartz_cron_expression: "0 0/10 * * * ?"  # every 10 minutes
         timezone_id: UTC                          # schedule clock
@@ -80,4 +94,18 @@ resources:                                        # bundle resources
             - task_key: monitor                   # after the views are rebuilt
           dashboard_task:                         # refreshes as the job's run-as identity (ruling R1)
             dashboard_id: ${resources.dashboards.platform_health.id}  # resolved at deploy time; no ID in the repo
+            warehouse_id: ${var.warehouse_id}     # looked up by name at deploy time
+        - task_key: check_stages_behind           # health check: is any stage behind the newest hour released?
+          depends_on:                             # ordering
+            - task_key: monitor                   # last in the run
+          run_if: ALL_DONE                        # also after an earlier task failed
+          alert_task:                             # evaluates a SQL alert; its own email goes to its own recipient
+            alert_id: ${resources.alerts.fraud_health_stages_behind.id}  # resolved at deploy time; no ID in the repo
+            warehouse_id: ${var.warehouse_id}     # looked up by name at deploy time
+        - task_key: check_rejected_rows           # health check: did Silver set aside rows in the newest 24 hours?
+          depends_on:                             # ordering
+            - task_key: monitor                   # last in the run
+          run_if: ALL_DONE                        # also after an earlier task failed
+          alert_task:                             # evaluates a SQL alert; its own email goes to its own recipient
+            alert_id: ${resources.alerts.fraud_health_rejected_rows.id}  # resolved at deploy time; no ID in the repo
             warehouse_id: ${var.warehouse_id}     # looked up by name at deploy time
