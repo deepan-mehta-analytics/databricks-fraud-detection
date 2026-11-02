@@ -14,19 +14,22 @@ CHECKS_FILE = ROOT / "resources" / "fraud_health_checks.yml"        # the two he
 RECIPIENT = "${workspace.current_user.userName}"                    # filled in at deploy; no address in the repo
 OPENING = ("This email is about the data system that feeds the fraud checks, "  # fixed first sentence (owner 2026-11-02)...
            "not about any payment or customer. No payment needs review because of it.")  # ...word for word
-STATUS_LINE = "Status {{ALERT_STATUS}}: TRIGGERED means it needs a look, OK means it is back to normal."  # translates the status word
+STATUS_PART = "<p><b>Status:</b> {{ALERT_STATUS}} <i>(TRIGGERED = needs a look, OK = back to normal)</i></p>"  # translates the status word
 PAGE = 'open the Platform health dashboard, page "Is the data fresh and clean?",'  # where to look (real page title)
-EXPECTED_TEXT = {                                                    # spec §5.4, word for word
+ALLOWED_TAGS = {"p", "b", "i"}                                       # subset of the standard editor's HTML allowlist (docs 2026-10-15)
+EXPECTED_TEXT = {                                                    # spec §5.4, word for word (HTML layout, owner 2026-11-02)
     "fraud_health_stages_behind": (                                  # stages check
         "System health check: stages behind",                        # display name
-        "System health check: stages behind, status {{ALERT_STATUS}}",  # email subject
-        f"{OPENING} {STATUS_LINE} The slowest stage is {{{{QUERY_RESULT_VALUE}}}} hours behind the newest hour released. "  # what happened
-        f"What to do: {PAGE} find the stage that stopped, and check that task in the latest fraud-ingest run."),  # what to do
+        "System health check: stages behind (status: {{ALERT_STATUS}})",  # email subject (plain text)
+        f"<p>{OPENING}</p>{STATUS_PART}"                             # opening, status
+        "<p><b>What was found:</b> hours the slowest stage is behind the newest hour released: {{QUERY_RESULT_VALUE}}</p>"  # the number last, like a label
+        f"<p><b>What to do:</b> {PAGE} find the stage that stopped, and check that task in the latest fraud-ingest run.</p>"),  # action
     "fraud_health_rejected_rows": (                                  # rejected-rows check
         "System health check: rejected rows",                        # display name
-        "System health check: rejected rows, status {{ALERT_STATUS}}",  # email subject
-        f"{OPENING} {STATUS_LINE} {{{{QUERY_RESULT_VALUE}}}} rows in the newest 24 hours were set aside because they failed a data check. "  # what happened
-        f"What to do: {PAGE} to see the reason and hour."),          # what to do
+        "System health check: rejected rows (status: {{ALERT_STATUS}})",  # email subject (plain text)
+        f"<p>{OPENING}</p>{STATUS_PART}"                             # opening, status
+        "<p><b>What was found:</b> rows set aside in the newest 24 hours because they failed a data check: {{QUERY_RESULT_VALUE}}</p>"  # the number last
+        f"<p><b>What to do:</b> {PAGE} to see the reason and hour.</p>"),  # action
 }                                                                    # end of the approved text
 SOURCE_COLUMN = {"fraud_health_stages_behind": "hours_behind",       # the number each check tests
                  "fraud_health_rejected_rows": "new_rejected_rows"}  # ...per check
@@ -102,12 +105,14 @@ def test_email_text_is_plain_words():  # owner 2026-11-02: subject says the kind
         assert check["custom_summary"] == summary                        # subject, word for word
         assert check["custom_description"] == description                # body, word for word
         for text in (check["display_name"], summary, description):      # everything a reader sees
-            assert text.startswith(("System health check:", OPENING))    # kind of email first
+            assert text.startswith(("System health check:", f"<p>{OPENING}</p>"))  # kind of email first
             assert not re.search(r"fraud alert", text, re.I)             # never confused with a flagged payment
             assert not jargon.search(text), text                         # plain words
             leftover = text.replace("the fraud checks", "").replace("fraud-ingest", "")  # the two allowed uses
             assert "fraud" not in leftover.lower(), text                 # no other mention of fraud
-        assert description.startswith(OPENING) and "What to do:" in description  # opening first, an action last
+        assert description.startswith(f"<p>{OPENING}</p>") and "<b>What to do:</b>" in description  # opening first, an action last
+        assert set(re.findall(r"</?([a-z0-9]+)", description)) == ALLOWED_TAGS  # only tags the email editor allows
+        assert "<" not in summary                                        # the subject stays plain text
         assert "{{QUERY_RESULT_VALUE}}" in description                   # the number is shown
 
 

@@ -28,8 +28,8 @@ resources:                                          # bundle resources
           retrigger_seconds: 0                      # one email per problem, not one per run
           subscriptions:                            # recipients
             - user_email: ${workspace.current_user.userName}  # the deploying engineer, filled in at deploy time
-      custom_summary: "System health check: stages behind, status {{ALERT_STATUS}}"  # email subject: the kind of email first
-      custom_description: 'This email is about the data system that feeds the fraud checks, not about any payment or customer. No payment needs review because of it. Status {{ALERT_STATUS}}: TRIGGERED means it needs a look, OK means it is back to normal. The slowest stage is {{QUERY_RESULT_VALUE}} hours behind the newest hour released. What to do: open the Platform health dashboard, page "Is the data fresh and clean?", find the stage that stopped, and check that task in the latest fraud-ingest run.'  # email body in plain words
+      custom_summary: "System health check: stages behind (status: {{ALERT_STATUS}})"  # email subject (plain text): the kind of email first
+      custom_description: '<p>This email is about the data system that feeds the fraud checks, not about any payment or customer. No payment needs review because of it.</p><p><b>Status:</b> {{ALERT_STATUS}} <i>(TRIGGERED = needs a look, OK = back to normal)</i></p><p><b>What was found:</b> hours the slowest stage is behind the newest hour released: {{QUERY_RESULT_VALUE}}</p><p><b>What to do:</b> open the Platform health dashboard, page "Is the data fresh and clean?", find the stage that stopped, and check that task in the latest fraud-ingest run.</p>'  # email body: HTML paragraphs with bold labels (standard editor allowlist)
       schedule:                                     # required by Databricks
         quartz_cron_schedule: "0 0 6 * * ?"         # a daily slot, never used while paused
         timezone_id: UTC                            # schedule clock
@@ -56,8 +56,8 @@ resources:                                          # bundle resources
           retrigger_seconds: 0                      # one email per problem, not one per run
           subscriptions:                            # recipients
             - user_email: ${workspace.current_user.userName}  # the deploying engineer, filled in at deploy time
-      custom_summary: "System health check: rejected rows, status {{ALERT_STATUS}}"  # email subject: the kind of email first
-      custom_description: 'This email is about the data system that feeds the fraud checks, not about any payment or customer. No payment needs review because of it. Status {{ALERT_STATUS}}: TRIGGERED means it needs a look, OK means it is back to normal. {{QUERY_RESULT_VALUE}} rows in the newest 24 hours were set aside because they failed a data check. What to do: open the Platform health dashboard, page "Is the data fresh and clean?", to see the reason and hour.'  # email body in plain words
+      custom_summary: "System health check: rejected rows (status: {{ALERT_STATUS}})"  # email subject (plain text): the kind of email first
+      custom_description: '<p>This email is about the data system that feeds the fraud checks, not about any payment or customer. No payment needs review because of it.</p><p><b>Status:</b> {{ALERT_STATUS}} <i>(TRIGGERED = needs a look, OK = back to normal)</i></p><p><b>What was found:</b> rows set aside in the newest 24 hours because they failed a data check: {{QUERY_RESULT_VALUE}}</p><p><b>What to do:</b> open the Platform health dashboard, page "Is the data fresh and clean?", to see the reason and hour.</p>'  # email body: HTML paragraphs with bold labels (standard editor allowlist)
       schedule:                                     # required by Databricks
         quartz_cron_schedule: "0 0 6 * * ?"         # a daily slot, never used while paused
         timezone_id: UTC                            # schedule clock
