@@ -1,0 +1,64 @@
+# ── Health checks: two SQL alerts that send alerting emails about the data system, not about payments (ADR 0013, Phase 6b) ──
+# Each schedule is required by Databricks but PAUSED: the checks run only as the last tasks of fraud-ingest, so they cost no extra runs.
+# Need-to-know: the only recipient is the engineer who deploys the bundle; managers and reviewers never get these emails.
+resources:                                          # bundle resources
+  alerts:                                           # SQL alerts (v2)
+    fraud_health_stages_behind:                     # resource key (the job's check task points here)
+      display_name: "System health check: stages behind"  # title in the Alerts list
+      warehouse_id: ${var.warehouse_id}             # looked up by name at deploy time; no ID in the repo
+      query_text: |                                 # how many hours the slowest stage is behind the newest hour released
+        WITH newest AS (                                                          -- newest hour at each stage
+          SELECT (SELECT MAX(step) FROM workspace.fraud.release_log
+                  WHERE status = 'released')                    AS released,      -- held hours excluded
+                 (SELECT MAX(step) FROM workspace.fraud.bronze_transactions) AS ingested,  -- Bronze
+                 (SELECT MAX(step) FROM workspace.fraud.silver_transactions) AS cleaned,   -- Silver
+                 (SELECT MAX(step) FROM workspace.fraud.transaction_risk_scores) AS scored) -- model
+        SELECT GREATEST(released - ingested, released - cleaned, released - scored) AS hours_behind  -- worst gap
+        FROM newest;                                                              -- always one row
+      evaluation:                                   # when to send the email
+        source:                                     # the number tested
+          name: hours_behind                        # first row of this column
+        comparison_operator: GREATER_THAN           # more than...
+        threshold:                                  # ...this value
+          value:                                    # a fixed number
+            double_value: 0                         # any gap at all
+        empty_result_state: TRIGGERED               # no answer counts as a problem (cannot happen: one row always)
+        notification:                               # who hears about it, and how often
+          notify_on_ok: true                        # a "back to normal" email when it clears
+          retrigger_seconds: 0                      # one email per problem, not one per run
+          subscriptions:                            # recipients
+            - user_email: ${workspace.current_user.userName}  # the deploying engineer, filled in at deploy time
+      custom_summary: "System health check: stages behind, status {{ALERT_STATUS}}"  # email subject: the kind of email first
+      custom_description: 'This email is about the data system that feeds the fraud checks, not about any payment or customer. No payment needs review because of it. Status {{ALERT_STATUS}}: TRIGGERED means it needs a look, OK means it is back to normal. The slowest stage is {{QUERY_RESULT_VALUE}} hours behind the newest hour released. What to do: open the Platform health dashboard, page "Is the data fresh and clean?", find the stage that stopped, and check that task in the latest fraud-ingest run.'  # email body in plain words
+      schedule:                                     # required by Databricks
+        quartz_cron_schedule: "0 0 6 * * ?"         # a daily slot, never used while paused
+        timezone_id: UTC                            # schedule clock
+        pause_status: PAUSED                        # evaluated only by the job's check task
+
+    fraud_health_rejected_rows:                     # resource key (the job's check task points here)
+      display_name: "System health check: rejected rows"  # title in the Alerts list
+      warehouse_id: ${var.warehouse_id}             # looked up by name at deploy time; no ID in the repo
+      query_text: |                                 # rows Silver set aside in the newest 24 released hours
+        SELECT COUNT(*) AS new_rejected_rows                                      -- rows set aside
+        FROM workspace.fraud.silver_rejected_transactions                         -- the rejected shelf
+        WHERE step > (SELECT MAX(step) FROM workspace.fraud.release_log
+                      WHERE status = 'released') - 24;                            -- newest 24 released hours
+      evaluation:                                   # when to send the email
+        source:                                     # the number tested
+          name: new_rejected_rows                   # first row of this column
+        comparison_operator: GREATER_THAN           # more than...
+        threshold:                                  # ...this value
+          value:                                    # a fixed number
+            double_value: 0                         # any rejected row at all
+        empty_result_state: TRIGGERED               # no answer counts as a problem (cannot happen: one row always)
+        notification:                               # who hears about it, and how often
+          notify_on_ok: true                        # a "back to normal" email once the bad hour leaves the window
+          retrigger_seconds: 0                      # one email per problem, not one per run
+          subscriptions:                            # recipients
+            - user_email: ${workspace.current_user.userName}  # the deploying engineer, filled in at deploy time
+      custom_summary: "System health check: rejected rows, status {{ALERT_STATUS}}"  # email subject: the kind of email first
+      custom_description: 'This email is about the data system that feeds the fraud checks, not about any payment or customer. No payment needs review because of it. Status {{ALERT_STATUS}}: TRIGGERED means it needs a look, OK means it is back to normal. {{QUERY_RESULT_VALUE}} rows in the newest 24 hours were set aside because they failed a data check. What to do: open the Platform health dashboard, page "Is the data fresh and clean?", to see the reason and hour.'  # email body in plain words
+      schedule:                                     # required by Databricks
+        quartz_cron_schedule: "0 0 6 * * ?"         # a daily slot, never used while paused
+        timezone_id: UTC                            # schedule clock
+        pause_status: PAUSED                        # evaluated only by the job's check task
