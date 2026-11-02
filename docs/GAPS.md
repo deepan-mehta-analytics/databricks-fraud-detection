@@ -37,6 +37,8 @@ run. Seeded 2026-09-21 from open questions raised when the brief was captured
 | G-20 | (Phase 6a, not in the brief) Free Edition exposes the system tables a job-health page needs | Whether `system.lakeflow` exists and is readable, and whether its duration columns are filled | SQL probes P1/D1b, then real runs (D3a, D7) | **Readable, with two catches, verified 2026-10-15 and 2026-10-19.** P1: `SHOW SCHEMAS IN system` listed 12 schemas including `lakeflow`, and `job_run_timeline` returned rows. D1b: `system.lakeflow` holds `jobs`, `job_tasks`, `job_run_timeline`, `job_task_run_timeline`, `pipelines`, `pipeline_update_timeline`, `zerobus_ingest`, `zerobus_stream`. Catch 1: every `*_duration_seconds` column was 0, so minutes come from `period_end_time − period_start_time`, grouped per run. D3a found 0 zero-minute rows that way; D7 read run E back as 17.2 minutes against 17 m 9 s in the Jobs UI. Catch 2: rows arrive up to an hour after a run ends (the jobs docs say "typically available within one hour"). The job's own dashboard refresh therefore showed the run before it until a manual Refresh (D7) | ✅ Resolved (ADR 0012) |
 | G-21 | (Phase 6a) A Databricks App gets a working service principal on Free Edition | Feeds the Phase 3 add-on, whose blocker was "can this workspace have a service principal at all" | Probe P2: install a template app, check the service principal, delete both | **Works, verified 2026-10-15.** A Streamlit "Hello World" template app ran (a consent screen came first). A service principal with the app's name was listed under Settings → Identity and access → Service principals (Source: Databricks) and was removed when the app was deleted. An "Add service principal" button is present. The Phase 3 add-on's blocker shrinks to: can an owner-created service principal get a secret (OAuth) for CI? That is still open | ✅ Resolved (add-on question narrowed, still open) |
 | G-22 | (Phase 6a) A job's dashboard task refreshes what viewers see, and viewer credentials keep each group's rules | The dashboard task's documented behaviour, and what a manager really sees | Dashboard task docs (fetched 2026-10-15) + real runs D8, D9, D16 | **Both tasks run; they refresh the owner's cached view only.** The docs say that without shared data permissions the task refreshes as the job's identity, and other viewers "can't see refreshed results produced by the Run as identity"; with viewer credentials their screens query live data when opened. D9: `refresh_operations` (51.3 s) and `refresh_platform` (2 m 5 s) succeeded on run E. D8 (2026-10-19) and D16 (2026-10-28): the test user in `fraud_managers` saw 0 open cases, the same model numbers as the owner, and was refused Platform health and the `job_run_times` view (42501) | ✅ Resolved (ADR 0012) |
+| G-23 | (Phase 6b, not in the brief) Free Edition can send alert emails from SQL alerts and job notifications | Whether alerts exist, where messages can go, and how a bundle-made alert behaves | Hand-made probe P4, then checks V1–V7 | **Works, verified 2026-11-02.** P4: SQL alerts exist and save themselves; **Run alert stays disabled until the alert has a schedule**; Notify lists only the workspace's 2 users (no Slack or webhook destinations); the email arrived in about 1 minute. V2/V3: the deploy accepted the `alerts` resource and `alert_task`, filled in `${workspace.current_user.userName}` as a real address, and left both alerts paused. V6: placeholders such as `{{QUERY_RESULT_VALUE}}` fill in with the standard template editor (numbers arrive as decimals, "5.0"); the Markdown editor uses `@VAR` and has no result value; bundle text lands in the standard editor, where HTML renders as formatted email. Databricks adds a fixed frame ("… was TRIGGERED", a line naming the alert's owner by address, a "View alert run" link), and the job's failure email wording can't be changed | ✅ Resolved (ADR 0013) |
+| G-24 | (Phase 6b) Health checks run, and stay quiet, after an earlier task fails | `run_if: ALL_DONE` after an upstream failure is not described in the docs read; the proof must not move the data | V4: one run with `steps_per_run = 0` | **Runs, verified 2026-11-02.** `release` failed on its own guard (`ValueError: steps_per_run must be at least 1`) before copying anything; both check tasks ran green and stayed quiet; the run ended Failed and the failure email arrived; the release log stayed at 480 / 484. **Not proven:** the duration email (needs a run over 30 minutes) and whether it arrives mid-run; the bundle alerts' own "back to normal" email (needs data past hour 480, Phase 6c) | 🟡 Partly verified (ADR 0013) |
 
 Add a row whenever research contradicts the brief. Resolved rows stay in the
 table with their decision, so the reasoning remains auditable.
@@ -49,7 +51,7 @@ Databricks Certified Data Engineer Associate syllabus versus what this
 project actually demonstrates.
 
 Moved to [exam-guide-map.md](exam-guide-map.md) (guide Exam Guide - May 2026,
-fetched 2026-09-27): 18 ✅ / 6 🟡 / 9 ⬜ of 33 (updated 2026-10-28).
+fetched 2026-09-27): 18 ✅ / 6 🟡 / 9 ⬜ of 33 (updated 2026-11-02; 6b added evidence, no status change).
 
 ---
 
@@ -83,6 +85,10 @@ a bullet in the README's Known Limitations.
 | MON-DRILL | No drill-down to a single payment from the dashboards | That is a case tool's job. The review queue already lists each open flagged payment with its risk score |
 | MON-CLICK | Clicking the red or grey part of a stacked reviews bar also picks that verdict, so the other total shows "No data" | Standard Databricks cross-filtering. The alternatives either risk the meaning colours (a two-measure bar), are wiped by the next deploy ("Ignored filters"), or drop the click narrowing. The page header explains it (ADR 0012) |
 | MON-SORT | "Sort by value" is ignored on horizontal bars, so the task charts keep Databricks' own order | Seen in D11. The chart sentences promise no order; the slowest task is marked by colour instead |
+| ALERT-DURATION | The "run took too long" email is configured (over 1,800 seconds) but never seen | Proving it would cost a 30-minute run or a fake slow task on a quota of about 3 runs a day. The setting is one documented field, pinned by a CI test (G-24) |
+| ALERT-DOUBLE | A run that fails after `release` can send two emails: the failure email and a "stages behind" email, then a "back to normal" one after the next good run | The price of `Run if: All done`, which keeps the data checks running after a failure (V4). Each email says what it is about |
+| ALERT-WINDOW | The rejected-rows check counts rows by their simulated hour, so a rejected row with a missing or garbled hour, or a late file for an old hour, falls outside the newest 24 hours | No scenario in this repo produces such rows: the malformed scenario breaks amounts only. The Platform health dashboard still lists every rejected row by reason |
+| ALERT-FRAME | Alert emails carry Databricks' fixed frame, including a line naming the alert's owner by address, and show numbers as decimals ("5.0") | Can't be changed from the template. The body puts the number at the end of a label, and public screenshots show only the body (V7) |
 
 ---
 
@@ -178,3 +184,20 @@ run E. Role checks used the test user in `fraud_managers`.
 | D15 | Drill-through | Run bar → Run detail with that run; reviews hour → model page for that hour | Run detail ✅. Model page missing from "Drill to" until a one-hour picker bound to the reviews dataset was added (`7dcecf2`) | ✅ after fix |
 | D16 | Manager view after the restyle | Theme; queue 0 with its explanation; same numbers; Platform health not offered | As expected | ✅ |
 | D17 | Table cell colours | Slow runs blue, 0 hours behind green, set-aside rows red, outcome and job pastels | As expected; Cancelled runs grey | ✅ |
+
+---
+
+## 8. Workspace verification log (alerting emails, V1–V7)
+
+Real checks on Databricks Free Edition, 2026-11-02, at commits `09a9578`–`b42b71a` (the email layout changed afterwards in `6f65440`). Expected values were written in the spec before any check. The data stayed at hour 480 throughout.
+
+| ID | Check | Expected | Measured | Result |
+|---|---|---|---|---|
+| P4 | Hand-made alert (`SELECT 1 AS test_value`, `> 0`) | Alerts exist; an email arrives | Exists; Test condition "Triggered"; Run alert needed a schedule; email in about 1 minute; users only, no destinations | ✅ |
+| V1 | Each check's question in the SQL editor: today, today, hours 327–350, a pretend hour 481 | 0 / 0 / 5 / 1 | 0 / 0 / 5 / 1 | ✅ exact |
+| V2 | Deploy, View as code | 10 tasks; checks after `monitor` with All done; health 1,800; real address | As expected | ✅ |
+| V3 | The two alerts | "System health check: …", paused, owner subscribed | As expected; Notify on OK enabled, empty result Triggered, custom template | ✅ |
+| V4 | Run with `steps_per_run = 0` | `release` fails on its guard; checks run and stay quiet; failure email | Exactly this; run Failed; a one-off "You have been subscribed" notice too | ✅ (G-24) |
+| V5 | Release log before and after V4 | Unchanged | 480 / 484 both times | ✅ exact |
+| V6 | Drill copy of the rejected-rows check over hours 327–350 | Plain-words email with the count | Arrived in about 1 minute; placeholders filled; count shown as 5.0; HTML layout added and re-tested | ✅ |
+| V7 | Screenshot of the email body | No address, link or ID | First crop rejected (blurred address traces); second shows the body only | ✅ |
