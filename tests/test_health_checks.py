@@ -27,7 +27,7 @@ EXPECTED_TEXT = {                                                    # spec §5.
         "System health check: rejected rows, status {{ALERT_STATUS}}",  # email subject
         f"{OPENING} {STATUS_LINE} {{{{QUERY_RESULT_VALUE}}}} rows in the newest 24 hours were set aside because they failed a data check. "  # what happened
         f"What to do: {PAGE} to see the reason and hour."),          # what to do
-}
+}                                                                    # end of the approved text
 SOURCE_COLUMN = {"fraud_health_stages_behind": "hours_behind",       # the number each check tests
                  "fraud_health_rejected_rows": "new_rejected_rows"}  # ...per check
 
@@ -113,7 +113,7 @@ def test_email_text_is_plain_words():  # owner 2026-11-02: subject says the kind
 
 # ── Public repo ───────────────────────────────────────────────
 def test_health_check_files_hold_no_identity():  # Review Focus 3: no address, URL or ID in tracked files
-    paths = [CHECKS_FILE, ROOT / "resources" / "fraud_ingest_job.yml", ROOT / "sql" / "62_verify_health_checks.sql"]  # 6b files
+    paths = sorted((ROOT / "resources").glob("*.yml")) + [ROOT / "sql" / "62_verify_health_checks.sql"]  # every resource file + the 6b SQL
     for path in paths:                                                   # each
         text = path.read_text(encoding="utf-8")                          # contents
         assert not re.search(r"[0-9a-f]{16}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}", text), path.name  # warehouse IDs, UUIDs
@@ -125,3 +125,16 @@ def test_editor_checks_ask_the_deployed_questions():  # sheet V1a/V1b must test 
     sql_file = squash((ROOT / "sql" / "62_verify_health_checks.sql").read_text(encoding="utf-8"))  # editor checks
     for check in load_checks().values():                                 # each deployed question
         assert squash(check["query_text"]) in sql_file                   # appears word for word
+
+
+def test_queries_survive_being_wrapped():  # review I1: the alert engine may wrap query_text, so no closing ; or trailing comment
+    for key, check in load_checks().items():                             # each check
+        last_line = check["query_text"].rstrip().splitlines()[-1]        # final line of the question
+        assert not last_line.rstrip().endswith(";"), key                 # no statement terminator
+        assert "--" not in last_line, key                                # no comment that could swallow appended text
+
+
+def test_an_empty_stage_counts_as_fully_behind():  # review I2: GREATEST skips NULLs, so an empty stage must read as 0
+    sql = load_checks()["fraud_health_stages_behind"]["query_text"]      # stages question
+    for table in ("bronze_transactions", "silver_transactions", "transaction_risk_scores"):  # each compared stage
+        assert f"COALESCE((SELECT MAX(step) FROM workspace.fraud.{table}), 0)" in sql, table  # empty -> hour 0

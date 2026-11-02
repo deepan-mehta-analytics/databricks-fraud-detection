@@ -6,9 +6,9 @@
 WITH newest AS (                                                          -- newest hour at each stage
   SELECT (SELECT MAX(step) FROM workspace.fraud.release_log
           WHERE status = 'released')                    AS released,      -- held hours excluded
-         (SELECT MAX(step) FROM workspace.fraud.bronze_transactions) AS ingested,  -- Bronze
-         (SELECT MAX(step) FROM workspace.fraud.silver_transactions) AS cleaned,   -- Silver
-         (SELECT MAX(step) FROM workspace.fraud.transaction_risk_scores) AS scored) -- model
+         COALESCE((SELECT MAX(step) FROM workspace.fraud.bronze_transactions), 0) AS ingested,  -- Bronze
+         COALESCE((SELECT MAX(step) FROM workspace.fraud.silver_transactions), 0) AS cleaned,   -- Silver
+         COALESCE((SELECT MAX(step) FROM workspace.fraud.transaction_risk_scores), 0) AS scored) -- model
 SELECT GREATEST(released - ingested, released - cleaned, released - scored) AS hours_behind  -- worst gap
 FROM newest;                                                              -- always one row
 
@@ -26,8 +26,8 @@ WHERE step BETWEEN 327 AND 350;                                           -- a p
 -- ── V1d: stages behind if hour 481 had been released but not loaded. Expect hours_behind = 1 (would alert) ──
 WITH newest AS (                                                          -- newest hour at each stage
   SELECT 481                                            AS released,      -- pretend one more hour was released
-         (SELECT MAX(step) FROM workspace.fraud.bronze_transactions) AS ingested,  -- Bronze
-         (SELECT MAX(step) FROM workspace.fraud.silver_transactions) AS cleaned,   -- Silver
-         (SELECT MAX(step) FROM workspace.fraud.transaction_risk_scores) AS scored) -- model
+         COALESCE((SELECT MAX(step) FROM workspace.fraud.bronze_transactions), 0) AS ingested,  -- Bronze
+         COALESCE((SELECT MAX(step) FROM workspace.fraud.silver_transactions), 0) AS cleaned,   -- Silver
+         COALESCE((SELECT MAX(step) FROM workspace.fraud.transaction_risk_scores), 0) AS scored) -- model
 SELECT GREATEST(released - ingested, released - cleaned, released - scored) AS hours_behind  -- worst gap
 FROM newest;                                                              -- always one row
