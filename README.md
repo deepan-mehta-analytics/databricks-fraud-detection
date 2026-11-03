@@ -181,8 +181,9 @@ stream through **Auto Loader into a Unity Catalog medallion layout**.
 
 Fraud teams need suspicious payments flagged fast, from data that arrives
 continuously and messily: late, duplicated, with changing formats. Real
-streaming stacks (Kafka, dedicated clusters) are expensive to run, and on
-this free tier they are blocked outright (G-01).
+streaming stacks (Kafka, dedicated clusters) need a paid workspace, so this
+demo replays events as files on Free Edition and keeps Kafka as a production
+option (G-01, Scaling Considerations).
 
 > **How quickly can a mobile-money transaction be flagged as likely fraud,
 > and can the whole path — messy ingest to alert — be shown end to end on
@@ -890,20 +891,25 @@ the evidence and the alternatives rejected. Full narrative:
 This project runs about 6M payments on Databricks Free Edition (serverless
 only, one active pipeline, an unpublished daily quota). Each choice above is
 the right size for that. The table names the heavier pattern a team would
-reach for as volume or latency needs grow.
+reach for as volume or latency needs grow. Free Edition is a budget choice
+for this demo, not a design limit: rows marked 💼 are **production options**,
+designed for and ready to adopt on a paid workspace.
 
 | Concern | Pattern | When to adopt | In this repo now |
 |---|---|---|---|
 | Event delivery | Files plus Auto Loader | Batch-like arrival, minutes of latency are fine | ✅ |
-| Event delivery | Kafka plus Structured Streaming | Sub-second latency or many producers | — (blocked on Free Edition, G-01) |
+| Event delivery | Kafka plus Structured Streaming | Sub-second latency or many producers | 💼 production option: Confluent Kafka on a paid workspace with outbound network access (Free Edition serverless can't resolve external hosts, G-01) |
+| Streaming latency | Real-Time Mode on classic compute | Sub-second processing | 💼 production option: classic compute on a paid workspace (Free Edition is serverless only, G-02) |
+| Storage | External tables on S3 / ADLS / R2 through Unity Catalog external locations | Data shared with other engines or kept in the bank's own storage | 💼 production option: designed in `sql/gold/export.sql`; Free Edition serverless can't reach R2 (G-18), so all tables are managed here |
+| Compute budget | Paid serverless or classic job compute | Hourly refreshes and heavy verification days | 💼 production option: removes the unpublished Free Edition daily quota (G-08) |
 | Transformation | Materialized views in a triggered pipeline | Millions of rows, late data must correct results | ✅ (incremental refresh measured) |
 | Transformation | Streaming tables plus stateful dedup | Continuous, high-volume, append-only streams | — |
 | Features | Window features computed in Silver | Batch scoring on a schedule | ✅ |
-| Features | Online feature store and point-in-time training sets | Millisecond scoring at payment time | — (online tables unsupported on Free Edition) |
+| Features | Online feature store and point-in-time training sets | Millisecond scoring at payment time | 💼 production option: online tables on a paid workspace |
 | Training | Single-node scikit-learn on a sampled fit set | Millions of rows fit in one machine's memory | ✅ |
 | Training | Distributed training (Spark ML or distributed boosting) | Training data outgrows one machine | — |
 | Scoring | Batch scoring after each load | Minutes of latency are acceptable | ✅ |
-| Scoring | Millisecond serving endpoint with an online feature store | Scoring at payment time | — (online tables unsupported on Free Edition) |
+| Scoring | Millisecond serving endpoint with an online feature store | Scoring at payment time | 💼 production option: model serving plus online tables on a paid workspace |
 | Model lifecycle | Manual promotion between aliases | A person reviews each new version | ✅ |
 | Model lifecycle | Shadow-scored challenger with automated, drift-triggered retraining | Frequent retrains, many models | 🔜 Phase 6c |
 | Alerting | A SQL task after each load, top 50 per hour | Hourly batches, a fixed review team | ✅ |
@@ -913,13 +919,15 @@ reach for as volume or latency needs grow.
 | Monitoring | Streaming views with a live-refreshing dashboard | Data that changes every few seconds | — (data changes once per job run) |
 | Monitoring | Lakehouse Monitoring with drift metrics and alerts | Many models and tables, an on-call rota | 🔜 Phase 6c |
 | Pipeline alerting | Job notifications plus SQL-alert health checks, emailed to one engineer | One engineer, hourly batches | ✅ |
-| Pipeline alerting | A team channel and a paging tool with an on-call rota | A team that must answer at night | — (no notification destinations on Free Edition) |
+| Pipeline alerting | A team channel and a paging tool with an on-call rota | A team that must answer at night | 💼 production option: notification destinations (Slack, PagerDuty) on a paid workspace |
 | Access control | Per-table row filters and column masks | A handful of governed tables | ✅ |
 | Access control | Tag-based policies (ABAC) at catalog or schema level | Many tables, new ones added often | 🟡 probed on a scratch table (G-19) |
 | Job identity | The job runs as the owner, an engineer | Single developer | ✅ |
 | Job identity | A service principal in its own exempt group | A team, with audited automation | 🔜 Phase 3 add-on |
 | Environments | One `dev` bundle target with shared variables | Single developer | ✅ |
 | Environments | dev/test/prod targets with CI deploys | A team, with promotion gates | 🔜 Phase 3 add-on |
+| CI deploy identity | Stored credential in a protected GitHub environment | Single workspace, no account console | 🔜 Phase 3 add-on |
+| CI deploy identity | Keyless OIDC federation from GitHub Actions | A team; no long-lived secrets | 💼 production option: needs the Databricks account console of a paid account ([docs](https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation-policy), checked 2026-09-27) |
 
 ---
 
@@ -942,7 +950,7 @@ shown.
 - **Single verification day**: Phase 2 figures are single runs, not averages. The daily compute quota is unpublished. Phase 2's runs fit inside one day's allowance; on 2026-10-08, after a day of Phase 4 runs (deploy, two training runs, two job runs), a job's Silver step was refused with `CLUSTER_CREATION_RESOURCE_EXHAUSTED`, and on 2026-10-10 the limit was reached after three full ingest-and-score job runs. On 2026-10-11, four job runs, three evaluation runs and several SQL checks fit, and the fifth job run was refused. A job run with nothing new still costs time: on 2026-10-12 the Silver pipeline step alone took 11m 45s with no new data. So heavy verification days are split across days (G-08)
 - **scikit-learn installed at run time**: serverless job tasks can land on different environment versions (5 ships scikit-learn 1.6.1, 6 ships 1.7.2), and a bundle deploy did not keep a job-level environment on a notebook task (measured 2026-10-10). So the training, scoring and evaluation notebooks run `%pip install scikit-learn==1.7.2` first. The version is exact but not hash-locked, and a guard still stops scoring if the model's version differs. MLflow is not pinned: job tasks got 3.8.1 and training 3.12.0, and loading worked across them (GAPS §3, M-MLFLOW)
 - **Scores are rankings, not probabilities**: the model is trained on all fraud plus a 10% sample of the rest, so `risk_score` orders payments but isn't a calibrated chance of fraud (GAPS §3, M-RANK)
-- **Platform health is one run behind until refreshed**: Databricks records a job run in its system tables up to an hour after it ends, but the job refreshes the dashboard as it ends. So the newest run appears only after a manual Refresh about an hour later (measured on run E, 2026-10-19); an hourly schedule was rejected because it would spend the daily compute allowance (G-08, GAPS §3 MON-LAG, MON-REFRESH)
+- **Platform health is one run behind until refreshed**: Databricks records a job run in its system tables up to an hour after it ends, but the job refreshes the dashboard as it ends. So the newest run appears only after a manual Refresh about an hour later (measured on run E, 2026-10-19); an hourly schedule was rejected here because it would spend Free Edition's daily compute allowance; on a paid workspace an hourly refresh closes this (G-08, GAPS §3 MON-LAG, MON-REFRESH)
 - **No live auto-refresh and no single-payment drill-down**: an open dashboard shows the data as of the last job run or Refresh, and the deepest drill is one job run or one simulated hour, not one payment (GAPS §3, MON-REFRESH, MON-DRILL)
 - **A click can blank a total**: clicking the red or grey part of a stacked reviews bar also picks that verdict, so the other total shows "No data". This is Databricks' normal click-to-filter, and the page says so (GAPS §3, MON-CLICK)
 - **The "too long" email is configured but unproven**: proving it needs a 30-minute run, and the bundle checks' own "back to normal" email needs the data to move past hour 480 (Phase 6c) (GAPS G-24, ALERT-DURATION)
@@ -957,9 +965,6 @@ shown.
 - **SQL logic is not unit-tested in CI**: CI checks the Silver and Gold SQL's structure (names, frames, column lists, insert-only writes, guards). The logic is proven by the workspace runs against the two reference models (GAPS §3, CI-SQL)
 - **Reset needs a manual full refresh**: after a Bronze reset, Silver keeps its old results until someone clicks **Full refresh all** on the pipeline (GAPS §3, S-RESET)
 - **Batch-sized Silver**: materialized views fit 6M rows. At bank scale this would be streaming tables plus a feature store with online lookups (ADR 0008)
-- **No external tables on this tier**: an external table on a Cloudflare R2 bucket was designed (`sql/gold/export.sql`), but Free Edition's serverless compute can't resolve R2's storage domain (measured 2026-10-11), so all tables are managed (G-18)
-- **No Kafka on this tier**: serverless compute cannot even resolve untrusted hostnames (measured), so Confluent Kafka is out. Events are replayed as files instead (G-01)
-- **Not sub-second streaming**: Real-Time Mode needs classic compute. Serverless supports `AvailableNow` and Lakeflow pipelines only (G-02)
 - **Synthetic, uneven data**: PaySim is a simulation. Legitimate volume collapses after simulated day 17 while fraud stays constant, so days 1–17 are used for training and scoring, and days 18–31 are held back as a drift scenario (G-10)
 - **Storage duplication**: landing files are kept after ingest, so the data sits in the workspace about three times (CSV, outbox, landing) plus Bronze. There is no stated storage quota; `cleanSource` archiving is not yet implemented
 - **Retry with changed flags**: if a failed release is retried with different scenario flags, a step can land twice; recovery is `99_reset`
@@ -968,9 +973,9 @@ shown.
 - **The job runs as the owner**, not a service principal; the Gold SQL refuses to run if that identity isn't an engineer (GAPS §3, G-RUNAS)
 - **Late payments shown in tests only**: each replayed hour is one file, so a single payment never arrives after its hour was alerted. The workspace proved a late *hour*; the late-payment rule is proven by the calculator and a SQL guard (GAPS §3, G-LATE)
 - **Tag-based policy on a scratch table only**: the live Gold tables keep per-table masks, because mixing both on one table is listed as unsupported (GAPS §3, G-POLICY)
-- **One gap partly open**: 23 of the 24 rows in [`docs/GAPS.md`](docs/GAPS.md) are resolved; G-24 is partly verified (the duration email is configured but unproven). The total cost is ₹0 (G-09); the real limit is the unpublished daily compute quota (G-08)
+- **One gap partly open**: 23 of the 24 rows in [`docs/GAPS.md`](docs/GAPS.md) are resolved; G-24 is partly verified (the duration email is configured but unproven). The total cost is ₹0 (G-09); on Free Edition the practical limit is the unpublished daily compute quota (G-08), which a paid workspace removes
 - **Exam items out of scope for this project**: 2.2 (COPY INTO), 2.4 (Lakeflow Connect) and 2.5 (JDBC/ODBC/REST landing) are not planned — see [`docs/exam-guide-map.md`](docs/exam-guide-map.md) for why
-- **Keyless CI/CD unavailable**: Keyless OIDC deploys from GitHub Actions need a Databricks account console, which Free Edition does not have, so CI deploys will use a stored credential in a protected GitHub environment instead ([docs](https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation-policy), checked 2026-09-27)
+- **Free Edition tier choices are listed as production options, not here**: Kafka, Real-Time Mode, external tables, online tables, notification destinations, keyless OIDC deploys and an unmetered daily quota all need a paid workspace; see the 💼 rows in [Scaling Considerations](#-scaling-considerations)
 
 ---
 
