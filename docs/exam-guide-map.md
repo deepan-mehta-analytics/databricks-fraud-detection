@@ -3,8 +3,10 @@
 A skills-coverage matrix: which parts of the official exam guide this repo
 demonstrates with real, runnable evidence. It is not exam prep.
 
-Guide: [Databricks Certified Data Engineer Associate exam guide (PDF)](https://www.databricks.com/sites/default/files/2026-05/databricks-certified-data-engineer-associate-exam-guide-may-2026-000.pdf),
-"Exam Guide - May 2026" (exam version as of 2026-05-04), fetched 2026-09-27.
+Guide: [Databricks Certified Data Engineer Associate exam guide (PDF)](https://www.databricks.com/sites/default/files/2026-10/Databricks-Certified-Data-Engineer-Associate-Exam-Guide-August-2026.pdf),
+"Exam Guide - August 2026" (exam published 2026-05-04, guide updated 2026-08-06), checked 2026-11-08.
+Same exam as the "Exam Guide - May 2026" this map was first built from (fetched 2026-09-27):
+the same 7 sections, weights and 33 items; only the wording of a few items changed.
 Re-checks are logged in [`exam-guide-delta.md`](exam-guide-delta.md).
 
 **Coverage:** 18 ✅ shown · 6 🟡 designed · 9 ⬜ not started, of 33 items.

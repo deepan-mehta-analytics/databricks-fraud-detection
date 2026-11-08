@@ -50,8 +50,8 @@ table with their decision, so the reasoning remains auditable.
 Databricks Certified Data Engineer Associate syllabus versus what this
 project actually demonstrates.
 
-Moved to [exam-guide-map.md](exam-guide-map.md) (guide Exam Guide - May 2026,
-fetched 2026-09-27): 18 ✅ / 6 🟡 / 9 ⬜ of 33 (updated 2026-11-02; 6b added evidence, no status change).
+Moved to [exam-guide-map.md](exam-guide-map.md) (guide Exam Guide - August 2026,
+checked 2026-11-08; same exam and items as the May 2026 guide first used): 18 ✅ / 6 🟡 / 9 ⬜ of 33 (updated 2026-11-02; 6b added evidence, no status change).
 
 ---
 
