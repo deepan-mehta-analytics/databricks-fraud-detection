@@ -5,7 +5,7 @@
 Mobile-money apps move millions of payments a day, and a small share of them
 are fraud. This project builds the system a bank's data team would use to
 catch it, on **Databricks** (the data platform many large companies use for
-this work) using only its free tier.
+this work). This project demonstrates this using only the Databricks free tier.
 
 ### Streaming-ingest fraud detection on a Databricks lakehouse (hourly replay, batch scoring), built in verified steps, measured rather than claimed
 
