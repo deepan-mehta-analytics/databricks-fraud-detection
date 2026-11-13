@@ -748,6 +748,8 @@ is the 54 full hours, where the budget forces a real choice:
 | D16 manager view after the restyle | same theme and numbers, 0 open cases, no Platform health | ✅ |
 | D17 table cell colours | slow runs blue, 0 hours behind green, set-aside rows red | ✅ |
 
+##### 🎬 Dashboard demos: animated GIFs and screenshots
+
 **Platform health: click a run, then drill through to it** (14 s loop)
 
 [![Clicking a cancelled run narrows the run table; right-click, Drill to, opens the Run detail page for that run](docs/img/monitoring/platform-interaction.gif)](docs/img/monitoring/platform-interaction.gif)
