@@ -283,12 +283,27 @@ flowchart LR
     CASES --> VIEWS
     GOV -.-> DASH
 
-    classDef planned fill:#f5f5f5,stroke:#999,stroke-dasharray:4 3,color:#666
-    classDef done fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20
-    class REL,ING,SPLIT,BRONZE,CHK,CLEAN,REJ,FEAT,TRAIN,REG,SCORE,SCORES,ALERTS,CASES,SUMMARY,GOV,VIEWS,SYS,DASH,CHECKS done
+    classDef source fill:#e0e7ff,stroke:#4f46e5,stroke-width:2px,color:#312e81
+    classDef storage fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#0c4a6e
+    classDef bronze fill:#f2e2d3,stroke:#92400e,stroke-width:2px,color:#451a03
+    classDef silver fill:#dfe6ee,stroke:#475569,stroke-width:2px,color:#1e293b
+    classDef gold fill:#fef9c3,stroke:#ca8a04,stroke-width:2px,color:#713f12
+    classDef compute fill:#ede9fe,stroke:#7c3aed,stroke-width:2px,color:#4c1d95
+    classDef governance fill:#ccfbf1,stroke:#0d9488,stroke-width:2px,color:#134e4a
+    classDef output fill:#fce7f3,stroke:#db2777,stroke-width:2px,color:#831843
+    classDef bad fill:#fee2e2,stroke:#dc2626,stroke-width:2px,color:#7f1d1d
+    class CSV source
+    class RAW,OUT,LAND,STATE,LOG,SYS storage
+    class BRONZE bronze
+    class CHK,CLEAN,FEAT silver
+    class ALERTS,CASES,SUMMARY gold
+    class SPLIT,REL,ING,TRAIN,SCORE,VIEWS,CHECKS compute
+    class GOV governance
+    class REG,SCORES,DASH output
+    class REJ bad
 ```
 
-*Green nodes are built and verified. Dotted arrows show the label read when closing cases and where governance applies; the dashboards apply each viewer's own grants.*
+*Boxes are coloured by role: 📥 source · 🗄️ storage · 🥉 Bronze · 🥈 Silver · 🥇 Gold · ⚙️ jobs and code · 🛡️ governance · 📊 model, scores and dashboards · ⛔ rejected rows. Every box shown is built and verified. Dotted arrows show the label read when closing cases and where governance applies; the dashboards apply each viewer's own grants.*
 
 | Component | Type | Role |
 |---|---|---|
