@@ -2,7 +2,8 @@
 
 Unity Catalog DDL and verification queries. Every file is written for the
 default bundle variables (`workspace.fraud`). Grants target groups, never
-roles (G-06).
+roles (G-06). The names are written out, not read from the bundle variables,
+so another catalog needs edits here; making them parameters is open (G-25).
 
 - `10_fraud_ingest_setup.sql` — run once, user-run, in the SQL editor.
   Idempotent (`CREATE ... IF NOT EXISTS`). Creates the `workspace.fraud`
