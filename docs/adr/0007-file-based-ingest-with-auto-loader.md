@@ -96,3 +96,18 @@ Replay PaySim as files and ingest them with Auto Loader.
   (G-10).
 - **Row-content hash as ID** — silently merges genuinely identical
   transactions.
+
+## Follow-up review (2026-11-25)
+Re-read against the Lakeflow docs and Academy course 3, which build Bronze as
+a streaming table over `STREAM read_files` inside the pipeline. The decision
+above still runs correctly, but the rejection of "Lakeflow pipeline for
+Bronze" rests partly on a weak reason:
+- "Hides the checkpoint mechanics" still holds as a learning goal.
+- "Its single active slot is reserved for Silver" does not: Bronze and Silver
+  can be datasets in the same pipeline, so the one-pipeline limit (G-08)
+  doesn't force the split.
+- "A continuous pipeline burns compute" is true of continuous mode only; a
+  triggered pipeline runs when the job starts it.
+
+Whether to move Bronze into the pipeline or keep the split is open:
+`docs/GAPS.md` G-26. Status stays Proposed until that is decided.

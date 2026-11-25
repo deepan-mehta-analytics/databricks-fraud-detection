@@ -156,6 +156,11 @@ bounded by the job schedule, and event timestamps are synthetic, so only
 pipeline lag is reported as a time measurement.
 **Still open:** Asset Bundle deploy on Free Edition (G-11), invalid-JSON-line
 behaviour, and whether the backfill run fits the daily quota (G-08).
+**Reviewed 2026-11-25:** the Lakeflow docs and Academy course 3 build Bronze
+as a streaming table inside the pipeline. Of the three reasons for keeping it
+outside, "the one active pipeline slot is reserved for Silver" doesn't hold,
+because Bronze and Silver can share one pipeline. Moving Bronze in is an open
+decision (G-26).
 → [ADR 0007](adr/0007-file-based-ingest-with-auto-loader.md)
 
 ---

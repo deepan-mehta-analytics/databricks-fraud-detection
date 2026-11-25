@@ -335,7 +335,7 @@ flowchart LR
 
 | Phase | Layer | Status |
 |---|---|---|
-| 0 | Research, gaps register, ADRs | ✅ 23 of 24 gaps resolved (G-24 partly verified); ADRs 0001–0013 recorded (0004, 0005 superseded) |
+| 0 | Research, gaps register, ADRs | ✅ 23 of 26 gaps resolved (G-24 partly verified; G-25 and G-26 opened by a 2026-11-25 review); ADRs 0001–0013 recorded (0004, 0005 superseded) |
 | 1 | Scaffolding, CI | ✅ Done |
 | 2 | Ingest to Bronze | ✅ Verified 2026-09-24 |
 | 3 | Silver and features | ✅ Verified 2026-10-06/07 (S1–S6) |
@@ -941,7 +941,7 @@ designed for and ready to adopt on a paid workspace.
 | Access control | Tag-based policies (ABAC) at catalog or schema level | Many tables, new ones added often | 🟡 probed on a scratch table (G-19) |
 | Job identity | The job runs as the owner, an engineer | Single developer | ✅ |
 | Job identity | A service principal in its own exempt group | A team, with audited automation | 🔜 Phase 3 add-on |
-| Environments | One `dev` bundle target with shared variables | Single developer | ✅ |
+| Environments | One `dev` bundle target with shared variables | Single developer | ✅ (ingest and Silver; Gold, governance and monitoring still name the catalog directly, G-25) |
 | Environments | dev/test/prod targets with CI deploys | A team, with promotion gates | 🔜 Phase 3 add-on |
 | CI deploy identity | Stored credential in a protected GitHub environment | Single workspace, no account console | 🔜 Phase 3 add-on |
 | CI deploy identity | Keyless OIDC federation from GitHub Actions | A team; no long-lived secrets | 💼 production option: needs the Databricks account console of a paid account ([docs](https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation-policy), checked 2026-09-27) |
@@ -990,7 +990,9 @@ shown.
 - **The job runs as the owner**, not a service principal; the Gold SQL refuses to run if that identity isn't an engineer (GAPS §3, G-RUNAS)
 - **Late payments shown in tests only**: each replayed hour is one file, so a single payment never arrives after its hour was alerted. The workspace proved a late *hour*; the late-payment rule is proven by the calculator and a SQL guard (GAPS §3, G-LATE)
 - **Tag-based policy on a scratch table only**: the live Gold tables keep per-table masks, because mixing both on one table is listed as unsupported (GAPS §3, G-POLICY)
-- **One gap partly open**: 23 of the 24 rows in [`docs/GAPS.md`](docs/GAPS.md) are resolved; G-24 is partly verified (the duration email is configured but unproven). The total cost is ₹0 (G-09); on Free Edition the practical limit is the unpublished daily compute quota (G-08), which a paid workspace removes
+- **Three gaps open**: 23 of the 26 rows in [`docs/GAPS.md`](docs/GAPS.md) are resolved. G-24 is partly verified (the duration email is configured but unproven). G-25 and G-26 came from a review against the Lakeflow docs on 2026-11-25 (both below). The total cost is ₹0 (G-09); on Free Edition the practical limit is the unpublished daily compute quota (G-08), which a paid workspace removes
+- **Catalog and schema are not yet variables everywhere**: ingest and Silver take them from the bundle variables, but the Gold, governance and monitoring SQL, the health checks and the dashboards still name `workspace.fraud` directly (197 references in 18 files, counting the verify scripts). A second target would move Bronze and Silver but not the rest. Planned fix: pass them as parameters like the ingest job, with a CI guard (GAPS G-25)
+- **Bronze runs outside the pipeline**: Bronze is a separate Auto Loader job, not a streaming table inside the Silver pipeline, so it has its own engine and its quality isn't on the pipeline's Data quality tab. A 2026-11-25 review found one of ADR 0007's three reasons for the split weak; whether to move Bronze in is open (GAPS G-26)
 - **Exam items out of scope for this project**: 2.2 (COPY INTO), 2.4 (Lakeflow Connect) and 2.5 (JDBC/ODBC/REST landing) are not planned — see [`docs/exam-guide-map.md`](docs/exam-guide-map.md) for why
 - **Free Edition tier choices are listed as production options, not here**: Kafka, Real-Time Mode, external tables, online tables, notification destinations, keyless OIDC deploys and an unmetered daily quota all need a paid workspace; see the 💼 rows in [Scaling Considerations](#-scaling-considerations)
 
@@ -998,7 +1000,8 @@ shown.
 
 ## 🔜 Roadmap
 
-- [x] Phase 0: research and ADRs (23 of 24 gaps resolved, G-24 partly; ADRs 0001–0013 recorded, 0004 and 0005 superseded)
+- [x] Phase 0: research and ADRs (23 of 26 gaps resolved, G-24 partly, G-25 and G-26 open from the 2026-11-25 review; ADRs 0001–0013 recorded, 0004 and 0005 superseded)
+- [ ] Review follow-ups (after the exam course work): catalog and schema as parameters everywhere (G-25); decide whether Bronze moves into the pipeline (G-26)
 - [x] Phase 1: scaffolding and CI
 - [x] Phase 2: ingest to Bronze (44 unit tests at ship; workspace V1–V6 verified 2026-09-24)
 - [x] Phase 3: Silver (quality rules with quarantine, dedup on `transaction_id`, strict-past velocity features; workspace S1–S6 verified 2026-10-06/07)
